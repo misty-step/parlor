@@ -2,9 +2,10 @@ import {
   createGuestCredentialStore,
   createHeartbeatController,
   createWakeLockController,
+  type Clock,
   type GuestCredential,
   type GuestCredentialIssuer,
-  type GuestCredentialStore,
+  type GuestCredentialSnapshot,
   type GuestCredentialStoreOptions,
   type HeartbeatControllerOptions,
   type HeartbeatSnapshot,
@@ -63,6 +64,18 @@ function wakeLockExternalStore(controller: {
       }),
   };
 }
+
+/** Function clocks are behavior; object clocks remain an explicit ownership boundary. */
+function useClock(clock: Clock | (() => number) | undefined) {
+  const callback = typeof clock === "function" ? clock : undefined;
+  const callbackRef = useRef(callback);
+  useEffect(() => {
+    callbackRef.current = callback;
+  }, [callback]);
+  const now = useCallback(() => callbackRef.current?.() ?? Date.now(), []);
+  return typeof clock === "function" ? now : clock;
+}
+
 /** Owns a visibility-aware heartbeat controller for the component lifetime. */
 export function useHeartbeat(options: UseHeartbeatOptions): UseHeartbeatResult {
   const {
@@ -73,16 +86,18 @@ export function useHeartbeat(options: UseHeartbeatOptions): UseHeartbeatResult {
     clock,
     intervalMs,
   } = options;
+  const [initialSend] = useState(() => send);
+  const stableClock = useClock(clock);
   const controller = useMemo(
     () =>
       createHeartbeatController({
-        send,
+        send: initialSend,
         ...(visibilityDocument === undefined ? {} : { document: visibilityDocument }),
         ...(scheduler === undefined ? {} : { scheduler }),
-        ...(clock === undefined ? {} : { clock }),
+        ...(stableClock === undefined ? {} : { clock: stableClock }),
         ...(intervalMs === undefined ? {} : { intervalMs }),
       }),
-    [clock, intervalMs, scheduler, send, visibilityDocument],
+    [stableClock, initialSend, intervalMs, scheduler, visibilityDocument],
   );
   const externalStore = useMemo(() => heartbeatExternalStore(controller), [controller]);
   const snapshot = useSyncExternalStore(
@@ -90,6 +105,10 @@ export function useHeartbeat(options: UseHeartbeatOptions): UseHeartbeatResult {
     externalStore.getSnapshot,
     () => STOPPED_HEARTBEAT,
   );
+
+  useEffect(() => {
+    controller.setSender(send);
+  }, [controller, send]);
 
   useEffect(() => {
     if (enabled) {
@@ -159,179 +178,74 @@ export function useWakeLock(options: UseWakeLockOptions = {}): UseWakeLockResult
 }
 
 export interface UseGuestCredentialOptions extends GuestCredentialStoreOptions {
-  /** Acquire through the injected issuer on mount; defaults to false. */
+  /** Acquire and renew through the trusted issuer; defaults to false. Failures require retry. */
   autoAcquire?: boolean;
 }
 
-export interface UseGuestCredentialResult {
-  credential: GuestCredential | null;
-  loading: boolean;
-  error: unknown;
+export interface UseGuestCredentialResult extends GuestCredentialSnapshot {
   acquire: (issuerOverride?: GuestCredentialIssuer) => Promise<GuestCredential>;
   refresh: (issuerOverride?: GuestCredentialIssuer) => Promise<GuestCredential>;
   clear: () => void;
 }
 
-interface GuestCredentialState {
-  readonly store: GuestCredentialStore;
-  readonly credential: GuestCredential | null;
-  readonly loading: boolean;
-  readonly error: unknown;
-}
+const EMPTY_GUEST_CREDENTIAL: GuestCredentialSnapshot = {
+  credential: null,
+  expiresAt: null,
+  loading: false,
+  error: null,
+};
 
-function readGuestCredential(
-  store: GuestCredentialStore,
-): Pick<GuestCredentialState, "credential" | "error"> {
-  try {
-    return { credential: store.get(), error: null };
-  } catch (cause) {
-    return { credential: null, error: cause };
-  }
-}
-
-/** Keeps an opaque guest credential in the web package's storage abstraction. */
+/** Own one instance at the application boundary, then share its result with game components. */
 export function useGuestCredential(
   options: UseGuestCredentialOptions = {},
 ): UseGuestCredentialResult {
-  const { autoAcquire = false, storage, key, issuer, clock } = options;
+  const { autoAcquire = false, storage, key, issuer, clock, scheduler } = options;
+  const stableClock = useClock(clock);
   const store = useMemo(
     () =>
       createGuestCredentialStore({
         ...(storage === undefined ? {} : { storage }),
         ...(key === undefined ? {} : { key }),
-        ...(issuer === undefined ? {} : { issuer }),
-        ...(clock === undefined ? {} : { clock }),
+        ...(stableClock === undefined ? {} : { clock: stableClock }),
+        ...(scheduler === undefined ? {} : { scheduler }),
       }),
-    [clock, issuer, key, storage],
+    [stableClock, key, storage, scheduler],
   );
-  const [state, setState] = useState<GuestCredentialState>(() => ({
-    store,
-    ...readGuestCredential(store),
-    loading: false,
-  }));
-  const activeState =
-    state.store === store
-      ? state
-      : {
-          store,
-          credential: null,
-          loading: false,
-          error: null,
-        };
-  const mountedRef = useRef(false);
-  const autoAcquireStoreRef = useRef<GuestCredentialStore | null>(null);
-  const operationGenerationRef = useRef(0);
+  const externalStore = useMemo(
+    () => ({
+      getSnapshot: () => store.getSnapshot(),
+      subscribe: (listener: () => void) => store.subscribe(listener),
+    }),
+    [store],
+  );
+  const snapshot = useSyncExternalStore(
+    externalStore.subscribe,
+    externalStore.getSnapshot,
+    () => EMPTY_GUEST_CREDENTIAL,
+  );
+
+  // Updating issuer behavior must not restart auto-acquisition or discard memory-only identity.
+  useEffect(() => {
+    store.setIssuer(issuer);
+  }, [issuer, store]);
+  useEffect(() => {
+    store.start({ autoAcquire });
+    return () => {
+      store.stop();
+    };
+  }, [autoAcquire, store]);
 
   const acquire = useCallback(
-    async (issuerOverride?: GuestCredentialIssuer): Promise<GuestCredential> => {
-      const operationGeneration = operationGenerationRef.current;
-      if (mountedRef.current) {
-        setState((current) =>
-          current.store === store ? { ...current, loading: true, error: null } : current,
-        );
-      }
-      try {
-        const nextCredential = await store.acquire(issuerOverride);
-        if (mountedRef.current) {
-          setState((current) =>
-            current.store === store && operationGenerationRef.current === operationGeneration
-              ? { ...current, credential: nextCredential, loading: false }
-              : current,
-          );
-        }
-        return nextCredential;
-      } catch (cause) {
-        if (mountedRef.current) {
-          setState((current) =>
-            current.store === store && operationGenerationRef.current === operationGeneration
-              ? { ...current, error: cause, loading: false }
-              : current,
-          );
-        }
-        throw cause;
-      }
-    },
+    (issuerOverride?: GuestCredentialIssuer) => store.acquire(issuerOverride),
     [store],
   );
-
   const refresh = useCallback(
-    async (issuerOverride?: GuestCredentialIssuer): Promise<GuestCredential> => {
-      const operationGeneration = operationGenerationRef.current;
-      if (mountedRef.current) {
-        setState((current) =>
-          current.store === store ? { ...current, loading: true, error: null } : current,
-        );
-      }
-      try {
-        const nextCredential = await store.refresh(issuerOverride);
-        if (mountedRef.current) {
-          setState((current) =>
-            current.store === store && operationGenerationRef.current === operationGeneration
-              ? { ...current, credential: nextCredential, loading: false }
-              : current,
-          );
-        }
-        return nextCredential;
-      } catch (cause) {
-        if (mountedRef.current) {
-          setState((current) =>
-            current.store === store && operationGenerationRef.current === operationGeneration
-              ? { ...current, error: cause, loading: false }
-              : current,
-          );
-        }
-        throw cause;
-      }
-    },
+    (issuerOverride?: GuestCredentialIssuer) => store.refresh(issuerOverride),
     [store],
   );
-
   const clear = useCallback(() => {
-    operationGenerationRef.current += 1;
     store.clear();
-    if (mountedRef.current) {
-      setState((current) =>
-        current.store === store
-          ? { ...current, credential: null, error: null, loading: false }
-          : current,
-      );
-    }
   }, [store]);
 
-  useEffect(() => {
-    mountedRef.current = true;
-    if (state.store !== store) {
-      const nextState: GuestCredentialState = {
-        store,
-        ...readGuestCredential(store),
-        loading: false,
-      };
-      // Synchronize the external credential store after its identity changes.
-      // oxlint-disable-next-line react/set-state-in-effect -- state must follow the external store boundary
-      setState(nextState);
-      return () => {
-        mountedRef.current = false;
-      };
-    }
-    if (autoAcquire && autoAcquireStoreRef.current !== store) {
-      autoAcquireStoreRef.current = store;
-      void Promise.resolve()
-        .then(() => acquire())
-        .catch(() => {
-          // The rejected promise is represented through the hook's error state.
-        });
-    }
-    return () => {
-      mountedRef.current = false;
-    };
-  }, [acquire, autoAcquire, state.store, store]);
-
-  return {
-    credential: activeState.credential,
-    loading: activeState.loading,
-    error: activeState.error,
-    acquire,
-    refresh,
-    clear,
-  };
+  return { ...snapshot, acquire, refresh, clear };
 }

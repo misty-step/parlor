@@ -183,8 +183,9 @@ export const resolvePlayer = async (
       ...(existing.guestId === undefined ? {} : { guestId: existing.guestId }),
     };
   }
-  if (!options.create) parlorError("PLAYER_NOT_FOUND");
-  const playerId = await (ctx as ConvexMutationCtx).db.insert("players", {
+  if (!options.create) return parlorError("PLAYER_NOT_FOUND");
+  if (!("insert" in ctx.db)) return parlorError("PLAYER_NOT_FOUND");
+  const playerId = await ctx.db.insert("players", {
     identityKey: descriptor.identityKey,
     kind: descriptor.kind,
     ...(descriptor.guestId === undefined ? {} : { guestId: descriptor.guestId }),
@@ -198,5 +199,7 @@ export const resolvePlayer = async (
   };
 };
 
-export const ensurePlayer = async (ctx: IdentityCtx, guestToken?: string): Promise<PlayerActor> =>
-  resolvePlayer(ctx, guestToken, { create: true });
+export const ensurePlayer = async (
+  ctx: ConvexMutationCtx,
+  guestToken?: string,
+): Promise<PlayerActor> => resolvePlayer(ctx, guestToken, { create: true });

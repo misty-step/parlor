@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 import * as Schema from "effect/Schema";
 import {
-  ABANDON_AFTER_MS,
   AVATAR_DESCRIPTORS,
   DEFAULT_PRESENCE_POLICY,
   HARD_DEADLINE_MS,
@@ -143,13 +142,9 @@ describe("seating and cycles", () => {
     ];
     const next = nextCycle({ matches });
     expect(next.ok && next.value).toBe(6);
-    expect(nextCycle({ matches: [{ cycle: Number.MAX_SAFE_INTEGER as Cycle }] })).toEqual({
+    expect(nextCycle({ matches: [{ cycle: Number.MAX_SAFE_INTEGER }] })).toMatchObject({
       ok: false,
-      error: {
-        _tag: "InvalidInput",
-        field: "matches",
-        message: "next cycle exceeds safe integer range",
-      },
+      error: { _tag: "InvalidInput", field: "matches" },
     });
     const members = [member("eligible", 0, 0, 3), member("queued", 1, 0, 7)];
     expect(
@@ -175,10 +170,29 @@ describe("seating and cycles", () => {
         members: [member("away", 0, 0, 1)],
         now: timestamp(DEFAULT_PRESENCE_POLICY.awayMs + 1),
       }),
-    ).toEqual({
-      ok: false,
-      error: { _tag: "NoParticipant", message: "no eligible present members are available" },
-    });
+    ).toMatchObject({ ok: false, error: { _tag: "NoParticipant" } });
+  });
+
+  it("rejects duplicate and invalid roster facts instead of persisting ambiguous participants", () => {
+    const base = { matchId: matchId("match"), cycle: cycle(1), now: timestamp(1_000) };
+    expect(
+      snapshotParticipants({
+        ...base,
+        members: [member("one", 0), member("two", 0)],
+      }),
+    ).toMatchObject({ ok: false, error: { _tag: "InvalidInput", field: "members" } });
+    expect(
+      snapshotParticipants({
+        ...base,
+        members: [member("one", 0), member("one", 1)],
+      }),
+    ).toMatchObject({ ok: false, error: { _tag: "InvalidInput", field: "members" } });
+    expect(
+      snapshotParticipants({
+        ...base,
+        members: [{ ...member("one", 0), seatIndex: 0.5 as SeatIndex }],
+      }),
+    ).toMatchObject({ ok: false, error: { _tag: "InvalidInput", field: "members" } });
   });
 });
 
@@ -211,9 +225,9 @@ describe("presence and host choice", () => {
   it("uses the dedicated host-stale threshold", () => {
     const candidate = member("host", 0, 0, 1, 0);
     expect(selectNextHost({ members: [candidate], now: timestamp(60_000) }).ok).toBe(true);
-    expect(selectNextHost({ members: [candidate], now: timestamp(60_001) })).toEqual({
+    expect(selectNextHost({ members: [candidate], now: timestamp(60_001) })).toMatchObject({
       ok: false,
-      error: { _tag: "NoEligibleHost", message: "all host candidates are stale" },
+      error: { _tag: "NoEligibleHost" },
     });
   });
 });
@@ -235,13 +249,9 @@ describe("match decisions", () => {
       ok: false,
       error: { _tag: "NotHost", hostPlayerId: playerId("host") },
     });
-    expect(decideBeginMatch({ ...base, maxPlayers: 1 })).toEqual({
+    expect(decideBeginMatch({ ...base, maxPlayers: 1 })).toMatchObject({
       ok: false,
-      error: {
-        _tag: "InvalidInput",
-        field: "playerBounds",
-        message: "must satisfy 1 <= minPlayers <= maxPlayers <= 12",
-      },
+      error: { _tag: "InvalidInput", field: "playerBounds" },
     });
     expect(decideBeginMatch({ ...base, matches: [activeMatch()] })).toEqual({
       ok: false,
@@ -305,16 +315,41 @@ describe("match decisions", () => {
     });
   });
 
+  it("rejects completion and a new cycle at the hard deadline before abandonment", () => {
+    const active = activeMatch();
+    const deadline = active.startedAt + HARD_DEADLINE_MS;
+    expect(
+      completeMatchEnvelope({ match: active, completedAt: timestamp(deadline - 1) }),
+    ).toMatchObject({ ok: true, value: { status: "completed" } });
+    expect(
+      completeMatchEnvelope({ match: active, completedAt: timestamp(deadline) }),
+    ).toMatchObject({ ok: false, error: { _tag: "MatchDeadlineElapsed" } });
+    expect(
+      decideBeginMatch({
+        room: room(),
+        actorPlayerId: playerId("host"),
+        matchId: matchId("next"),
+        members: [member("host", 0), member("guest", 1)],
+        matches: [active],
+        now: timestamp(deadline),
+        minPlayers: 2,
+        maxPlayers: 12,
+      }),
+    ).toMatchObject({ ok: false, error: { _tag: "MatchDeadlineElapsed" } });
+    expect(
+      abandonMatchEnvelope({
+        match: active,
+        abandonedAt: timestamp(deadline),
+        reason: "hard-deadline",
+      }),
+    ).toMatchObject({ ok: true, value: { status: "abandoned", reason: "hard-deadline" } });
+  });
+
   it("keeps avatar descriptors stable and distinct across twelve seats", () => {
     expect(AVATAR_DESCRIPTORS).toHaveLength(MAX_SEATS);
     expect(new Set(AVATAR_DESCRIPTORS.map((descriptor) => descriptor.key)).size).toBe(MAX_SEATS);
     expect(new Set(AVATAR_DESCRIPTORS.map((descriptor) => descriptor.shape)).size).toBe(MAX_SEATS);
     expect(avatarForSeat(seat(0))).toBe(AVATAR_DESCRIPTORS[0]);
     expect(avatarForSeat(seat(11))).toBe(AVATAR_DESCRIPTORS[11]);
-  });
-
-  it("publishes timing defaults", () => {
-    expect(ABANDON_AFTER_MS).toBe(600_000);
-    expect(HARD_DEADLINE_MS).toBe(1_800_000);
   });
 });

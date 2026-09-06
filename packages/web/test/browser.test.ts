@@ -109,23 +109,25 @@ function deferred<T>(): {
 }
 
 describe("GuestCredentialStore", () => {
-  it("treats absent, corrupt, and expired records as unavailable", () => {
+  it("treats corrupt records as unavailable but retains expired proof for trusted recovery", async () => {
     const storage = new MemoryStorage();
     const clock = mutableClock(1_000);
-    const store = new GuestCredentialStore({ storage, clock });
-
-    expect(store.get()).toBeNull();
+    expect(new GuestCredentialStore({ storage, clock }).get()).toBeNull();
 
     storage.setItem(GUEST_CREDENTIAL_STORAGE_KEY, "not-json");
-    expect(store.get()).toBeNull();
-    expect(storage.getItem(GUEST_CREDENTIAL_STORAGE_KEY)).toBeNull();
+    expect(new GuestCredentialStore({ storage, clock }).get()).toBeNull();
 
-    storage.setItem(
-      GUEST_CREDENTIAL_STORAGE_KEY,
-      JSON.stringify({ token: "expired", expiresAt: 1_000 }),
-    );
+    const proof = JSON.stringify({ token: "expired", expiresAt: 1_000 });
+    storage.setItem(GUEST_CREDENTIAL_STORAGE_KEY, proof);
+    const issuer = vi.fn(async () => ({ token: "renewed", expiresAt: 10_000 }));
+    const store = new GuestCredentialStore({ storage, clock, issuer });
     expect(store.get()).toBeNull();
-    expect(storage.getItem(GUEST_CREDENTIAL_STORAGE_KEY)).toBeNull();
+    expect(store.getRecord()).toBeNull();
+    expect(store.getSnapshot()).toMatchObject({ credential: null, expiresAt: 1_000 });
+    expect(storage.getItem(GUEST_CREDENTIAL_STORAGE_KEY)).toBe(proof);
+
+    await expect(store.acquire()).resolves.toBe("renewed");
+    expect(issuer).toHaveBeenCalledWith({ mode: "refresh", token: "expired" });
   });
 
   it("deduplicates concurrent acquisition and persists the opaque token", async () => {
@@ -137,6 +139,7 @@ describe("GuestCredentialStore", () => {
     const first = store.acquire();
     const second = store.acquire();
     expect(first).toBe(second);
+    await Promise.resolve();
     expect(issuer).toHaveBeenCalledTimes(1);
 
     pending.resolve({ token: "opaque-token", expiresAt: Date.now() + 60_000 });
@@ -155,9 +158,11 @@ describe("GuestCredentialStore", () => {
     const store = new GuestCredentialStore({ storage, issuer });
 
     const staleAcquisition = store.acquire();
+    await Promise.resolve();
     store.clear();
     expect(store.get()).toBeNull();
     const replacementAcquisition = store.acquire();
+    await Promise.resolve();
     expect(issuer).toHaveBeenCalledTimes(2);
 
     replacement.resolve({ token: "fresh-token", expiresAt: Date.now() + 60_000 });
@@ -181,6 +186,7 @@ describe("GuestCredentialStore", () => {
     const store = new GuestCredentialStore({ storage, issuer });
 
     const staleRefresh = store.refresh();
+    await Promise.resolve();
     store.clear();
     pending.resolve({ token: "stale-token", expiresAt: Date.now() + 60_000 });
 
@@ -214,6 +220,165 @@ describe("GuestCredentialStore", () => {
     expect(store.get()).toBeNull();
     await store.acquire();
     expect(issuer).toHaveBeenCalledTimes(2);
+  });
+
+  it("keeps one identity without storage and refreshes expired in-memory proof", async () => {
+    const clock = mutableClock(1_000);
+    const issuer = vi
+      .fn()
+      .mockResolvedValueOnce({ token: "memory-only", expiresAt: 2_000 })
+      .mockResolvedValueOnce({ token: "renewed-memory", expiresAt: 3_000 });
+    const store = new GuestCredentialStore({ storage: null, clock, issuer });
+
+    await expect(store.acquire()).resolves.toBe("memory-only");
+    await expect(store.acquire()).resolves.toBe("memory-only");
+    expect(issuer).toHaveBeenCalledTimes(1);
+    clock.value = 2_000;
+    expect(store.get()).toBeNull();
+    await expect(store.acquire()).resolves.toBe("renewed-memory");
+    expect(issuer).toHaveBeenLastCalledWith({ mode: "refresh", token: "memory-only" });
+  });
+
+  it("does not discard a valid identity when browser persistence fails", async () => {
+    const unavailable = () => {
+      throw new Error("storage blocked");
+    };
+    const issuer = vi.fn(async () => ({ token: "memory-only", expiresAt: 10_000 }));
+    const store = new GuestCredentialStore({
+      storage: { getItem: unavailable, setItem: unavailable, removeItem: unavailable },
+      clock: () => 1_000,
+      issuer,
+    });
+    await expect(store.acquire()).resolves.toBe("memory-only");
+    await expect(store.acquire()).resolves.toBe("memory-only");
+    expect(store.getSnapshot()).toMatchObject({
+      credential: "memory-only",
+      error: { code: "storage-failure" },
+    });
+    expect(issuer).toHaveBeenCalledTimes(1);
+    store.clear();
+    expect(store.get()).toBeNull();
+  });
+
+  it("publishes expiry while renewal is pending and does not revive cleared identity", async () => {
+    const clock = mutableClock(1_000);
+    const scheduler = new FakeScheduler();
+    const renewal = deferred<{ token: string; expiresAt: number }>();
+    const issuer = vi
+      .fn()
+      .mockResolvedValueOnce({ token: "first", expiresAt: 61_000 })
+      .mockImplementationOnce(() => renewal.promise);
+    const store = new GuestCredentialStore({ storage: null, clock, scheduler, issuer });
+    const observed: Array<string | null> = [];
+    store.subscribe(() => observed.push(store.getSnapshot().credential));
+    store.start({ autoAcquire: true });
+    await store.acquire();
+    expect(store.get()).toBe("first");
+
+    clock.value = 31_000;
+    scheduler.fireNext();
+    const pending = store.refresh();
+    await Promise.resolve();
+    expect(issuer).toHaveBeenLastCalledWith({ mode: "refresh", token: "first" });
+    expect(store.getSnapshot().loading).toBe(true);
+    clock.value = 61_000;
+    scheduler.fireNext();
+    expect(observed.at(-1)).toBeNull();
+    expect(store.getSnapshot().expiresAt).toBe(61_000);
+
+    store.clear();
+    renewal.resolve({ token: "too-late", expiresAt: 120_000 });
+    await expect(pending).rejects.toMatchObject({ code: "cancelled" });
+    expect(store.get()).toBeNull();
+    scheduler.fireNext();
+    expect(issuer).toHaveBeenCalledTimes(2);
+    expect(scheduler.pendingCount).toBe(0);
+    store.stop();
+  });
+
+  it("suspends failed automatic renewal without dropping proof or retrying on a timer", async () => {
+    const storage = new MemoryStorage();
+    storage.setItem(
+      GUEST_CREDENTIAL_STORAGE_KEY,
+      JSON.stringify({ token: "expired-proof", expiresAt: 1_000 }),
+    );
+    const scheduler = new FakeScheduler();
+    const issuer = vi
+      .fn()
+      .mockRejectedValueOnce(new Error("session revoked"))
+      .mockResolvedValueOnce({ token: "trusted-retry", expiresAt: 10_000 });
+    const store = new GuestCredentialStore({ storage, issuer, scheduler, clock: () => 1_000 });
+    store.start({ autoAcquire: true });
+    await expect(store.acquire()).rejects.toThrow("session revoked");
+    expect(store.get()).toBeNull();
+    expect(scheduler.pendingCount).toBe(0);
+    store.start({ autoAcquire: true });
+    scheduler.fireNext();
+    expect(issuer).toHaveBeenCalledTimes(1);
+    await expect(store.refresh()).resolves.toBe("trusted-retry");
+    expect(issuer).toHaveBeenLastCalledWith({ mode: "refresh", token: "expired-proof" });
+    store.stop();
+  });
+
+  it("recovers failed pre-expiry renewal through acquire and resumes automatic renewal", async () => {
+    const clock = mutableClock(1_000);
+    const scheduler = new FakeScheduler();
+    const issuer = vi
+      .fn()
+      .mockResolvedValueOnce({ token: "first", expiresAt: 61_000 })
+      .mockRejectedValueOnce(new Error("issuer unavailable"))
+      .mockResolvedValueOnce({ token: "recovered", expiresAt: 121_000 })
+      .mockResolvedValueOnce({ token: "automatic-again", expiresAt: 181_000 });
+    const store = new GuestCredentialStore({ storage: null, clock, scheduler, issuer });
+    store.start({ autoAcquire: true });
+    await store.acquire();
+
+    clock.value = 31_000;
+    scheduler.fireNext();
+    await expect(store.refresh()).rejects.toThrow("issuer unavailable");
+    expect(store.get()).toBe("first");
+    await expect(store.acquire()).resolves.toBe("recovered");
+    expect(store.getSnapshot().error).toBeNull();
+
+    clock.value = 91_000;
+    scheduler.fireNext();
+    await expect(store.acquire()).resolves.toBe("automatic-again");
+    store.stop();
+  });
+
+  it("bounds renewal frequency even when an issuer returns millisecond credentials", async () => {
+    const scheduler = new FakeScheduler();
+    const clock = mutableClock(1_000);
+    const issuer = vi.fn(async () => ({ token: "short-lived", expiresAt: clock.value + 1 }));
+    const store = new GuestCredentialStore({ storage: null, issuer, clock, scheduler });
+    store.start({ autoAcquire: true });
+    await store.acquire();
+
+    clock.value = 1_001;
+    scheduler.fireNext();
+    expect(store.get()).toBeNull();
+    expect(issuer).toHaveBeenCalledTimes(1);
+    clock.value = 2_000;
+    scheduler.fireNext();
+    await store.refresh();
+    expect(issuer).toHaveBeenCalledTimes(2);
+    store.stop();
+  });
+
+  it("caps long expiry timers at the browser timeout limit", async () => {
+    const scheduler = new FakeScheduler();
+    const clock = mutableClock(1_000);
+    const issuer = vi.fn(async () => ({ token: "long-lived", expiresAt: 10_000_000_000 }));
+    const store = new GuestCredentialStore({ storage: null, issuer, clock, scheduler });
+    store.start({ autoAcquire: true });
+    await store.acquire();
+    expect(scheduler.delays.at(-1)).toBe(2_147_483_647);
+    clock.value += 2_147_483_647;
+    scheduler.fireNext();
+    expect(store.get()).toBe("long-lived");
+    expect(issuer).toHaveBeenCalledTimes(1);
+    expect(scheduler.delays.at(-1)).toBe(2_147_483_647);
+    store.stop();
   });
 });
 
@@ -303,6 +468,58 @@ describe("HeartbeatController", () => {
     document.setVisibility(false);
     scheduler.fireNext();
     expect(sender).toHaveBeenCalledTimes(1);
+  });
+
+  it("notifies subscribers when a send becomes in flight and when it settles", async () => {
+    const pending = deferred<void>();
+    const controller = new HeartbeatController({
+      send: () => pending.promise,
+      scheduler: new FakeScheduler(),
+      document: null,
+    });
+    const observed: boolean[] = [];
+    controller.subscribe(() => observed.push(controller.getSnapshot().inFlight));
+    controller.start();
+    expect(observed.at(-1)).toBe(true);
+    pending.resolve();
+    await pending.promise;
+    await Promise.resolve();
+    expect(observed.at(-1)).toBe(false);
+    controller.stop();
+  });
+
+  it("ignores the result of a send from a stopped lifecycle", async () => {
+    const stale = deferred<void>();
+    const current = deferred<void>();
+    const sender = vi
+      .fn()
+      .mockImplementationOnce(() => stale.promise)
+      .mockImplementationOnce(() => current.promise);
+    const controller = new HeartbeatController({
+      send: sender,
+      scheduler: new FakeScheduler(),
+      document: null,
+      clock: () => 2_000,
+    });
+    controller.start();
+    controller.stop();
+    controller.start();
+    expect(sender).toHaveBeenCalledTimes(1);
+    stale.reject(new Error("old send failed"));
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(sender).toHaveBeenCalledTimes(2);
+    expect(controller.getSnapshot()).toMatchObject({
+      status: "running",
+      lastBeatAt: null,
+      lastFailureAt: null,
+      inFlight: true,
+    });
+    current.resolve();
+    await current.promise;
+    await Promise.resolve();
+    expect(controller.getSnapshot().lastBeatAt).toBe(2_000);
+    controller.stop();
   });
 });
 

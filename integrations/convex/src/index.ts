@@ -17,6 +17,7 @@ export {
   requireActiveMatch,
 } from "../convex/matches.js";
 export { sweepAbandonedMatches } from "../convex/abandonment.js";
+export type { SweepResult } from "../convex/abandonment.js";
 export type {
   JoinRoomErrorCode,
   JoinRoomFailure,

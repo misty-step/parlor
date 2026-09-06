@@ -495,10 +495,9 @@ function makeHostStale(state: LifecycleState): LifecycleResult {
   if (host === undefined) {
     return fail(state, "host-required", "The room has no current host.", "migrate-host");
   }
-  const at = nextClock(state);
-  const staleAt = (at - HOST_STALE_AFTER_MS - 1) as TimestampMs;
+  const at = (state.clock + HOST_STALE_AFTER_MS + 1) as TimestampMs;
   const members = state.members.map((member) =>
-    member.playerId === host.playerId ? { ...member, lastSeenAt: staleAt } : member,
+    member.playerId === host.playerId ? member : { ...member, lastSeenAt: at },
   );
   return succeed(state, at, state.room, members, {
     action: "make-host-stale",

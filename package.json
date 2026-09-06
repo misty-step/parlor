@@ -11,8 +11,10 @@
     "lint": "oxlint --type-aware --deny-warnings .",
     "test": "vitest run",
     "test:e2e": "playwright test",
+    "smoke:convex": "node scripts/smoke-convex.mjs",
     "typecheck": "tsc -b",
-    "check": "pnpm format:check && pnpm typecheck && pnpm lint && pnpm test"
+    "check": "pnpm format:check && pnpm typecheck && pnpm lint && pnpm test",
+    "check:all": "pnpm check && pnpm build && pnpm test:e2e && pnpm smoke:convex"
   },
   "devDependencies": {
     "@playwright/test": "1.62.1",

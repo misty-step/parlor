@@ -1,3 +1,4 @@
+import { allocateSeat } from "@parlor/core";
 import { mutationGeneric, queryGeneric } from "convex/server";
 import type { GenericId } from "convex/values";
 import { v } from "convex/values";
@@ -30,7 +31,6 @@ import {
   MAX_ROOM_MEMBERS,
   JOIN_ATTEMPT_WINDOW_MS,
   generateRoomCode,
-  isPresent,
   safeNow,
 } from "./runtime.js";
 import { abandonMatch } from "./matches.js";
@@ -133,7 +133,6 @@ const projectedMemberValidator = v.object({
   joinedAt: v.number(),
   eligibleFromCycle: v.number(),
   lastSeenAt: v.optional(v.number()),
-  present: v.boolean(),
   isHost: v.boolean(),
 });
 
@@ -175,14 +174,13 @@ const projectRoom = (room: RoomDoc) => ({
   ...(room.closedAt === undefined ? {} : { closedAt: room.closedAt }),
 });
 
-const projectMember = (member: RoomMemberDoc, room: RoomDoc, now: number) => ({
+const projectMember = (member: RoomMemberDoc, room: RoomDoc) => ({
   playerId: member.playerId,
   displayName: member.displayName,
   seatIndex: member.seatIndex,
   joinedAt: member.joinedAt,
   eligibleFromCycle: member.eligibleFromCycle,
   ...(member.lastSeenAt === undefined ? {} : { lastSeenAt: member.lastSeenAt }),
-  present: isPresent(member, now),
   isHost: member.playerId === room.hostPlayerId,
 });
 
@@ -275,6 +273,14 @@ export const createRoom = mutationGeneric({
     if (openRooms.length >= MAX_OPEN_ROOMS_PER_PLAYER) {
       parlorError("ROOM_CREATION_RATE_LIMIT");
     }
+    const memberships = await listOpenMembershipsForPlayer(
+      ctx,
+      actor.playerId,
+      MAX_OPEN_MEMBERSHIPS_PER_PLAYER,
+    );
+    if (memberships.length >= MAX_OPEN_MEMBERSHIPS_PER_PLAYER) {
+      parlorError("ROOM_CREATION_RATE_LIMIT");
+    }
     const now = safeNow();
     for (let attempt = 0; attempt < MAX_ROOM_CODE_ATTEMPTS; attempt += 1) {
       const code = generateRoomCode();
@@ -336,22 +342,20 @@ export const joinRoom = mutationGeneric({
     const memberships = await listOpenMembershipsForPlayer(
       ctx,
       actor.playerId,
-      MAX_OPEN_MEMBERSHIPS_PER_PLAYER + 1,
+      MAX_OPEN_MEMBERSHIPS_PER_PLAYER,
     );
     if (memberships.length >= MAX_OPEN_MEMBERSHIPS_PER_PLAYER) {
       return joinRoomFailure("ROOM_JOIN_RATE_LIMIT");
     }
     const members = await listRoomMembers(ctx, room._id);
     if (members.length > MAX_ROOM_MEMBERS) return joinRoomFailure("ROOM_DATA_INVALID");
-    if (members.length >= MAX_ROOM_MEMBERS) return joinRoomFailure("ROOM_FULL");
-    const occupied = Array.from({ length: MAX_ROOM_MEMBERS }, () => false);
-    for (const member of members) {
-      if (member.seatIndex >= 0 && member.seatIndex < MAX_ROOM_MEMBERS) {
-        occupied[member.seatIndex] = true;
-      }
+    const allocation = allocateSeat(members.map((member) => member.seatIndex));
+    if (!allocation.ok) {
+      return joinRoomFailure(
+        allocation.error._tag === "RoomFull" ? "ROOM_FULL" : "ROOM_DATA_INVALID",
+      );
     }
-    const seatIndex = occupied.findIndex((seat) => !seat);
-    if (seatIndex < 0) return joinRoomFailure("ROOM_FULL");
+    const seatIndex = allocation.value;
     const eligibleFromCycle = await nextCycleForRoom(ctx, room._id);
     await ctx.db.insert("roomMembers", {
       roomId: room._id,
@@ -460,14 +464,13 @@ export const getRoomState = queryGeneric({
     const viewer =
       (await findMember(ctx, args.roomId, actor.playerId)) ?? parlorError("NOT_A_ROOM_MEMBER");
     void viewer;
-    const now = safeNow();
     const members = await listRoomMembers(ctx, args.roomId);
     if (members.length > MAX_ROOM_MEMBERS) parlorError("ROOM_DATA_INVALID");
     const activeMatch = await activeMatchProjection(ctx, args.roomId);
     return {
       viewerPlayerId: actor.playerId,
       room: projectRoom(room),
-      members: members.map((member) => projectMember(member, room, now)),
+      members: members.map((member) => projectMember(member, room)),
       activeMatch,
     };
   },

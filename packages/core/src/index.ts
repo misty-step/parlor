@@ -75,6 +75,11 @@ export interface MatchNotActiveError {
   readonly status: "completed" | "abandoned";
 }
 
+export interface MatchDeadlineElapsedError {
+  readonly _tag: "MatchDeadlineElapsed";
+  readonly matchId: MatchId;
+}
+
 export type CoreError =
   | InvalidInputError
   | InvalidRandomBytesError
@@ -86,7 +91,8 @@ export type CoreError =
   | NotHostError
   | PlayerCountOutOfBoundsError
   | NoEligibleHostError
-  | MatchNotActiveError;
+  | MatchNotActiveError
+  | MatchDeadlineElapsedError;
 
 const nonEmptyString = Schema.String.pipe(
   Schema.filter((value) => value.length > 0 || "must not be empty"),
@@ -428,7 +434,7 @@ export async function allocateRoomCode(
 }
 
 export function allocateSeat(
-  occupiedSeats: readonly SeatIndex[],
+  occupiedSeats: readonly number[],
 ): Result<SeatIndex, RoomFullError | InvalidInputError> {
   if (!Array.isArray(occupiedSeats)) {
     return failure(invalid("occupiedSeats", "must be an array"));
@@ -452,7 +458,7 @@ export function allocateSeat(
 }
 
 export interface NextCycleInput {
-  readonly matches: readonly (MatchEnvelope | { readonly cycle: Cycle } | Cycle)[];
+  readonly matches: readonly ({ readonly cycle: number } | number)[];
 }
 
 export function nextCycle(input: NextCycleInput): Result<Cycle, InvalidInputError> {
@@ -480,14 +486,16 @@ export function nextCycle(input: NextCycleInput): Result<Cycle, InvalidInputErro
   return success((maximum + 1) as Cycle);
 }
 
-export interface EligibleMembersForCycleInput {
-  readonly members: readonly RoomMember[];
-  readonly cycle: Cycle;
+export interface EligibleMembersForCycleInput<
+  Member extends { readonly eligibleFromCycle: number } = RoomMember,
+> {
+  readonly members: readonly Member[];
+  readonly cycle: number;
 }
 
-export function eligibleMembersForCycle(
-  input: EligibleMembersForCycleInput,
-): readonly RoomMember[] {
+export function eligibleMembersForCycle<Member extends { readonly eligibleFromCycle: number }>(
+  input: EligibleMembersForCycleInput<Member>,
+): readonly Member[] {
   return input.members.filter((member) => member.eligibleFromCycle <= input.cycle);
 }
 
@@ -513,24 +521,21 @@ export const DEFAULT_PRESENCE_POLICY: PresencePolicy = Object.freeze({
   hardDeadlineMs: HARD_DEADLINE_MS,
 });
 
-function effectivePresencePolicy(overrides?: Partial<PresencePolicy>): PresencePolicy {
-  const value = (candidate: number | undefined, fallback: number): number =>
-    candidate !== undefined && Number.isFinite(candidate) && candidate >= 0 ? candidate : fallback;
-  return {
-    heartbeatMs: value(overrides?.heartbeatMs, DEFAULT_PRESENCE_POLICY.heartbeatMs),
-    awayMs: value(overrides?.awayMs, DEFAULT_PRESENCE_POLICY.awayMs),
-    hostStaleMs: value(overrides?.hostStaleMs, DEFAULT_PRESENCE_POLICY.hostStaleMs),
-    abandonMs: value(overrides?.abandonMs, DEFAULT_PRESENCE_POLICY.abandonMs),
-    hardDeadlineMs: value(overrides?.hardDeadlineMs, DEFAULT_PRESENCE_POLICY.hardDeadlineMs),
-  };
+function presenceThreshold(candidate: number | undefined, fallback: number): number {
+  return candidate !== undefined && Number.isFinite(candidate) && candidate >= 0
+    ? candidate
+    : fallback;
+}
+
+/** Time facts are structural so database projections need no nominal casts. */
+export interface PresenceMember {
+  readonly joinedAt: number;
+  readonly lastSeenAt?: number;
 }
 
 export type PresenceStatus = "present" | "away" | "stale";
 
-function presenceAge(
-  member: Pick<RoomMember, "joinedAt" | "lastSeenAt">,
-  now: TimestampMs,
-): number {
+function presenceAge(member: PresenceMember, now: number): number {
   // A member without a heartbeat gets a first-heartbeat grace period from
   // joinedAt. Once that grace expires, joinedAt remains the conservative last
   // evidence until the member sends a heartbeat.
@@ -539,27 +544,138 @@ function presenceAge(
 }
 
 export function classifyPresence(
-  member: Pick<RoomMember, "joinedAt" | "lastSeenAt">,
-  now: TimestampMs,
+  member: PresenceMember,
+  now: number,
   policy?: Partial<PresencePolicy>,
 ): PresenceStatus {
-  const thresholds = effectivePresencePolicy(policy);
   const age = presenceAge(member, now);
-  if (age <= thresholds.heartbeatMs) {
+  if (age <= presenceThreshold(policy?.heartbeatMs, HEARTBEAT_INTERVAL_MS)) {
     return "present";
   }
-  if (age <= thresholds.awayMs) {
+  if (age <= presenceThreshold(policy?.awayMs, AWAY_AFTER_MS)) {
     return "away";
   }
   return "stale";
 }
 
 export function isHostStale(
-  member: Pick<RoomMember, "joinedAt" | "lastSeenAt">,
-  now: TimestampMs,
+  member: PresenceMember,
+  now: number,
   policy?: Partial<PresencePolicy>,
 ): boolean {
-  return presenceAge(member, now) > effectivePresencePolicy(policy).hostStaleMs;
+  return presenceAge(member, now) > presenceThreshold(policy?.hostStaleMs, HOST_STALE_AFTER_MS);
+}
+
+/** The hard deadline is authoritative even before a persisted terminal transition. */
+export function hasMatchDeadlineElapsed(
+  match: { readonly startedAt: number },
+  now: number,
+): boolean {
+  return now - match.startedAt >= HARD_DEADLINE_MS;
+}
+
+export function validateMatchEndTime(
+  startedAt: number,
+  endedAt: number,
+  field = "endedAt",
+): Result<TimestampMs, InvalidInputError> {
+  if (
+    !Number.isSafeInteger(startedAt) ||
+    startedAt < 0 ||
+    !Number.isSafeInteger(endedAt) ||
+    endedAt < startedAt
+  ) {
+    return failure(invalid(field, "must be a timestamp at or after startedAt"));
+  }
+  return success(endedAt as TimestampMs);
+}
+
+export interface ParticipantCandidate extends PresenceMember {
+  readonly playerId: string;
+  readonly seatIndex: number;
+  readonly eligibleFromCycle: number;
+}
+
+export type ParticipantSelectionError =
+  | InvalidInputError
+  | NoParticipantError
+  | PlayerCountOutOfBoundsError;
+
+/** Validate a bounded room roster and select a stable, eligible, present snapshot. */
+export function selectMatchParticipants<Member extends ParticipantCandidate>(input: {
+  readonly members: readonly Member[];
+  readonly cycle: number;
+  readonly now: number;
+  readonly minPlayers?: number;
+  readonly maxPlayers?: number;
+  readonly policy?: Partial<PresencePolicy>;
+}): Result<readonly Member[], ParticipantSelectionError> {
+  const minimum = input.minPlayers ?? 1;
+  const maximum = input.maxPlayers ?? MAX_SEATS;
+  if (
+    !Number.isSafeInteger(minimum) ||
+    !Number.isSafeInteger(maximum) ||
+    minimum < 1 ||
+    maximum < minimum ||
+    maximum > MAX_SEATS
+  ) {
+    return failure(
+      invalid("playerBounds", `must satisfy 1 <= minPlayers <= maxPlayers <= ${MAX_SEATS}`),
+    );
+  }
+  if (!Number.isSafeInteger(input.cycle) || input.cycle < 1) {
+    return failure(invalid("cycle", "must be a positive safe integer"));
+  }
+  if (!Number.isSafeInteger(input.now) || input.now < 0) {
+    return failure(invalid("now", "must be a nonnegative safe integer"));
+  }
+  if (input.members.length > MAX_SEATS) {
+    return failure(invalid("members", "exceeds room capacity"));
+  }
+  const seats = new Set<number>();
+  const players = new Set<string>();
+  const selected: Member[] = [];
+  for (const member of input.members) {
+    if (
+      !Number.isSafeInteger(member.seatIndex) ||
+      member.seatIndex < 0 ||
+      member.seatIndex >= MAX_SEATS ||
+      member.playerId.length === 0 ||
+      !Number.isSafeInteger(member.eligibleFromCycle) ||
+      member.eligibleFromCycle < 1 ||
+      !Number.isSafeInteger(member.joinedAt) ||
+      member.joinedAt < 0 ||
+      (member.lastSeenAt !== undefined &&
+        (!Number.isSafeInteger(member.lastSeenAt) || member.lastSeenAt < member.joinedAt))
+    ) {
+      return failure(invalid("members", "contains invalid participant facts"));
+    }
+    if (seats.has(member.seatIndex) || players.has(member.playerId)) {
+      return failure(invalid("members", "contains duplicate participant identity"));
+    }
+    seats.add(member.seatIndex);
+    players.add(member.playerId);
+    if (
+      member.eligibleFromCycle <= input.cycle &&
+      classifyPresence(member, input.now, input.policy) === "present"
+    ) {
+      selected.push(member);
+    }
+  }
+  if (selected.length === 0) {
+    return failure({ _tag: "NoParticipant", message: "no eligible present members are available" });
+  }
+  if (selected.length < minimum || selected.length > maximum) {
+    return failure({
+      _tag: "PlayerCountOutOfBounds",
+      minimum,
+      maximum,
+      actual: selected.length,
+      direction: selected.length < minimum ? "below-minimum" : "above-maximum",
+    });
+  }
+  selected.sort((left, right) => left.seatIndex - right.seatIndex);
+  return success(selected);
 }
 
 export interface SnapshotParticipantsInput {
@@ -568,45 +684,17 @@ export interface SnapshotParticipantsInput {
   readonly members: readonly RoomMember[];
   readonly now: TimestampMs;
   readonly policy?: Partial<PresencePolicy>;
+  readonly minPlayers?: number;
+  readonly maxPlayers?: number;
 }
 
 export function snapshotParticipants(
   input: SnapshotParticipantsInput,
-): Result<readonly MatchParticipant[], NoParticipantError | InvalidInputError> {
-  const eligible = eligibleMembersForCycle({
-    members: input.members,
-    cycle: input.cycle,
-  });
-  const present = eligible.filter(
-    (member) => classifyPresence(member, input.now, input.policy) === "present",
-  );
-  if (present.length === 0) {
-    return failure({
-      _tag: "NoParticipant",
-      message: "no eligible present members are available",
-    });
-  }
-  const ordered = [...present].sort((left, right) => {
-    const seatOrder = left.seatIndex - right.seatIndex;
-    return seatOrder !== 0
-      ? seatOrder
-      : left.playerId < right.playerId
-        ? -1
-        : left.playerId > right.playerId
-          ? 1
-          : 0;
-  });
-  const seats = new Set<number>();
-  const players = new Set<PlayerId>();
-  for (const member of ordered) {
-    if (seats.has(member.seatIndex) || players.has(member.playerId)) {
-      return failure(invalid("members", "contains duplicate participant identity"));
-    }
-    seats.add(member.seatIndex);
-    players.add(member.playerId);
-  }
+): Result<readonly MatchParticipant[], ParticipantSelectionError> {
+  const selected = selectMatchParticipants(input);
+  if (!selected.ok) return selected;
   return success(
-    ordered.map((member) => ({
+    selected.value.map((member) => ({
       matchId: input.matchId,
       playerId: member.playerId,
       seatIndex: member.seatIndex,
@@ -614,64 +702,60 @@ export function snapshotParticipants(
   );
 }
 
-export interface SelectNextHostInput {
-  readonly members: readonly RoomMember[];
+export interface SelectNextHostInput<
+  Member extends PresenceMember & { readonly playerId: string; readonly seatIndex: number } =
+    RoomMember,
+> {
+  readonly members: readonly Member[];
   /** Presence of this property restricts candidates to active-match participants. */
-  readonly participants?: readonly MatchParticipant[];
-  readonly now: TimestampMs;
+  readonly participants?: readonly { readonly playerId: string }[];
+  readonly now: number;
   readonly policy?: Partial<PresencePolicy>;
 }
 
-export function selectNextHost(
-  input: SelectNextHostInput,
-): Result<RoomMember, NoParticipantError | NoEligibleHostError | InvalidInputError> {
+export function selectNextHost<
+  Member extends PresenceMember & { readonly playerId: string; readonly seatIndex: number },
+>(
+  input: SelectNextHostInput<Member>,
+): Result<Member, NoParticipantError | NoEligibleHostError | InvalidInputError> {
   if (input.members.length === 0) {
     return failure({
       _tag: "NoParticipant",
       message: "no room members are available for host selection",
     });
   }
-  let candidates = input.members;
-  if (input.participants !== undefined) {
-    if (input.participants.length === 0) {
-      return failure({
-        _tag: "NoParticipant",
-        message: "the active match has no participants",
-      });
-    }
-    const participantIds = new Set(input.participants.map((participant) => participant.playerId));
-    candidates = input.members.filter((member) => participantIds.has(member.playerId));
-    if (candidates.length === 0) {
-      return failure({
-        _tag: "NoParticipant",
-        message: "active-match participants are not present in the room",
-      });
-    }
-  }
-  const liveCandidates = candidates.filter(
-    (member) => !isHostStale(member, input.now, input.policy),
-  );
-  if (liveCandidates.length === 0) {
+  if (input.participants?.length === 0) {
     return failure({
-      _tag: "NoEligibleHost",
-      message: "all host candidates are stale",
+      _tag: "NoParticipant",
+      message: "the active match has no participants",
     });
   }
-  const [host] = [...liveCandidates].sort((left, right) => {
-    const seatOrder = left.seatIndex - right.seatIndex;
-    return seatOrder !== 0
-      ? seatOrder
-      : left.playerId < right.playerId
-        ? -1
-        : left.playerId > right.playerId
-          ? 1
-          : 0;
-  });
+  const participantIds =
+    input.participants === undefined
+      ? undefined
+      : new Set(input.participants.map((participant) => participant.playerId));
+  let hasCandidate = false;
+  let host: Member | undefined;
+  for (const member of input.members) {
+    if (participantIds !== undefined && !participantIds.has(member.playerId)) continue;
+    hasCandidate = true;
+    if (isHostStale(member, input.now, input.policy)) continue;
+    if (
+      host === undefined ||
+      member.seatIndex < host.seatIndex ||
+      (member.seatIndex === host.seatIndex && member.playerId < host.playerId)
+    ) {
+      host = member;
+    }
+  }
+  if (!hasCandidate) {
+    return failure({
+      _tag: "NoParticipant",
+      message: "active-match participants are not present in the room",
+    });
+  }
   return host === undefined
-    ? failure({
-        _tag: "NoEligibleHost",
-        message: "no host candidate is available",
-      })
+    ? failure({ _tag: "NoEligibleHost", message: "all host candidates are stale" })
     : success(host);
 }
 
@@ -698,7 +782,8 @@ export type BeginMatchError =
   | NotHostError
   | ActiveMatchError
   | NoParticipantError
-  | PlayerCountOutOfBoundsError;
+  | PlayerCountOutOfBoundsError
+  | MatchDeadlineElapsedError;
 
 export function decideBeginMatch(
   input: BeginMatchInput,
@@ -715,60 +800,27 @@ export function decideBeginMatch(
   const roomMatches = input.matches.filter((match) => match.roomId === input.room.id);
   const active = roomMatches.find((match) => match.status === "active");
   if (active?.status === "active") {
+    if (hasMatchDeadlineElapsed(active, input.now)) {
+      return failure({ _tag: "MatchDeadlineElapsed", matchId: active.id });
+    }
     return failure({ _tag: "ActiveMatch", matchId: active.id });
-  }
-  if (
-    !Number.isSafeInteger(input.minPlayers) ||
-    !Number.isSafeInteger(input.maxPlayers) ||
-    input.minPlayers < 1 ||
-    input.maxPlayers < input.minPlayers ||
-    input.maxPlayers > MAX_SEATS
-  ) {
-    return failure(
-      invalid("playerBounds", `must satisfy 1 <= minPlayers <= maxPlayers <= ${MAX_SEATS}`),
-    );
   }
   const cycleResult = nextCycle({ matches: roomMatches });
   if (!cycleResult.ok) {
     return cycleResult;
   }
   const cycle = cycleResult.value;
-  const participantResult =
-    input.policy === undefined
-      ? snapshotParticipants({
-          matchId: input.matchId,
-          cycle,
-          members: input.members.filter((member) => member.roomId === input.room.id),
-          now: input.now,
-        })
-      : snapshotParticipants({
-          matchId: input.matchId,
-          cycle,
-          members: input.members.filter((member) => member.roomId === input.room.id),
-          now: input.now,
-          policy: input.policy,
-        });
+  const participantResult = snapshotParticipants({
+    matchId: input.matchId,
+    cycle,
+    members: input.members.filter((member) => member.roomId === input.room.id),
+    now: input.now,
+    minPlayers: input.minPlayers,
+    maxPlayers: input.maxPlayers,
+    ...(input.policy === undefined ? {} : { policy: input.policy }),
+  });
   if (!participantResult.ok) {
     return participantResult;
-  }
-  const actual = participantResult.value.length;
-  if (actual < input.minPlayers) {
-    return failure({
-      _tag: "PlayerCountOutOfBounds",
-      minimum: input.minPlayers,
-      maximum: input.maxPlayers,
-      actual,
-      direction: "below-minimum",
-    });
-  }
-  if (actual > input.maxPlayers) {
-    return failure({
-      _tag: "PlayerCountOutOfBounds",
-      minimum: input.minPlayers,
-      maximum: input.maxPlayers,
-      actual,
-      direction: "above-maximum",
-    });
   }
   return success({
     envelope: {
@@ -782,7 +834,10 @@ export function decideBeginMatch(
   });
 }
 
-export type MatchTransitionError = InvalidInputError | MatchNotActiveError;
+export type MatchTransitionError =
+  | InvalidInputError
+  | MatchNotActiveError
+  | MatchDeadlineElapsedError;
 
 export interface CompleteMatchEnvelopeInput {
   readonly match: MatchEnvelope;
@@ -800,8 +855,10 @@ function completeMatch(
       status: match.status,
     });
   }
-  if (!Number.isSafeInteger(completedAt) || completedAt < match.startedAt) {
-    return failure(invalid("completedAt", "must be a timestamp at or after startedAt"));
+  const time = validateMatchEndTime(match.startedAt, completedAt, "completedAt");
+  if (!time.ok) return time;
+  if (hasMatchDeadlineElapsed(match, completedAt)) {
+    return failure({ _tag: "MatchDeadlineElapsed", matchId: match.id });
   }
   return success({
     status: "completed",
@@ -846,9 +903,8 @@ function abandonMatch(
   if (!abandonmentReasons.includes(reason)) {
     return failure(invalid("reason", "must be a supported abandonment reason"));
   }
-  if (!Number.isSafeInteger(abandonedAt) || abandonedAt < match.startedAt) {
-    return failure(invalid("abandonedAt", "must be a timestamp at or after startedAt"));
-  }
+  const time = validateMatchEndTime(match.startedAt, abandonedAt, "abandonedAt");
+  if (!time.ok) return time;
   return success({
     status: "abandoned",
     id: match.id,

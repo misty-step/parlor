@@ -1,19 +1,24 @@
 /// <reference types="vite/client" />
 
-import { makeFunctionReference } from "convex/server";
+import { HARD_DEADLINE_MS, classifyPresence } from "@parlor/core";
+import { defineSchema, defineTable, makeFunctionReference } from "convex/server";
 import type { GenericId } from "convex/values";
+import { v } from "convex/values";
 import { convexTest } from "convex-test";
 import type { TestConvex } from "convex-test";
 import { describe, expect, it, vi } from "vitest";
 
 import {
   abandonMatch,
+  beginMatch,
   completeMatch,
   requireActiveMatch,
+  parlorTables,
   resolvePlayer,
   sweepAbandonedMatches,
 } from "../src/index.js";
 import { recordHeartbeat } from "../convex/presence.js";
+import { sweepAbandonedRef } from "../convex/maintenance.js";
 import schema from "../convex/schema.js";
 
 type RoomId = GenericId<"rooms">;
@@ -69,7 +74,6 @@ interface ProjectedMember {
   readonly joinedAt: number;
   readonly eligibleFromCycle: number;
   readonly lastSeenAt?: number;
-  readonly present: boolean;
   readonly isHost: boolean;
 }
 
@@ -232,12 +236,59 @@ describe("private Convex room and match reference integration", () => {
       const joined = await joinRoom(t, host.room.code, `player-${index}`);
       expect(joined.seatIndex).toBe(index);
     }
-    await expect(joinRoom(t, host.room.code, "player-12")).rejects.toThrow();
+    await expect(
+      t.withIdentity(identity("player-12")).mutation(joinRoomRef, {
+        code: host.room.code,
+        displayName: "Overflow",
+      }),
+    ).resolves.toEqual({ ok: false, code: "ROOM_FULL" });
     for (let index = 0; index < 6; index += 1) {
       const other = await createRoom(t, `host-${index}`);
       codes.add(other.room.code);
     }
     expect(codes.size).toBe(7);
+  });
+
+  it.each([0, 1.5, 12])(
+    "rejects corrupt seat %s at admission and snapshot boundaries",
+    async (seatIndex) => {
+      const t = testContext();
+      const host = await createRoom(t, "host");
+      const member = await joinRoom(t, host.room.code, "member");
+      await t.mutation(async (ctx) => {
+        const row = await ctx.db
+          .query("roomMembers")
+          .withIndex("by_room_player", (q) =>
+            q.eq("roomId", host.room.roomId).eq("playerId", member.playerId),
+          )
+          .unique();
+        if (!row) throw new Error("member missing in test setup");
+        await ctx.db.patch(row._id, { seatIndex });
+      });
+      await expect(
+        t.withIdentity(identity("new-member")).mutation(joinRoomRef, {
+          code: host.room.code,
+          displayName: "New member",
+        }),
+      ).resolves.toEqual({ ok: false, code: "ROOM_DATA_INVALID" });
+      await expect(
+        host.authT.mutation(startMatchRef, { roomId: host.room.roomId }),
+      ).rejects.toThrow("ROOM_DATA_INVALID");
+      const state = await host.authT.query(roomStateRef, { roomId: host.room.roomId });
+      expect(state.activeMatch).toBeNull();
+    },
+  );
+
+  it("projects time facts so an unchanged room response can age locally", async () => {
+    const t = testContext();
+    const host = await createRoom(t, "host");
+    const state = await host.authT.query(roomStateRef, { roomId: host.room.roomId });
+    const member = state.members.find((candidate) => candidate.playerId === host.room.playerId);
+    if (!member) throw new Error("host missing from projection");
+    expect(member).not.toHaveProperty("present");
+    expect(classifyPresence(member, member.joinedAt + 15_000)).toBe("present");
+    expect(classifyPresence(member, member.joinedAt + 15_001)).toBe("away");
+    expect(classifyPresence(member, member.joinedAt + 45_001)).toBe("stale");
   });
 
   it("rejects rejoining a closed room, including existing members", async () => {
@@ -328,6 +379,58 @@ describe("private Convex room and match reference integration", () => {
     const joined = await joinRoom(t, target.room.code, "member");
     expect(joined.seatIndex).toBe(1);
     expect(member.seatIndex).toBe(1);
+  });
+
+  it("applies the same membership capacity to create and join while preserving retries", async () => {
+    const clock = vi.spyOn(Date, "now");
+    let now = 2_000_000_000_000;
+    clock.mockImplementation(() => now);
+    try {
+      const t = testContext();
+      const rooms: CreatedRoom[] = [];
+      for (let index = 0; index < 17; index += 1) {
+        rooms.push(await createRoom(t, `host-${index}`));
+      }
+      for (const [index, room] of rooms.slice(0, 16).entries()) {
+        if (index === 10) now += 60_000;
+        await joinRoom(t, room.room.code, "member");
+      }
+      const first = rooms[0];
+      const extra = rooms[16];
+      if (!first || !extra) throw new Error("rooms missing in test setup");
+      const member = t.withIdentity(identity("member"));
+      await expect(member.mutation(createRoomRef, { displayName: "Member" })).rejects.toThrow(
+        "ROOM_CREATION_RATE_LIMIT",
+      );
+      await expect(
+        member.mutation(joinRoomRef, { code: extra.room.code, displayName: "Member" }),
+      ).resolves.toEqual({ ok: false, code: "ROOM_JOIN_RATE_LIMIT" });
+      await expect(
+        member.mutation(joinRoomRef, { code: first.room.code, displayName: "Renamed" }),
+      ).resolves.toMatchObject({ ok: true, roomId: first.room.roomId });
+      await member.mutation(leaveRoomRef, { roomId: first.room.roomId });
+      const created = await member.mutation(createRoomRef, { displayName: "Member" });
+      const state = await member.query(roomStateRef, { roomId: created.roomId });
+      expect(state.room.hostPlayerId).toBe(created.playerId);
+      expect(state.members.map((entry) => entry.playerId)).toEqual([created.playerId]);
+    } finally {
+      clock.mockRestore();
+    }
+  });
+
+  it("allows emergency host migration above the room creation quota", async () => {
+    const t = testContext();
+    for (let index = 0; index < 4; index += 1) {
+      await createRoom(t, "replacement");
+    }
+    const host = await createRoom(t, "departing");
+    const replacement = await joinRoom(t, host.room.code, "replacement");
+    await host.authT.mutation(leaveRoomRef, { roomId: host.room.roomId });
+    const state = await replacement.authT.query(roomStateRef, { roomId: host.room.roomId });
+    expect(state.room.hostPlayerId).toBe(replacement.playerId);
+    await expect(
+      replacement.authT.mutation(createRoomRef, { displayName: "Replacement" }),
+    ).rejects.toThrow("ROOM_CREATION_RATE_LIMIT");
   });
   it("persists bounded failed joins and lets known idempotent members retry", async () => {
     const t = testContext();
@@ -621,6 +724,147 @@ describe("private Convex room and match reference integration", () => {
     await expect(
       host.authT.run(async (ctx) => abandonMatch(ctx, { matchId: next.id, reason: "host-ended" })),
     ).rejects.toThrow();
+  });
+
+  it("rejects game commands at the hard deadline before the sweep runs", async () => {
+    const clock = vi.spyOn(Date, "now").mockReturnValue(2_000_000_000_000);
+    try {
+      const t = testContext();
+      const host = await createRoom(t, "host");
+      const player = await joinRoom(t, host.room.code, "player");
+      const active = await host.authT.mutation(startMatchRef, { roomId: host.room.roomId });
+      const deadline = active.startedAt + HARD_DEADLINE_MS;
+      clock.mockReturnValue(deadline - 1);
+      await expect(t.run((ctx) => requireActiveMatch(ctx, active.id))).resolves.toMatchObject({
+        id: active.id,
+        status: "active",
+      });
+      clock.mockReturnValue(deadline);
+      await expect(t.run((ctx) => requireActiveMatch(ctx, active.id))).rejects.toThrow(
+        "MATCH_NOT_ACTIVE",
+      );
+      await expect(
+        host.authT.mutation(async (ctx) =>
+          completeMatch(ctx, { matchId: active.id, actor: await resolvePlayer(ctx) }),
+        ),
+      ).rejects.toThrow("MATCH_NOT_ACTIVE");
+      await expect(
+        host.authT.mutation(startMatchRef, { roomId: host.room.roomId }),
+      ).rejects.toThrow("MATCH_NOT_ACTIVE");
+      expect(await t.run((ctx) => ctx.db.get(active.id))).toMatchObject({ status: "active" });
+      await host.authT.mutation(heartbeatRef, { roomId: host.room.roomId });
+      await player.authT.mutation(heartbeatRef, { roomId: host.room.roomId });
+      await t.mutation((ctx) => sweepAbandonedMatches(ctx));
+      expect(await t.run((ctx) => ctx.db.get(active.id))).toMatchObject({
+        status: "abandoned",
+        reason: "hard-deadline",
+        abandonedAt: deadline,
+      });
+      const next = await host.authT.mutation(startMatchRef, { roomId: host.room.roomId });
+      expect(next.cycle).toBe(active.cycle + 1);
+    } finally {
+      clock.mockRestore();
+    }
+  });
+
+  it("allows completion one millisecond before the hard deadline", async () => {
+    const t = testContext();
+    const host = await createRoom(t, "host");
+    await joinRoom(t, host.room.code, "player");
+    const active = await host.authT.mutation(startMatchRef, { roomId: host.room.roomId });
+    const completedAt = active.startedAt + HARD_DEADLINE_MS - 1;
+    await expect(
+      host.authT.mutation(async (ctx) =>
+        completeMatch(ctx, {
+          matchId: active.id,
+          actor: await resolvePlayer(ctx),
+          nowMs: completedAt,
+        }),
+      ),
+    ).resolves.toMatchObject({ id: active.id, status: "completed", completedAt });
+  });
+
+  it("runs bounded scheduled continuations even as abandoned rows leave the active index", async () => {
+    vi.useFakeTimers();
+    try {
+      const t = testContext();
+      const matches: ActiveMatch[] = [];
+      for (const subject of ["host-a", "host-b", "host-c"]) {
+        const host = await createRoom(t, subject);
+        await joinRoom(t, host.room.code, `${subject}-player`);
+        matches.push(await host.authT.mutation(startMatchRef, { roomId: host.room.roomId }));
+      }
+      vi.setSystemTime(Date.now() + HARD_DEADLINE_MS);
+      const first = await t.mutation(sweepAbandonedRef, { limit: 1 });
+      expect(first).toMatchObject({ scanned: 1, abandoned: 1, hasMore: true });
+      await t.finishAllScheduledFunctions(vi.runAllTimers);
+      const terminal = await t.run((ctx) =>
+        Promise.all(matches.map((match) => ctx.db.get(match.id))),
+      );
+      expect(terminal.map((match) => match?.status)).toEqual([
+        "abandoned",
+        "abandoned",
+        "abandoned",
+      ]);
+      expect(
+        terminal.map((match) => (match?.status === "abandoned" ? match.reason : undefined)),
+      ).toEqual(["hard-deadline", "hard-deadline", "hard-deadline"]);
+      expect(await t.mutation(sweepAbandonedRef, { limit: 1 })).toEqual({
+        scanned: 0,
+        abandoned: 0,
+        hasMore: false,
+        continueCursor: null,
+      });
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("composes with game tables and rolls back expired game commands before sweeping", async () => {
+    const gameSchema = defineSchema({
+      ...parlorTables,
+      gameTurns: defineTable({ matchId: v.id("matches"), turn: v.number() }),
+    });
+    const t = convexTest(gameSchema, modules);
+    const host = t.withIdentity(identity("game-host"));
+    const room = await host.mutation(createRoomRef, { displayName: "Host" });
+    await t.withIdentity(identity("game-player")).mutation(joinRoomRef, {
+      code: room.code,
+      displayName: "Player",
+    });
+    const first = await host.mutation(async (ctx) => {
+      const actor = await resolvePlayer(ctx);
+      return beginMatch(ctx, { roomId: room.roomId, actor });
+    });
+    await host.mutation(async (ctx) => {
+      await requireActiveMatch(ctx, first.id, room.roomId);
+      await ctx.db.insert("gameTurns", { matchId: first.id, turn: 1 });
+      await completeMatch(ctx, { matchId: first.id, actor: await resolvePlayer(ctx) });
+    });
+    const second = await host.mutation(async (ctx) =>
+      beginMatch(ctx, { roomId: room.roomId, actor: await resolvePlayer(ctx) }),
+    );
+    const gameId = await t.mutation((ctx) =>
+      ctx.db.insert("gameTurns", { matchId: second.id, turn: 0 }),
+    );
+    const clock = vi.spyOn(Date, "now").mockReturnValue(second.startedAt + HARD_DEADLINE_MS);
+    try {
+      await expect(
+        host.mutation(async (ctx) => {
+          await ctx.db.patch(gameId, { turn: 1 });
+          await requireActiveMatch(ctx, second.id, room.roomId);
+        }),
+      ).rejects.toThrow("MATCH_NOT_ACTIVE");
+      expect(await t.run((ctx) => ctx.db.get(gameId))).toMatchObject({ turn: 0 });
+      expect(await t.run((ctx) => ctx.db.get(second.id))).toMatchObject({ status: "active" });
+      await t.mutation((ctx) => sweepAbandonedMatches(ctx));
+      expect(await t.run((ctx) => ctx.db.get(second.id))).toMatchObject({
+        status: "abandoned",
+        reason: "hard-deadline",
+      });
+    } finally {
+      clock.mockRestore();
+    }
   });
 
   it("sweeps bounded pages and continues past present active envelopes", async () => {

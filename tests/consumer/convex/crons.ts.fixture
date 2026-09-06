@@ -1,0 +1,7 @@
+import { cronJobs } from "convex/server";
+import { internal } from "./_generated/api";
+
+const crons = cronJobs();
+// Fast only in this disposable fixture; consuming games choose their own cadence.
+crons.interval("abandon-expired-matches", { seconds: 1 }, internal.game.sweep, {});
+export default crons;

@@ -1,12 +1,9 @@
-import { internalMutationGeneric } from "convex/server";
-import { v } from "convex/values";
+import { classifyPresence, hasMatchDeadlineElapsed } from "@parlor/core";
 
 import { abandonMatch } from "./matches.js";
 import {
   DEFAULT_ABANDON_AFTER_MS,
-  DEFAULT_HARD_DEADLINE_MS,
   findMember,
-  isPresent,
   listMatchParticipants,
   parlorError,
   type ConvexMutationCtx,
@@ -15,6 +12,8 @@ import {
   MAX_SWEEP_BATCH,
   safeNow,
 } from "./runtime.js";
+
+const abandonmentPresencePolicy = { heartbeatMs: DEFAULT_ABANDON_AFTER_MS };
 
 export interface SweepResult {
   readonly scanned: number;
@@ -40,7 +39,7 @@ const everyParticipantAway = async (
   if (participants.length > MAX_ROOM_MEMBERS) return false;
   for (const participant of participants) {
     const member = await findMember(ctx, match.roomId, participant.playerId);
-    if (member && isPresent(member, now, DEFAULT_ABANDON_AFTER_MS)) {
+    if (member && classifyPresence(member, now, abandonmentPresencePolicy) === "present") {
       return false;
     }
   }
@@ -48,8 +47,8 @@ const everyParticipantAway = async (
 };
 
 /**
- * Abandon only a bounded batch of stale active envelopes. Game rows are not
- * touched: they become inert through requireActiveMatch after this transition.
+ * Abandon a bounded page of active envelopes. The caller owns scheduling and
+ * must continue from continueCursor until hasMore is false.
  */
 export const sweepAbandonedMatches = async (
   ctx: ConvexMutationCtx,
@@ -68,10 +67,10 @@ export const sweepAbandonedMatches = async (
       numItems: limit,
       cursor: input.cursor ?? null,
     });
-  const selected = page.page as MatchDoc[];
+  const selected = page.page;
   let abandoned = 0;
   for (const match of selected) {
-    const hardExpired = now - match.startedAt >= DEFAULT_HARD_DEADLINE_MS;
+    const hardExpired = hasMatchDeadlineElapsed(match, now);
     const everyoneAway = hardExpired ? false : await everyParticipantAway(ctx, match, now);
     if (!hardExpired && !everyoneAway) continue;
     await abandonMatch(ctx, {
@@ -88,18 +87,3 @@ export const sweepAbandonedMatches = async (
     continueCursor: page.isDone ? null : page.continueCursor,
   };
 };
-
-/** Scheduler-facing registered function; clients cannot invoke a sweep. */
-export const sweepAbandoned = internalMutationGeneric({
-  args: {
-    limit: v.optional(v.number()),
-    cursor: v.optional(v.string()),
-  },
-  returns: v.object({
-    scanned: v.number(),
-    abandoned: v.number(),
-    hasMore: v.boolean(),
-    continueCursor: v.union(v.string(), v.null()),
-  }),
-  handler: async (ctx, args) => sweepAbandonedMatches(ctx, args),
-});

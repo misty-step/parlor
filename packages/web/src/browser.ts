@@ -69,6 +69,17 @@ export interface GuestCredentialStoreOptions {
   readonly key?: string;
   readonly issuer?: GuestCredentialIssuer;
   readonly clock?: Clock | (() => number);
+  readonly scheduler?: Scheduler;
+}
+
+export interface GuestCredentialSnapshot {
+  /** Only a non-expired credential may be used for authenticated requests. */
+  readonly credential: GuestCredential | null;
+  /** Expiry of the retained proof, including an expired proof awaiting trusted refresh. */
+  readonly expiresAt: number | null;
+  readonly loading: boolean;
+  /** Issuance failures, or a storage failure while the credential remains in memory. */
+  readonly error: unknown;
 }
 
 export const GUEST_CREDENTIAL_STORAGE_KEY = "parlor:guest-credential";
@@ -184,57 +195,46 @@ function cancelledCredentialOperation(): GuestCredentialStoreError {
 }
 
 /**
- * Owns an opaque guest credential and its expiry metadata. No token parsing or
- * browser global access occurs here; storage and issuing are both injected.
+ * Owns one in-memory guest identity, with optional best-effort persistence.
+ * Tokens stay opaque: only the application's trusted issuer may renew identity.
  */
 export class GuestCredentialStore {
   private readonly storage: StorageLike | null;
   private readonly key: string;
-  private readonly issuer: GuestCredentialIssuer | undefined;
+  private issuer: GuestCredentialIssuer | undefined;
   private readonly clock: Clock;
+  private readonly scheduler: Scheduler;
+  private readonly listeners = new Set<() => void>();
+  private record: GuestCredentialRecord | null | undefined;
+  private snapshot: GuestCredentialSnapshot | undefined;
+  private storageError: GuestCredentialStoreError | null = null;
+  private issueError: unknown = null;
   private generation = 0;
   private inFlight: Promise<GuestCredential> | undefined;
+  private running = false;
+  private autoAcquire = false;
+  private automaticBlocked = false;
+  private renewAt: number | null = null;
+  private timerScheduled = false;
+  private timerHandle: unknown;
 
   constructor(options: GuestCredentialStoreOptions = {}) {
     this.storage = options.storage === undefined ? defaultStorage() : options.storage;
     this.key = options.key ?? GUEST_CREDENTIAL_STORAGE_KEY;
     this.issuer = options.issuer;
     this.clock = asClock(options.clock);
+    this.scheduler = options.scheduler ?? defaultScheduler();
   }
 
-  /** Returns the currently stored, non-expired record, if one exists. */
+  /** Replaces issuer behavior without replacing the owned identity or pending request. */
+  setIssuer(issuer: GuestCredentialIssuer | undefined): void {
+    this.issuer = issuer;
+  }
+
+  /** Returns only a non-expired record. Expired proof stays private for trusted refresh. */
   getRecord(): GuestCredentialRecord | null {
-    if (this.storage === null) {
-      return null;
-    }
-
-    let raw: string | null;
-    try {
-      raw = this.storage.getItem(this.key);
-    } catch (error) {
-      throw new GuestCredentialStoreError(
-        "storage-failure",
-        error instanceof Error ? error.message : "Unable to read guest credential storage.",
-      );
-    }
-    if (raw === null) {
-      return null;
-    }
-
-    let parsed: unknown;
-    try {
-      parsed = JSON.parse(raw) as unknown;
-    } catch {
-      this.removeStored();
-      return null;
-    }
-
-    const record = parseRecord(parsed);
-    if (record === null || record.expiresAt <= this.clock.now()) {
-      this.removeStored();
-      return null;
-    }
-    return record;
+    const record = this.readRecord();
+    return record !== null && record.expiresAt > this.clock.now() ? record : null;
   }
 
   /** Returns the opaque credential value, or null when absent/corrupt/expired. */
@@ -242,35 +242,107 @@ export class GuestCredentialStore {
     return this.getRecord()?.token ?? null;
   }
 
-  /** Removes the persisted credential and invalidates any pending issuance. */
-  clear(): void {
-    this.generation += 1;
-    this.inFlight = undefined;
-    this.removeStored();
+  getSnapshot(): GuestCredentialSnapshot {
+    const record = this.readRecord();
+    const credential = record !== null && record.expiresAt > this.clock.now() ? record.token : null;
+    const expiresAt = record?.expiresAt ?? null;
+    const loading = this.inFlight !== undefined;
+    const error = this.issueError ?? this.storageError;
+    if (
+      this.snapshot === undefined ||
+      this.snapshot.credential !== credential ||
+      this.snapshot.expiresAt !== expiresAt ||
+      this.snapshot.loading !== loading ||
+      this.snapshot.error !== error
+    ) {
+      this.snapshot = { credential, expiresAt, loading, error };
+    }
+    return this.snapshot;
+  }
+
+  subscribe(listener: () => void): () => void {
+    this.listeners.add(listener);
+    return () => {
+      this.listeners.delete(listener);
+    };
   }
 
   /**
-   * Gets a valid stored credential or performs one deduplicated acquisition.
-   * Every concurrent caller observes the same issuer request and result.
+   * Starts expiry notifications and, optionally, acquisition and pre-expiry renewal.
+   * A failed issuer call suspends automatic work until a successful explicit retry.
+   */
+  start(options: { autoAcquire?: boolean } = {}): void {
+    this.running = true;
+    this.autoAcquire = options.autoAcquire ?? false;
+    if (this.renewAt === null && !this.automaticBlocked) {
+      this.setRenewalTime();
+    }
+    this.advance();
+  }
+
+  /** Stops timers and ignores pending issuance without deleting retained identity proof. */
+  stop(): void {
+    this.running = false;
+    this.cancelPending();
+    this.emit();
+  }
+
+  /**
+   * Erases identity and ignores pending issuance. Automatic acquisition stays suspended
+   * until an explicit acquire/refresh succeeds, so clear cannot silently log back in.
+   */
+  clear(): void {
+    this.cancelPending();
+    this.record = null;
+    this.issueError = null;
+    this.automaticBlocked = true;
+    this.renewAt = null;
+    this.persist(null);
+    this.emit();
+  }
+
+  /**
+   * Returns a valid credential or performs one deduplicated issuance. An expired
+   * record is always refreshed using its old proof, never replaced by a new identity.
    */
   acquire(issuerOverride?: GuestCredentialIssuer): Promise<GuestCredential> {
     if (this.inFlight !== undefined) {
       return this.inFlight;
     }
-
     const stored = this.getRecord();
-    if (stored !== null) {
+    if (stored !== null && !this.automaticBlocked) {
       return Promise.resolve(stored.token);
     }
-    return this.issue("acquire", issuerOverride);
+    return this.issue(this.readRecord() === null ? "acquire" : "refresh", issuerOverride);
   }
 
-  /** Performs one deduplicated refresh, passing the current opaque value to the issuer. */
+  /** Passes retained opaque proof, even when expired, to the application's trusted issuer. */
   refresh(issuerOverride?: GuestCredentialIssuer): Promise<GuestCredential> {
-    if (this.inFlight !== undefined) {
-      return this.inFlight;
+    return this.inFlight ?? this.issue("refresh", issuerOverride);
+  }
+
+  private readRecord(): GuestCredentialRecord | null {
+    if (this.record !== undefined) {
+      return this.record;
     }
-    return this.issue("refresh", issuerOverride);
+    this.record = null;
+    if (this.storage !== null) {
+      try {
+        const raw = this.storage.getItem(this.key);
+        if (raw !== null) {
+          let parsed: unknown;
+          try {
+            parsed = JSON.parse(raw) as unknown;
+          } catch {
+            return null;
+          }
+          this.record = parseRecord(parsed);
+        }
+      } catch (error) {
+        this.storageError = this.persistenceFailure(error);
+      }
+    }
+    return this.record;
   }
 
   private issue(
@@ -278,103 +350,165 @@ export class GuestCredentialStore {
     issuerOverride?: GuestCredentialIssuer,
   ): Promise<GuestCredential> {
     const issuer = issuerOverride ?? this.issuer;
-    if (issuer === undefined) {
-      return Promise.reject(
-        new GuestCredentialStoreError(
-          "missing-issuer",
-          "A guest credential issuer is required to acquire a credential.",
-        ),
-      );
-    }
-
-    const operationGeneration = this.generation;
-    const current = this.get();
+    const current = this.readRecord();
     const input: GuestCredentialIssueInput = {
       mode,
-      ...(current === null ? {} : { token: current }),
+      ...(current === null ? {} : { token: current.token }),
     };
-
-    let operation: Promise<GuestCredential>;
+    const operationGeneration = this.generation;
     const ownsOperation = () =>
       operationGeneration === this.generation && this.inFlight === operation;
-    try {
-      operation = Promise.resolve(issuer(input)).then(
-        (result) => {
-          if (!ownsOperation()) {
-            throw cancelledCredentialOperation();
-          }
-          const record = issuerResultRecord(result);
-          if (record.expiresAt <= this.clock.now()) {
-            throw new GuestCredentialStoreError(
-              "invalid-issued-credential",
-              "The guest credential issuer returned an expired credential.",
-            );
-          }
-          if (!ownsOperation()) {
-            throw cancelledCredentialOperation();
-          }
-          this.persist(record);
-          if (!ownsOperation()) {
-            throw cancelledCredentialOperation();
-          }
-          return record.token;
-        },
-        (error) => {
-          if (!ownsOperation()) {
-            throw cancelledCredentialOperation();
-          }
-          throw error;
-        },
-      );
-    } catch (error) {
-      operation = Promise.reject(
-        operationGeneration === this.generation ? error : cancelledCredentialOperation(),
-      );
-    }
-
-    if (operationGeneration === this.generation && this.inFlight === undefined) {
-      this.inFlight = operation;
-    }
-    void operation.then(
-      () => {
-        if (this.inFlight === operation) {
-          this.inFlight = undefined;
+    this.issueError = null;
+    // Install ownership before dispatch, including synchronous/reentrant issuers.
+    const operation: Promise<GuestCredential> = Promise.resolve()
+      .then(() => {
+        if (!ownsOperation()) {
+          throw cancelledCredentialOperation();
         }
-      },
-      () => {
-        if (this.inFlight === operation) {
-          this.inFlight = undefined;
+        if (issuer === undefined) {
+          throw new GuestCredentialStoreError(
+            "missing-issuer",
+            "A guest credential issuer is required to acquire a credential.",
+          );
         }
-      },
-    );
+        return issuer(input);
+      })
+      .then((result) => {
+        if (!ownsOperation()) {
+          throw cancelledCredentialOperation();
+        }
+        const record = issuerResultRecord(result);
+        if (record.expiresAt <= this.clock.now()) {
+          throw new GuestCredentialStoreError(
+            "invalid-issued-credential",
+            "The guest credential issuer returned an expired credential.",
+          );
+        }
+        this.record = record;
+        this.persist(record);
+        if (!ownsOperation()) {
+          throw cancelledCredentialOperation();
+        }
+        this.automaticBlocked = false;
+        this.setRenewalTime();
+        return record.token;
+      })
+      .catch((error: unknown) => {
+        if (!ownsOperation()) {
+          throw cancelledCredentialOperation();
+        }
+        this.issueError = error;
+        this.automaticBlocked = true;
+        throw error;
+      });
+    this.inFlight = operation;
+    this.emit();
+    this.schedule();
+    const settled = () => {
+      if (!ownsOperation()) {
+        return;
+      }
+      this.inFlight = undefined;
+      this.advance();
+    };
+    void operation.then(settled, settled);
     return operation;
   }
 
-  private persist(record: GuestCredentialRecord): void {
+  private persistenceFailure(error: unknown): GuestCredentialStoreError {
+    return new GuestCredentialStoreError(
+      "storage-failure",
+      error instanceof Error ? error.message : "Guest credential persistence is unavailable.",
+    );
+  }
+
+  private persist(record: GuestCredentialRecord | null): void {
+    this.storageError = null;
     if (this.storage === null) {
       return;
     }
     try {
-      this.storage.setItem(this.key, serializeRecord(record));
+      if (record === null) {
+        this.storage.removeItem(this.key);
+      } else {
+        this.storage.setItem(this.key, serializeRecord(record));
+      }
     } catch (error) {
-      throw new GuestCredentialStoreError(
-        "storage-failure",
-        error instanceof Error ? error.message : "Unable to persist guest credential storage.",
-      );
+      // Durability is optional; a browser storage failure must not discard identity.
+      this.storageError = this.persistenceFailure(error);
     }
   }
 
-  private removeStored(): void {
-    if (this.storage === null) {
+  private cancelPending(): void {
+    this.generation += 1;
+    this.inFlight = undefined;
+    this.clearTimer();
+  }
+
+  private setRenewalTime(): void {
+    const record = this.readRecord();
+    const now = this.clock.now();
+    const remaining = record === null ? 0 : record.expiresAt - now;
+    // Renew at most 30 seconds early and at most once per second for very short TTLs.
+    this.renewAt =
+      remaining <= 0 ? now : now + Math.max(1_000, remaining - Math.min(30_000, remaining / 2));
+  }
+
+  private advance(): void {
+    this.emit();
+    if (
+      this.running &&
+      this.autoAcquire &&
+      !this.automaticBlocked &&
+      this.inFlight === undefined &&
+      this.renewAt !== null &&
+      this.clock.now() >= this.renewAt
+    ) {
+      const operation = this.readRecord() === null ? this.acquire() : this.refresh();
+      void operation.catch(() => {
+        // The snapshot exposes the failure; only an explicit retry resumes renewal.
+      });
       return;
     }
-    try {
-      this.storage.removeItem(this.key);
-    } catch (error) {
-      throw new GuestCredentialStoreError(
-        "storage-failure",
-        error instanceof Error ? error.message : "Unable to remove guest credential storage.",
-      );
+    this.schedule();
+  }
+
+  private schedule(): void {
+    this.clearTimer();
+    if (!this.running) {
+      return;
+    }
+    const now = this.clock.now();
+    const record = this.readRecord();
+    let target = record !== null && record.expiresAt > now ? record.expiresAt : Infinity;
+    if (this.autoAcquire && !this.automaticBlocked && this.inFlight === undefined) {
+      target = Math.min(target, this.renewAt ?? Infinity);
+    }
+    if (!Number.isFinite(target)) {
+      return;
+    }
+    this.timerScheduled = true;
+    this.timerHandle = this.scheduler.setTimeout(
+      () => {
+        this.timerScheduled = false;
+        this.timerHandle = undefined;
+        this.advance();
+      },
+      Math.min(2_147_483_647, Math.max(1, Math.ceil(target - now))),
+    );
+  }
+
+  private clearTimer(): void {
+    if (this.timerScheduled) {
+      this.scheduler.clearTimeout(this.timerHandle);
+      this.timerScheduled = false;
+      this.timerHandle = undefined;
+    }
+  }
+
+  private emit(): void {
+    for (const listener of this.listeners) {
+      notifySafely(listener);
     }
   }
 }
@@ -413,7 +547,7 @@ function notifySafely(listener: () => void): void {
 
 /** Runs presence heartbeats only while visible, with one in-flight send at a time. */
 export class HeartbeatController {
-  private readonly send: HeartbeatSender;
+  private send: HeartbeatSender;
   private readonly document: VisibilityDocument | null;
   private readonly scheduler: Scheduler;
   private readonly clock: Clock;
@@ -424,6 +558,7 @@ export class HeartbeatController {
   private timerScheduled = false;
   private timerHandle: unknown;
   private inFlight: Promise<void> | undefined;
+  private generation = 0;
   private pendingBeat = false;
   private lastBeatAt: number | null = null;
   private lastFailureAt: number | null = null;
@@ -444,7 +579,7 @@ export class HeartbeatController {
 
   constructor(options: HeartbeatControllerOptions) {
     this.send = options.send;
-    this.document = options.document ?? defaultDocument();
+    this.document = options.document === undefined ? defaultDocument() : options.document;
     this.scheduler = options.scheduler ?? defaultScheduler();
     this.clock = asClock(options.clock);
     const intervalMs = options.intervalMs ?? 15_000;
@@ -452,6 +587,11 @@ export class HeartbeatController {
       throw new RangeError("intervalMs must be a positive finite number.");
     }
     this.intervalMs = intervalMs;
+  }
+
+  /** Updates transport behavior without restarting presence or its in-flight send. */
+  setSender(send: HeartbeatSender): void {
+    this.send = send;
   }
 
   get status(): HeartbeatStatus {
@@ -496,6 +636,7 @@ export class HeartbeatController {
       return;
     }
     this.running = false;
+    this.generation += 1;
     this.pendingBeat = false;
     this.clearScheduledTimer();
     this.detachVisibilityListener();
@@ -560,6 +701,7 @@ export class HeartbeatController {
       return this.inFlight;
     }
 
+    const operationGeneration = this.generation;
     let sendResult: MaybePromise<void>;
     try {
       sendResult = this.send();
@@ -568,6 +710,9 @@ export class HeartbeatController {
     }
     const operation = Promise.resolve(sendResult).then(
       () => {
+        if (this.generation !== operationGeneration) {
+          return;
+        }
         this.lastBeatAt = this.clock.now();
         this.lastFailureAt = null;
         if (this.running && !this.isHidden()) {
@@ -575,6 +720,9 @@ export class HeartbeatController {
         }
       },
       () => {
+        if (this.generation !== operationGeneration) {
+          return;
+        }
         this.lastFailureAt = this.clock.now();
         if (this.running && !this.isHidden()) {
           this.setStatus("degraded");
@@ -582,6 +730,7 @@ export class HeartbeatController {
       },
     );
     this.inFlight = operation;
+    this.emit();
     void operation.then(() => {
       if (this.inFlight !== operation) {
         return;

@@ -1,7 +1,6 @@
 import {
   ABANDON_AFTER_MS,
   AWAY_AFTER_MS,
-  HARD_DEADLINE_MS as CORE_HARD_DEADLINE_MS,
   HEARTBEAT_INTERVAL_MS,
   HOST_STALE_AFTER_MS,
   MAX_SEATS,
@@ -10,16 +9,10 @@ import {
   roomCodeFromBytes,
   normalizeDisplayName as coreNormalizeDisplayName,
   parseRoomCode as coreParseRoomCode,
-  selectNextHost as coreSelectNextHost,
 } from "@parlor/core";
 
 import type { GenericId } from "convex/values";
-import type {
-  MatchParticipant as CoreMatchParticipant,
-  RoomMember as CoreRoomMember,
-  TimestampMs as CoreTimestampMs,
-} from "@parlor/core";
-import type { ParlorCtx, ParlorMutationCtx, ParlorQueryCtx } from "./dataModel.js";
+import type { ParlorCtx, ParlorDoc, ParlorMutationCtx, ParlorQueryCtx } from "./dataModel.js";
 interface WebCryptoRandomSource {
   readonly getRandomValues: (bytes: Uint8Array) => Uint8Array;
 }
@@ -36,7 +29,7 @@ export type ConvexQueryCtx = ParlorQueryCtx;
 export type ConvexMutationCtx = ParlorMutationCtx;
 export type ConvexCtx = ParlorCtx;
 
-export type ActorKind = "authenticated" | "guest";
+export type ActorKind = PlayerDoc["kind"];
 
 export interface PlayerActor {
   readonly playerId: PlayerId;
@@ -45,73 +38,24 @@ export interface PlayerActor {
   readonly guestId?: string;
 }
 
-export interface PlayerDoc {
-  readonly _id: PlayerId;
-  readonly _creationTime: number;
-  readonly identityKey: string;
-  readonly kind: ActorKind;
-  readonly guestId?: string;
-  readonly createdAt: number;
-  readonly joinAttemptWindowStartedAt?: number;
-  readonly joinAttemptCount?: number;
-}
+export type PlayerDoc = ParlorDoc<"players">;
 
-export interface RoomDoc {
-  readonly _id: RoomId;
-  readonly _creationTime: number;
-  readonly code: string;
-  readonly hostPlayerId: PlayerId;
-  readonly createdAt: number;
-  readonly closedAt?: number;
-}
+export type RoomDoc = ParlorDoc<"rooms">;
 
-export interface RoomMemberDoc {
-  readonly _id: GenericId<"roomMembers">;
-  readonly _creationTime: number;
-  readonly roomId: RoomId;
-  readonly playerId: PlayerId;
-  readonly displayName: string;
-  readonly seatIndex: number;
-  readonly joinedAt: number;
-  readonly eligibleFromCycle: number;
-  readonly lastSeenAt?: number;
-  readonly closedAt?: number;
-}
+export type RoomMemberDoc = ParlorDoc<"roomMembers">;
 
-export type MatchStatus = "active" | "completed" | "abandoned";
-export type AbandonmentReason = "everyone-away" | "hard-deadline" | "host-ended";
+export type MatchStatus = MatchDoc["status"];
+export type AbandonmentReason = AbandonedMatchDoc["reason"];
 
-interface MatchDocBase {
-  readonly _id: MatchId;
-  readonly _creationTime: number;
-  readonly roomId: RoomId;
-  readonly cycle: number;
-  readonly startedAt: number;
-}
+export type ActiveMatchDoc = Extract<MatchDoc, { status: "active" }>;
 
-export interface ActiveMatchDoc extends MatchDocBase {
-  readonly status: "active";
-}
+export type CompletedMatchDoc = Extract<MatchDoc, { status: "completed" }>;
 
-export interface CompletedMatchDoc extends MatchDocBase {
-  readonly status: "completed";
-  readonly completedAt: number;
-}
+export type AbandonedMatchDoc = Extract<MatchDoc, { status: "abandoned" }>;
 
-export interface AbandonedMatchDoc extends MatchDocBase {
-  readonly status: "abandoned";
-  readonly abandonedAt: number;
-  readonly reason: AbandonmentReason;
-}
+export type MatchDoc = ParlorDoc<"matches">;
 
-export type MatchDoc = ActiveMatchDoc | CompletedMatchDoc | AbandonedMatchDoc;
-
-export interface MatchParticipantDoc {
-  readonly _id: GenericId<"matchParticipants">;
-  readonly matchId: MatchId;
-  readonly playerId: PlayerId;
-  readonly seatIndex: number;
-}
+export type MatchParticipantDoc = ParlorDoc<"matchParticipants">;
 
 export const ROOM_CODE_ALPHABET = CORE_ROOM_CODE_ALPHABET;
 export const ROOM_CODE_LENGTH = CORE_ROOM_CODE_LENGTH;
@@ -128,7 +72,6 @@ export const DEFAULT_HEARTBEAT_INTERVAL_MS = HEARTBEAT_INTERVAL_MS;
 export const DEFAULT_AWAY_AFTER_MS = AWAY_AFTER_MS;
 export const DEFAULT_HOST_STALE_AFTER_MS = HOST_STALE_AFTER_MS;
 export const DEFAULT_ABANDON_AFTER_MS = ABANDON_AFTER_MS;
-export const DEFAULT_HARD_DEADLINE_MS = CORE_HARD_DEADLINE_MS;
 export const DEFAULT_MIN_ELIGIBLE_PLAYERS = 2;
 export const DEFAULT_MAX_ELIGIBLE_PLAYERS = MAX_ROOM_MEMBERS;
 export const MAX_SWEEP_BATCH = 100;
@@ -146,48 +89,6 @@ export const normalizeRoomCode = (input: string): string | null => {
 export const normalizeDisplayName = (input: string): string | null => {
   const result = coreNormalizeDisplayName(input);
   return result.ok ? String(result.value) : null;
-};
-
-export const isPresent = (
-  member: Pick<RoomMemberDoc, "joinedAt" | "lastSeenAt">,
-  now: number,
-  presentAfterMs = DEFAULT_HEARTBEAT_INTERVAL_MS,
-): boolean => {
-  const evidenceAt = member.lastSeenAt ?? member.joinedAt;
-  return now - evidenceAt <= presentAfterMs;
-};
-
-export const isHostStale = (
-  member: Pick<RoomMemberDoc, "joinedAt" | "lastSeenAt"> | undefined,
-  now: number,
-  staleAfterMs = DEFAULT_HOST_STALE_AFTER_MS,
-): boolean => {
-  if (!member) return true;
-  const evidenceAt = member.lastSeenAt ?? member.joinedAt;
-  return now - evidenceAt > staleAfterMs;
-};
-
-export const selectNextHost = (input: {
-  readonly members: readonly RoomMemberDoc[];
-  readonly participants?: readonly MatchParticipantDoc[];
-  readonly now: number;
-}): RoomMemberDoc | null => {
-  const result =
-    input.participants === undefined
-      ? coreSelectNextHost({
-          members: input.members as unknown as readonly CoreRoomMember[],
-          now: input.now as CoreTimestampMs,
-        })
-      : coreSelectNextHost({
-          members: input.members as unknown as readonly CoreRoomMember[],
-          participants: input.participants as unknown as readonly CoreMatchParticipant[],
-          now: input.now as CoreTimestampMs,
-        });
-  if (!result.ok) return null;
-  return (
-    input.members.find((member) => String(member.playerId) === String(result.value.playerId)) ??
-    null
-  );
 };
 
 export const generateRoomCode = (): string => {

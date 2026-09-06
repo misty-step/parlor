@@ -1,3 +1,4 @@
+import { nextCycle } from "@parlor/core";
 import { ConvexError } from "convex/values";
 
 import type {
@@ -13,42 +14,15 @@ import type {
 } from "./policy.js";
 import { MAX_ROOM_MEMBERS } from "./policy.js";
 
-export type MatchEnvelope =
-  | {
-      readonly id: MatchId;
-      readonly roomId: RoomId;
-      readonly cycle: number;
-      readonly status: "active";
-      readonly startedAt: number;
-    }
-  | {
-      readonly id: MatchId;
-      readonly roomId: RoomId;
-      readonly cycle: number;
-      readonly status: "completed";
-      readonly startedAt: number;
-      readonly completedAt: number;
-    }
-  | {
-      readonly id: MatchId;
-      readonly roomId: RoomId;
-      readonly cycle: number;
-      readonly status: "abandoned";
-      readonly startedAt: number;
-      readonly abandonedAt: number;
-      readonly reason: "everyone-away" | "hard-deadline" | "host-ended";
-    };
+type ProjectMatch<Doc extends MatchDoc> = Doc extends MatchDoc
+  ? Omit<Doc, "_id" | "_creationTime"> & { readonly id: Doc["_id"] }
+  : never;
+
+export type MatchEnvelope = ProjectMatch<MatchDoc>;
 
 export const parlorError = (code: string): never => {
   throw new ConvexError({ code });
 };
-
-export const asRoom = (value: unknown): RoomDoc | null => (value as RoomDoc | null) ?? null;
-
-export const asMember = (value: unknown): RoomMemberDoc | null =>
-  (value as RoomMemberDoc | null) ?? null;
-
-export const asMatch = (value: unknown): MatchDoc | null => (value as MatchDoc | null) ?? null;
 
 export const toMatchEnvelope = (match: MatchDoc): MatchEnvelope => {
   if (match.status === "active") {
@@ -92,11 +66,11 @@ export const findOpenRoomByCode = async (ctx: ConvexCtx, code: string): Promise<
     .query("rooms")
     .withIndex("by_code_open", (q) => q.eq("code", code).eq("closedAt", undefined))
     .unique();
-  return asRoom(room);
+  return room;
 };
 
 export const findRoom = async (ctx: ConvexCtx, roomId: RoomId): Promise<RoomDoc | null> =>
-  asRoom(await ctx.db.get(roomId));
+  ctx.db.get(roomId);
 
 export const findMember = async (
   ctx: ConvexCtx,
@@ -107,7 +81,7 @@ export const findMember = async (
     .query("roomMembers")
     .withIndex("by_room_player", (q) => q.eq("roomId", roomId).eq("playerId", playerId))
     .unique();
-  return asMember(member);
+  return member;
 };
 
 export const listRoomMembers = async (
@@ -135,14 +109,14 @@ export const listMatchParticipants = async (
 };
 
 export const findMatch = async (ctx: ConvexCtx, matchId: MatchId): Promise<MatchDoc | null> =>
-  asMatch(await ctx.db.get(matchId));
+  ctx.db.get(matchId);
 
 export const findActiveMatch = async (ctx: ConvexCtx, roomId: RoomId): Promise<MatchDoc | null> => {
   const match = await ctx.db
     .query("matches")
     .withIndex("by_room_status", (q) => q.eq("roomId", roomId).eq("status", "active"))
     .unique();
-  return asMatch(match);
+  return match;
 };
 
 export const findLatestMatch = async (ctx: ConvexCtx, roomId: RoomId): Promise<MatchDoc | null> => {
@@ -151,12 +125,13 @@ export const findLatestMatch = async (ctx: ConvexCtx, roomId: RoomId): Promise<M
     .withIndex("by_room_cycle", (q) => q.eq("roomId", roomId))
     .order("desc")
     .first();
-  return asMatch(match);
+  return match;
 };
 
 export const nextCycleForRoom = async (ctx: ConvexCtx, roomId: RoomId): Promise<number> => {
   const latest = await findLatestMatch(ctx, roomId);
-  return (latest?.cycle ?? 0) + 1;
+  const decision = nextCycle({ matches: latest === null ? [] : [latest] });
+  return decision.ok ? decision.value : parlorError("MATCH_DATA_INVALID");
 };
 
 export const listOpenRoomsForHost = async (

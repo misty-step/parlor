@@ -17,6 +17,7 @@ export type {
   GuestCredentialIssueResult,
   GuestCredentialIssuer,
   GuestCredentialRecord,
+  GuestCredentialSnapshot,
   GuestCredentialStoreErrorCode,
   GuestCredentialStoreOptions,
   HeartbeatControllerOptions,

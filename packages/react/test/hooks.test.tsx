@@ -1,11 +1,17 @@
 // @vitest-environment happy-dom
 
-import { act, renderHook } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { act, cleanup, renderHook } from "@testing-library/react";
+import { StrictMode } from "react";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { useGuestCredential, useHeartbeat, useWakeLock } from "../src/index.js";
 
 const testClock = () => 1_000;
+
+afterEach(() => {
+  cleanup();
+  vi.useRealTimers();
+});
 
 function deferred<T>(): {
   promise: Promise<T>;
@@ -22,29 +28,38 @@ function deferred<T>(): {
 }
 
 describe("useHeartbeat", () => {
-  it("stops timers and visibility listeners when the hook unmounts", () => {
+  it("keeps one heartbeat when inline callbacks change and sends with the latest behavior", async () => {
+    vi.useFakeTimers();
     const send = vi.fn();
-    const removeEventListener = vi.fn();
-    const documentRef = {
-      hidden: false,
-      addEventListener: vi.fn(),
-      removeEventListener,
-    };
-    const scheduler = {
-      setTimeout: vi.fn(() => 1),
-      clearTimeout: vi.fn(),
-    };
-
-    const { result, unmount } = renderHook(() =>
-      useHeartbeat({ send, document: documentRef, scheduler, intervalMs: 1000 }),
+    let renders = 0;
+    const { result, rerender, unmount } = renderHook(
+      ({ version }) => {
+        if (++renders > 30) {
+          throw new Error("Inline heartbeat callbacks restarted the render lifecycle.");
+        }
+        return useHeartbeat({
+          send: () => send(version),
+          clock: () => Date.now(),
+          document: null,
+          intervalMs: 1_000,
+        });
+      },
+      { initialProps: { version: 1 } },
     );
-
-    expect(result.current.status).toBe("running");
+    expect(result.current.inFlight).toBe(true);
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect(result.current.inFlight).toBe(false);
+    rerender({ version: 2 });
     expect(send).toHaveBeenCalledTimes(1);
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1_000);
+    });
+    expect(send.mock.calls).toEqual([[1], [2]]);
     unmount();
-
-    expect(scheduler.clearTimeout).toHaveBeenCalledWith(1);
-    expect(removeEventListener).toHaveBeenCalledWith("visibilitychange", expect.any(Function));
+    await vi.advanceTimersByTimeAsync(10_000);
+    expect(send).toHaveBeenCalledTimes(2);
   });
 });
 
@@ -107,7 +122,11 @@ describe("useGuestCredential", () => {
       result.current.clear();
     });
     expect(result.current.credential).toBeNull();
-    expect(storage.removeItem).toHaveBeenCalledTimes(1);
+    await act(async () => {
+      await result.current.acquire();
+    });
+    expect(result.current.credential).toBe("opaque-guest-value");
+    expect(issuer).toHaveBeenCalledTimes(2);
   });
 
   it("ignores a cancelled acquire while a replacement remains pending", async () => {
@@ -132,6 +151,9 @@ describe("useGuestCredential", () => {
     let staleAcquisition!: Promise<unknown>;
     act(() => {
       staleAcquisition = result.current.acquire();
+    });
+    await act(async () => {
+      await Promise.resolve();
     });
     act(() => {
       result.current.clear();
@@ -162,6 +184,150 @@ describe("useGuestCredential", () => {
     expect(result.current.credential).toBe("fresh-token");
     expect(result.current.loading).toBe(false);
     expect(result.current.error).toBeNull();
+  });
+
+  it("keeps memory-only identity across inline issuers and parent rerenders", async () => {
+    const issue = vi.fn(async (version: number, _input: unknown) => ({
+      token: `identity-${version}`,
+      expiresAt: 10_000,
+    }));
+    let renders = 0;
+    const { result, rerender } = renderHook(
+      ({ version }) => {
+        if (++renders > 30) {
+          throw new Error("Inline issuer restarted the credential lifecycle.");
+        }
+        return useGuestCredential({
+          storage: null,
+          autoAcquire: true,
+          clock: () => 1_000,
+          issuer: (input) => issue(version, input),
+        });
+      },
+      { initialProps: { version: 1 } },
+    );
+    await act(async () => {
+      await result.current.acquire();
+    });
+    expect(result.current.credential).toBe("identity-1");
+    expect(result.current.loading).toBe(false);
+    rerender({ version: 2 });
+    await act(async () => {
+      await result.current.acquire();
+    });
+    expect(result.current.credential).toBe("identity-1");
+    expect(issue).toHaveBeenCalledTimes(1);
+    await act(async () => {
+      await result.current.refresh();
+    });
+    expect(issue).toHaveBeenLastCalledWith(2, { mode: "refresh", token: "identity-1" });
+    expect(result.current.credential).toBe("identity-2");
+  });
+
+  it("renews automatically but never exposes expired credentials while renewal is pending", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(1_000);
+    const renewal = deferred<{ token: string; expiresAt: number }>();
+    const issuer = vi
+      .fn()
+      .mockResolvedValueOnce({ token: "first", expiresAt: 61_000 })
+      .mockImplementationOnce(() => renewal.promise);
+    const { result } = renderHook(() =>
+      useGuestCredential({ storage: null, autoAcquire: true, issuer }),
+    );
+    await act(async () => {
+      await result.current.acquire();
+    });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(30_000);
+    });
+    expect(issuer).toHaveBeenLastCalledWith({ mode: "refresh", token: "first" });
+    expect(result.current.credential).toBe("first");
+    expect(result.current.loading).toBe(true);
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(30_000);
+    });
+    expect(result.current.credential).toBeNull();
+    expect(result.current.expiresAt).toBe(61_000);
+    await act(async () => {
+      renewal.resolve({ token: "renewed", expiresAt: 121_000 });
+      await result.current.refresh();
+    });
+    expect(result.current.credential).toBe("renewed");
+    expect(result.current.expiresAt).toBe(121_000);
+    expect(result.current.loading).toBe(false);
+  });
+
+  it("expires credentials even when automatic acquisition is disabled", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(1_000);
+    const issuer = vi.fn(async () => ({ token: "manual", expiresAt: 2_000 }));
+    const { result } = renderHook(() => useGuestCredential({ storage: null, issuer }));
+    await act(async () => {
+      await result.current.acquire();
+    });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1_000);
+    });
+    expect(result.current.credential).toBeNull();
+    expect(result.current.expiresAt).toBe(2_000);
+    expect(issuer).toHaveBeenCalledTimes(1);
+  });
+
+  it("recovers expired proof through trusted refresh and waits for an explicit retry after failure", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(1_000);
+    let stored: string | null = JSON.stringify({ token: "old-proof", expiresAt: 1_000 });
+    const storage = {
+      getItem: () => stored,
+      setItem: (_key: string, value: string) => {
+        stored = value;
+      },
+      removeItem: () => {
+        stored = null;
+      },
+    };
+    const issuer = vi
+      .fn()
+      .mockRejectedValueOnce(new Error("session rejected"))
+      .mockImplementationOnce(async () => ({
+        token: "trusted-retry",
+        expiresAt: Date.now() + 60_000,
+      }));
+    const { result, rerender } = renderHook(() =>
+      useGuestCredential({ storage, autoAcquire: true, issuer: (input) => issuer(input) }),
+    );
+    await act(async () => {
+      await expect(result.current.acquire()).rejects.toThrow("session rejected");
+    });
+    expect(issuer).toHaveBeenCalledWith({ mode: "refresh", token: "old-proof" });
+    expect(result.current.credential).toBeNull();
+    expect(result.current.error).toBeInstanceOf(Error);
+    rerender();
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(3_600_000);
+    });
+    expect(issuer).toHaveBeenCalledTimes(1);
+    expect(stored).toContain("old-proof");
+    await act(async () => {
+      await result.current.refresh();
+    });
+    expect(issuer).toHaveBeenLastCalledWith({ mode: "refresh", token: "old-proof" });
+    expect(result.current.credential).toBe("trusted-retry");
+    expect(result.current.error).toBeNull();
+  });
+
+  it("does not issue for a discarded Strict Mode lifecycle", async () => {
+    const issuer = vi.fn(async () => ({ token: "strict-identity", expiresAt: 10_000 }));
+    const { result } = renderHook(
+      () => useGuestCredential({ storage: null, autoAcquire: true, issuer, clock: testClock }),
+      { wrapper: StrictMode },
+    );
+    await act(async () => {
+      await result.current.acquire();
+    });
+    expect(result.current.credential).toBe("strict-identity");
+    expect(issuer).toHaveBeenCalledTimes(1);
   });
 });
 
@@ -216,5 +382,57 @@ describe("useGuestCredential store identity", () => {
       await Promise.resolve();
     });
     expect(result.current.credential).toBe("token-two");
+  });
+
+  it("ignores pending issuance after owner changes and unmount without persisting stale identity", async () => {
+    let firstStored: string | null = null;
+    let secondStored: string | null = null;
+    const firstStorage = {
+      getItem: () => firstStored,
+      setItem: (_key: string, value: string) => {
+        firstStored = value;
+      },
+      removeItem: () => {
+        firstStored = null;
+      },
+    };
+    const secondStorage = {
+      getItem: () => secondStored,
+      setItem: (_key: string, value: string) => {
+        secondStored = value;
+      },
+      removeItem: () => {
+        secondStored = null;
+      },
+    };
+    const stale = deferred<{ token: string; expiresAt: number }>();
+    const replacement = deferred<{ token: string; expiresAt: number }>();
+    const issuer = vi
+      .fn()
+      .mockImplementationOnce(() => stale.promise)
+      .mockImplementationOnce(() => replacement.promise);
+    const { result, rerender, unmount } = renderHook(
+      ({ storage }) => useGuestCredential({ storage, autoAcquire: true, issuer, clock: testClock }),
+      { initialProps: { storage: firstStorage } },
+    );
+    const firstAcquisition = result.current.acquire();
+    await act(async () => {
+      await Promise.resolve();
+    });
+    rerender({ storage: secondStorage });
+    const secondAcquisition = result.current.acquire();
+    await act(async () => {
+      await Promise.resolve();
+      stale.resolve({ token: "old-owner", expiresAt: 10_000 });
+      await expect(firstAcquisition).rejects.toMatchObject({ code: "cancelled" });
+    });
+    expect(firstStored).toBeNull();
+    expect(result.current.credential).toBeNull();
+    expect(result.current.loading).toBe(true);
+    expect(result.current.error).toBeNull();
+    unmount();
+    replacement.resolve({ token: "unmounted-owner", expiresAt: 10_000 });
+    await expect(secondAcquisition).rejects.toMatchObject({ code: "cancelled" });
+    expect(secondStored).toBeNull();
   });
 });

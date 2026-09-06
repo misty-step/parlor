@@ -1,5 +1,8 @@
-import { abandonMatchEnvelope, completeMatchEnvelope } from "@parlor/core";
-import type { MatchEnvelope as CoreMatchEnvelope, TimestampMs } from "@parlor/core";
+import {
+  hasMatchDeadlineElapsed,
+  selectMatchParticipants,
+  validateMatchEndTime,
+} from "@parlor/core";
 import { mutationGeneric } from "convex/server";
 import { v } from "convex/values";
 import { resolvePlayer } from "./identity.js";
@@ -10,8 +13,6 @@ import {
   findMatch,
   findMember,
   findRoom,
-  isPresent,
-  listMatchParticipants,
   listRoomMembers,
   nextCycleForRoom,
   parlorError,
@@ -23,10 +24,8 @@ import {
   type MatchDoc,
   type MatchEnvelope,
   type MatchId,
-  type MatchParticipantDoc,
   type PlayerActor,
   type RoomId,
-  MAX_ROOM_MEMBERS,
 } from "./runtime.js";
 
 const activeEnvelopeValidator = v.object({
@@ -62,18 +61,14 @@ const matchEnvelopeValidator = v.union(
   }),
 );
 
-const validCycleBounds = (minPlayers: number, maxPlayers: number): boolean =>
-  Number.isSafeInteger(minPlayers) &&
-  Number.isSafeInteger(maxPlayers) &&
-  minPlayers >= 1 &&
-  maxPlayers >= minPlayers &&
-  maxPlayers <= MAX_ROOM_MEMBERS;
-
-const participantMap = (participants: readonly MatchParticipantDoc[]): ReadonlySet<string> =>
-  new Set(participants.map((participant) => String(participant.playerId)));
-
-const activeEnvelope = (match: MatchDoc): Extract<MatchEnvelope, { status: "active" }> => {
-  if (match.status !== "active") parlorError("MATCH_NOT_ACTIVE");
+const activeEnvelope = (
+  match: MatchDoc,
+  now: number,
+): Extract<MatchEnvelope, { status: "active" }> => {
+  if (match.status !== "active" || hasMatchDeadlineElapsed(match, now)) {
+    parlorError("MATCH_NOT_ACTIVE");
+  }
+  if (!validateMatchEndTime(match.startedAt, now).ok) parlorError("MATCH_TIMESTAMP_INVALID");
   return {
     id: match._id,
     roomId: match.roomId,
@@ -104,25 +99,30 @@ export const beginMatch = async (
   const membership = await findMember(ctx, input.roomId, input.actor.playerId);
   if (!membership) parlorError("NOT_A_ROOM_MEMBER");
   if (room.hostPlayerId !== input.actor.playerId) parlorError("HOST_REQUIRED");
+  const now = input.nowMs ?? safeNow();
   const active = await findActiveMatch(ctx, input.roomId);
-  if (active) parlorError("MATCH_ALREADY_ACTIVE");
-  const minPlayers = input.minPlayers ?? DEFAULT_MIN_ELIGIBLE_PLAYERS;
-  const maxPlayers = input.maxPlayers ?? DEFAULT_MAX_ELIGIBLE_PLAYERS;
-  if (!validCycleBounds(minPlayers, maxPlayers)) {
-    parlorError("MATCH_PLAYER_BOUNDS_INVALID");
+  if (active) {
+    activeEnvelope(active, now);
+    parlorError("MATCH_ALREADY_ACTIVE");
   }
   const cycle = await nextCycleForRoom(ctx, input.roomId);
-  const now = input.nowMs ?? safeNow();
+  const minPlayers = input.minPlayers ?? DEFAULT_MIN_ELIGIBLE_PLAYERS;
+  const maxPlayers = input.maxPlayers ?? DEFAULT_MAX_ELIGIBLE_PLAYERS;
   const members = await listRoomMembers(ctx, input.roomId);
-  if (members.length > MAX_ROOM_MEMBERS) parlorError("ROOM_DATA_INVALID");
-  const eligible = members.filter(
-    (member) => member.eligibleFromCycle <= cycle && isPresent(member, now),
-  );
-  if (eligible.length < minPlayers) {
-    parlorError("NOT_ENOUGH_PRESENT_PLAYERS");
-  }
-  if (eligible.length > maxPlayers) {
-    parlorError("TOO_MANY_PRESENT_PLAYERS");
+  const selection = selectMatchParticipants({ members, cycle, now, minPlayers, maxPlayers });
+  if (!selection.ok) {
+    const error = selection.error;
+    if (error._tag === "NoParticipant") return parlorError("NOT_ENOUGH_PRESENT_PLAYERS");
+    if (error._tag === "PlayerCountOutOfBounds") {
+      return parlorError(
+        error.direction === "below-minimum"
+          ? "NOT_ENOUGH_PRESENT_PLAYERS"
+          : "TOO_MANY_PRESENT_PLAYERS",
+      );
+    }
+    if (error.field === "playerBounds") return parlorError("MATCH_PLAYER_BOUNDS_INVALID");
+    if (error.field === "now") return parlorError("MATCH_TIMESTAMP_INVALID");
+    return parlorError("ROOM_DATA_INVALID");
   }
   const matchId = await ctx.db.insert("matches", {
     roomId: input.roomId,
@@ -130,15 +130,14 @@ export const beginMatch = async (
     status: "active",
     startedAt: now,
   });
-  for (const member of eligible) {
+  for (const member of selection.value) {
     await ctx.db.insert("matchParticipants", {
       matchId,
       playerId: member.playerId,
       seatIndex: member.seatIndex,
     });
   }
-  const match = (await findMatch(ctx, matchId)) ?? parlorError("MATCH_DATA_INVALID");
-  return activeEnvelope(match);
+  return { id: matchId, roomId: input.roomId, cycle, status: "active", startedAt: now };
 };
 
 /** Registered reference mutation for starting a match from an app client. */
@@ -154,18 +153,17 @@ export const startMatch = mutationGeneric({
   },
 });
 
-/** Require the generic lifecycle envelope to still be active. */
+/** Gate every game command against status and the hard deadline; sweeping only persists cleanup. */
 export const requireActiveMatch = async (
   ctx: ConvexCtx,
   matchId: MatchId,
   roomId?: RoomId,
 ): Promise<Extract<MatchEnvelope, { status: "active" }>> => {
   const match = (await findMatch(ctx, matchId)) ?? parlorError("MATCH_NOT_ACTIVE");
-  if (match.status !== "active") parlorError("MATCH_NOT_ACTIVE");
   if (roomId !== undefined && match.roomId !== roomId) {
     parlorError("MATCH_ROOM_MISMATCH");
   }
-  return activeEnvelope(match);
+  return activeEnvelope(match, safeNow());
 };
 
 const requireParticipant = async (
@@ -173,8 +171,11 @@ const requireParticipant = async (
   match: MatchDoc,
   actor: PlayerActor,
 ): Promise<void> => {
-  const participantRows = await listMatchParticipants(ctx, match._id);
-  if (!participantMap(participantRows).has(String(actor.playerId))) {
+  const participant = await ctx.db
+    .query("matchParticipants")
+    .withIndex("by_match_player", (q) => q.eq("matchId", match._id).eq("playerId", actor.playerId))
+    .unique();
+  if (!participant) {
     parlorError("MATCH_PARTICIPANT_REQUIRED");
   }
 };
@@ -189,26 +190,17 @@ export const completeMatch = async (
   },
 ): Promise<MatchEnvelope> => {
   const match = (await findMatch(ctx, input.matchId)) ?? parlorError("MATCH_NOT_ACTIVE");
-  if (match.status !== "active") parlorError("MATCH_NOT_ACTIVE");
-  if (input.actor) await requireParticipant(ctx, match, input.actor);
   const completedAt = input.nowMs ?? safeNow();
-  const transition = completeMatchEnvelope({
-    match: toMatchEnvelope(match) as unknown as CoreMatchEnvelope,
-    completedAt: completedAt as TimestampMs,
-  });
-  if (!transition.ok) {
-    if (transition.error._tag === "MatchNotActive") parlorError("MATCH_NOT_ACTIVE");
-    return parlorError("MATCH_TIMESTAMP_INVALID");
-  }
-  const completed = transition.value;
+  activeEnvelope(match, completedAt);
+  if (input.actor) await requireParticipant(ctx, match, input.actor);
   await ctx.db.replace(match._id, {
     roomId: match.roomId,
     cycle: match.cycle,
     status: "completed",
     startedAt: match.startedAt,
-    completedAt: completed.completedAt,
+    completedAt,
   });
-  return completed as unknown as MatchEnvelope;
+  return toMatchEnvelope({ ...match, status: "completed", completedAt });
 };
 
 /** Abandon an active envelope without mutating game-specific rows. */
@@ -230,25 +222,17 @@ export const abandonMatch = async (
     if (room.hostPlayerId !== actor.playerId) parlorError("HOST_REQUIRED");
   }
   const abandonedAt = input.nowMs ?? safeNow();
-  const transition = abandonMatchEnvelope({
-    match: toMatchEnvelope(match) as unknown as CoreMatchEnvelope,
-    abandonedAt: abandonedAt as TimestampMs,
-    reason: input.reason,
-  });
-  if (!transition.ok) {
-    if (transition.error._tag === "MatchNotActive") parlorError("MATCH_NOT_ACTIVE");
-    return parlorError("MATCH_TIMESTAMP_INVALID");
-  }
-  const abandoned = transition.value;
+  const time = validateMatchEndTime(match.startedAt, abandonedAt, "abandonedAt");
+  if (!time.ok) parlorError("MATCH_TIMESTAMP_INVALID");
   await ctx.db.replace(match._id, {
     roomId: match.roomId,
     cycle: match.cycle,
     status: "abandoned",
     startedAt: match.startedAt,
-    abandonedAt: abandoned.abandonedAt,
-    reason: abandoned.reason,
+    abandonedAt,
+    reason: input.reason,
   });
-  return abandoned as unknown as MatchEnvelope;
+  return toMatchEnvelope({ ...match, status: "abandoned", abandonedAt, reason: input.reason });
 };
 
 export { matchEnvelopeValidator };

@@ -1,7 +1,6 @@
+import { isHostStale, selectNextHost } from "@parlor/core";
 import type { ConvexMutationCtx, PlayerActor, RoomDoc, RoomId } from "./policy.js";
 import {
-  DEFAULT_HOST_STALE_AFTER_MS,
-  isHostStale,
   listMatchParticipants,
   listRoomMembers,
   findActiveMatch,
@@ -10,7 +9,6 @@ import {
   parlorError,
   type MatchParticipantDoc,
   type RoomMemberDoc,
-  selectNextHost,
 } from "./runtime.js";
 
 export interface HeartbeatResult {
@@ -30,23 +28,18 @@ export const selfHealHost = async (
   },
 ): Promise<RoomDoc> => {
   const currentHost = input.members.find((member) => member.playerId === input.room.hostPlayerId);
-  if (!isHostStale(currentHost, input.now, DEFAULT_HOST_STALE_AFTER_MS)) {
+  if (currentHost && !isHostStale(currentHost, input.now)) {
     return input.room;
   }
-  const candidate =
-    input.activeParticipants === undefined
-      ? selectNextHost({
-          members: input.members,
-          now: input.now,
-        })
-      : selectNextHost({
-          members: input.members,
-          participants: input.activeParticipants,
-          now: input.now,
-        });
-  if (!candidate || candidate.playerId === input.room.hostPlayerId) {
+  const selection = selectNextHost({
+    members: input.members,
+    now: input.now,
+    ...(input.activeParticipants === undefined ? {} : { participants: input.activeParticipants }),
+  });
+  if (!selection.ok || selection.value.playerId === input.room.hostPlayerId) {
     return input.room;
   }
+  const candidate = selection.value;
   await ctx.db.patch(input.room._id, { hostPlayerId: candidate.playerId });
   return {
     ...input.room,

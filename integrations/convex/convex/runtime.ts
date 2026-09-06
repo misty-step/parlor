@@ -1,7 +1,6 @@
 export {
   DEFAULT_ABANDON_AFTER_MS,
   DEFAULT_AWAY_AFTER_MS,
-  DEFAULT_HARD_DEADLINE_MS,
   DEFAULT_HEARTBEAT_INTERVAL_MS,
   DEFAULT_HOST_STALE_AFTER_MS,
   DEFAULT_MAX_ELIGIBLE_PLAYERS,
@@ -18,12 +17,9 @@ export {
   ROOM_CODE_ALPHABET,
   ROOM_CODE_LENGTH,
   generateRoomCode,
-  isHostStale,
-  isPresent,
   normalizeDisplayName,
   normalizeRoomCode,
   safeNow,
-  selectNextHost,
 } from "./policy.js";
 export type {
   AbandonmentReason,
@@ -47,9 +43,6 @@ export type {
 } from "./policy.js";
 export type { MatchEnvelope } from "./helpers.js";
 export {
-  asMatch,
-  asMember,
-  asRoom,
   findActiveMatch,
   findLatestMatch,
   findMatch,

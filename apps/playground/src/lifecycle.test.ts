@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
 import {
-  ACTION_SEQUENCE,
   HOST_STALE_AFTER_MS,
   applyLifecycleAction,
   createInitialLifecycle,
@@ -8,7 +7,6 @@ import {
   getActiveParticipants,
   getCurrentHost,
   getMember,
-  getNextAction,
   getQueuedMembers,
   isMemberStale,
   type LifecycleAction,
@@ -71,16 +69,5 @@ describe("local lifecycle model", () => {
       "player-spectator",
     );
     expect(getActiveParticipants(state).map((participant) => participant.seatIndex)).toContain(2);
-  });
-
-  it("exposes exactly one next action for the vertical rehearsal", () => {
-    let state = createInitialLifecycle();
-    expect(getNextAction(state)).toBe("create-room");
-    for (const action of ACTION_SEQUENCE) {
-      expect(getNextAction(state)).toBe(action);
-      state = run(state, action);
-    }
-    expect(getNextAction(state)).toBeNull();
-    expect(state.events).toHaveLength(ACTION_SEQUENCE.length);
   });
 });
