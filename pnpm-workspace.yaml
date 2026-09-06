@@ -1,0 +1,10 @@
+packages:
+  - packages/*
+  - integrations/*
+  - apps/*
+
+allowBuilds:
+  esbuild: true
+
+blockExoticSubdeps: true
+minimumReleaseAge: 1440

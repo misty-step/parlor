@@ -1,0 +1,33 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "categories": {
+    "correctness": "error",
+    "perf": "warn",
+    "suspicious": "warn"
+  },
+  "options": {
+    "typeAware": true
+  },
+  "plugins": ["typescript", "react", "unicorn"],
+  "rules": {
+    "no-await-in-loop": "off",
+    "no-underscore-dangle": [
+      "error",
+      {
+        "allow": ["_id", "_creationTime", "_tag"]
+      }
+    ],
+    "react/react-in-jsx-scope": "off",
+    "typescript/no-unsafe-type-assertion": "off",
+    "unicorn/consistent-function-scoping": "off",
+    "unicorn/no-array-sort": "off",
+    "unicorn/prefer-set-has": "off"
+  },
+  "ignorePatterns": [
+    "**/dist/**",
+    "**/_generated/**",
+    "**/coverage/**",
+    "**/playwright-report/**",
+    "**/test-results/**"
+  ]
+}

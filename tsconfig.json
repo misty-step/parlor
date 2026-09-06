@@ -1,0 +1,11 @@
+{
+  "files": [],
+  "references": [
+    { "path": "./packages/core" },
+    { "path": "./packages/auth" },
+    { "path": "./packages/web" },
+    { "path": "./packages/react" },
+    { "path": "./integrations/convex" },
+    { "path": "./apps/playground" }
+  ]
+}
