@@ -11,13 +11,13 @@ Parlor is an accountless, phone-first multiplayer game substrate built on Convex
 
 ## 1. Architecture & Packages
 
-| Package          | Purpose                                            | Key Exports                                                                                                           |
-| ---------------- | -------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
-| `@parlor/core`   | Pure domain types and invariants                   | `Result<T, E>`, presence classification, room bounds                                                                  |
-| `@parlor/auth`   | HMAC-SHA256 guest credentials                      | `issueGuestToken`, `verifyGuestToken` (under `@parlor/auth/server`)                                                   |
-| `@parlor/convex` | Backend room, match, and presence tables & queries | `parlorTables`, `beginMatch`, `completeMatch`, `requireActiveMatch`, `resolvePlayer`, `sweepAbandonedMatches`         |
-| `@parlor/react`  | Pre-styled game UI components & hooks              | `<RoomCodeInput />`, `<QRCodeDisplay />`, `<ConnectionStatus />`, `<AvatarBadge />`, `useRoomPresence`, `useWakeLock` |
-| `@parlor/web`    | Browser-side capabilities                          | Wake lock controller, audio cues, clipboard helper                                                                    |
+| Package          | Purpose                                            | Key Exports                                                                                                                              |
+| ---------------- | -------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| `@parlor/core`   | Pure domain types and invariants                   | `Result<T, E>`, presence classification, room bounds                                                                                     |
+| `@parlor/auth`   | HMAC-SHA256 guest credentials                      | `issueGuestToken`, `verifyGuestToken` (under `@parlor/auth/server`)                                                                      |
+| `@parlor/convex` | Backend room, match, and presence tables & queries | `parlorTables`, `beginMatch`, `completeMatch`, `requireActiveMatch`, `resolvePlayer`, `sweepAbandonedMatches`                            |
+| `@parlor/react`  | Pre-styled game UI components & hooks              | `<RoomCodeInput />`, `<QRCodeDisplay />`, `<ConnectionStatus />`, `<AvatarBadge />`, `useHeartbeat`, `useGuestCredential`, `useWakeLock` |
+| `@parlor/web`    | Browser-side capabilities                          | Wake lock controller, audio cues, clipboard helper                                                                                       |
 
 ---
 
@@ -69,22 +69,36 @@ Use Parlor's match primitives to manage player eligibility and match lifecycles:
 ```typescript
 import { beginMatch, completeMatch, requireActiveMatch, resolvePlayer } from "@parlor/convex";
 
-// Starting a game (host only):
-// 1. beginMatch freezes eligible players into matchParticipants.
-// 2. Late-joiners during the match become spectators.
-const { matchId, participants, cycle } = await beginMatch(ctx, {
+// 1. Resolve caller identity from the guest token:
+const actor = await resolvePlayer(ctx, guestToken);
+
+// 2. Starting a game (host only):
+// beginMatch requires the resolved actor and roomId.
+// It checks host authority, freezes eligible present members into
+// matchParticipants, and returns the active match envelope.
+const activeMatch = await beginMatch(ctx, {
   roomId,
-  guestToken,
+  actor,
+  minPlayers: 3,
+  maxPlayers: 12,
 });
+const matchId = activeMatch.id;
 
-// Querying / mutating game state:
-// Ensures the caller is an active participant and the match is running:
-const { match, player, member } = await requireActiveMatch(ctx, {
-  gameId,
-  guestToken,
-});
+// 3. Guarding game commands (status & deadline):
+// requireActiveMatch verifies the match is active and not timed out.
+// Note: requireActiveMatch checks status/deadline only, NOT caller membership.
+await requireActiveMatch(ctx, matchId, roomId);
 
-// Finishing the game:
+// 4. Authorizing participant actions explicitly:
+const participant = await ctx.db
+  .query("matchParticipants")
+  .withIndex("by_match_player", (q) => q.eq("matchId", matchId).eq("playerId", actor.playerId))
+  .unique();
+if (!participant) {
+  throw new ConvexError("MATCH_PARTICIPANT_REQUIRED");
+}
+
+// 5. Finishing the game:
 await completeMatch(ctx, { matchId });
 ```
 
@@ -120,6 +134,7 @@ Party games should require no accounts:
 - Use `<RoomCodeInput />` for entering 4-character room codes.
 - Use `<QRCodeDisplay />` in lobbies for instant phone camera joins.
 - Use `<ConnectionStatus />` to show live socket state and reconnect notices.
+- Use `useHeartbeat({ send: () => mutate(api.rooms.heartbeat, { roomId, guestToken }) })` for visibility-aware presence pings.
 - Use `useWakeLock()` during active gameplay to prevent phones from sleeping.
 
 ---
