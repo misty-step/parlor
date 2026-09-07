@@ -104,21 +104,31 @@ await completeMatch(ctx, { matchId });
 
 ### Step 4: Abandonment Sweeping (`convex/maintenance.ts`)
 
-Run Parlor's bounded sweeper to transfer departed hosts, mark idle players away, and clean up abandoned rooms:
+`sweepAbandonedMatches` abandons a **bounded page** of active match envelopes (hard deadline elapsed, or every participant away). It does **not** transfer hosts, mark members away, or close rooms. Presence is derived from `lastSeenAt` on read; host self-heal runs inside `heartbeat` / leave (`selfHealHost`).
+
+The caller owns pagination. Returning only the first page on a cron interval can starve later matches indefinitely. Continue from `continueCursor` until `hasMore` is false:
 
 ```typescript
 import { sweepAbandonedMatches } from "@parlor/convex";
+import { v } from "convex/values";
+import { internal } from "./_generated/api";
 import { internalMutation } from "./_generated/server";
 
-export const sweep = internalMutation({
-  args: {},
-  handler: async (ctx) => {
-    return sweepAbandonedMatches(ctx);
+export const sweepAbandoned = internalMutation({
+  args: { cursor: v.optional(v.string()) },
+  handler: async (ctx, args) => {
+    const result = await sweepAbandonedMatches(ctx, { limit: 50, ...args });
+    if (result.hasMore && result.continueCursor !== null) {
+      await ctx.scheduler.runAfter(0, internal.maintenance.sweepAbandoned, {
+        cursor: result.continueCursor,
+      });
+    }
+    return result;
   },
 });
 ```
 
-Schedule this via Convex cron (e.g. every 5 minutes).
+Kick the first page from a Convex cron (Poppycock uses every 1 minute with empty `{}` args).
 
 ### Step 5: Guest Authentication & Continuity (`app/api/guest/route.ts`)
 
