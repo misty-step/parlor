@@ -7,11 +7,27 @@ description: Build and review phone-first multiplayer games with Parlor on Conve
 
 Parlor supplies shared room, identity, presence, and match infrastructure. The game owns its rules, phases, prompts, private state, scoring, and presentation. Work from the consuming game's requirements and the installed source, not remembered APIs.
 
+## Import only into a consuming repository
+
+Parlor maintains this skill in `skills/parlor/SKILL.md`. Import it only into a consuming game's `.agents/skills/parlor`; never deploy it to a home/global skill directory or unrelated repositories. From a reviewed Parlor checkout:
+
+```sh
+node scripts/import-skill.mjs --target /path/to/game
+```
+
+The owner-provided importer reads the game's pinned `vendor/parlor` checkout or `vendor/parlor/UPSTREAM.json`, imports guidance from that exact commit, and writes a local `SKILL.md`, `reference.md`, and `SOURCE.json`. It never fetches a newer skill, changes dependencies, or updates a source pin. A copied vendor tree can omit the skill: the recorded commit must then be available in the importing Parlor checkout's local Git objects.
+
+For an app without Parlor source or dependencies, explicitly use `--guidance-only`. This imports the owner's working-tree guidance, records its base revision and content hash, and states that the framework is **not installed**. It neither selects nor authorizes a migration. Preserve and review an existing differing import before replacing it; an identical import is left untouched. Keep other repository skills intact.
+
+Read the imported `SOURCE.json` and inspect installed source signatures before coding. Maintain guidance upstream, not in derived consumer copies. A skill provides context; the user's request and the game's requirements remain authority.
+
+For a new game, inspect the complete `examples/first-tap` application in the same checkout and follow [Run First Tap](https://parlor.mistystep.io/docs/first-game/). From the Parlor repository root, its path is `pnpm install` → `pnpm build:packages`, then `pnpm --filter @parlor/first-tap dev:backend` in one terminal and `pnpm --filter @parlor/first-tap run setup` followed by `pnpm --filter @parlor/first-tap dev` in another. Select an isolated development backend and browse `http://localhost:3000` with separate identities. The example's setup is development-only and scoped to its selected backend; it is not a production secret configurator.
+
 ## Install and align source
 
 Parlor is a pre-1.0 source distribution. Its `@parlor/*` packages are private workspace packages, not npm releases. Do not suggest `npm install @parlor/*`.
 
-From an existing pnpm game workspace, first inspect its manifests and any existing Parlor checkout. If Parlor is not already installed:
+For an existing app, follow [source-workspace installation](https://parlor.mistystep.io/docs/installation/). First inspect its manifests and any existing Parlor checkout. If Parlor is not installed:
 
 ```sh
 mkdir -p vendor
@@ -47,10 +63,14 @@ This is a fragment to merge, not a replacement manifest. Add `@parlor/core` if i
 
 ```sh
 pnpm install
-pnpm --filter '@parlor/*' --if-present build
+pnpm -r --filter './vendor/parlor/packages/**' --filter './vendor/parlor/integrations/**' --if-present build
 ```
 
-Package exports point to built `dist` files. Rebuild after source updates. Read `vendor/parlor/skills/parlor/SKILL.md` from the same revision as the packages; the website skill may be newer. Inspect these local contracts before coding:
+Package exports point to built `dist` files. Rebuild after source updates. Import the aligned repository-local skill with the owner-provided command above; inspect `.agents/skills/parlor/SOURCE.json` and its pinned `reference.md`. The website skill may be newer than the installed packages.
+
+The vendored workspace entries include only the library directories, not Parlor's apps, examples, or root package. Preserve existing dependency build permissions and compiler exclusions; the installation guide records the current toolchain requirements.
+
+Inspect these local contracts before coding:
 
 - `integrations/convex/src/index.ts`, its package export map, and `integrations/convex/convex/{schema,identity,rooms,matches,abandonment,presence}.ts`.
 - `packages/auth/src/{index,server}.ts` for credential input/output types and verification.
@@ -101,7 +121,7 @@ Generate the consuming application's Convex API and use its `api.rooms.*` refere
 - Preserve a guest ID across refreshes only from server-verified continuity. A signed `HttpOnly`, `SameSite=Lax`, production-`Secure` cookie is one application-owned mechanism. Reject client-supplied guest IDs and unverified/expired token claims as renewal authority. Keep bearer-token and continuity-cookie lifetimes distinct; document how expired credentials recover without silently changing identity.
 - `resolvePlayer(ctx, guestToken?)` returns a server-resolved actor. Without a guest token it can use verified Convex auth identity; an invalid supplied guest token does not fall back to that identity. Existing players resolve by default; creation requires `{ create: true }` in a mutation. Room create/join already create players as needed.
 
-The [authentication guide](https://parlor.mistystep.io/docs/authentication/) provides a complete application-owned issuance and continuity example. Adapt it to the pinned source and the game's HTTP runtime.
+The [authentication guide](https://parlor.mistystep.io/docs/authentication/) explains the example's application-owned [issuance and continuity route](https://github.com/misty-step/parlor/blob/master/examples/first-tap/app/api/guest/route.ts). Read `examples/first-tap/app/api/guest/route.ts` from the pinned checkout when adapting it to the game's HTTP runtime.
 
 ## Protect every game transition
 
@@ -132,7 +152,7 @@ Then enforce the game's phase, turn, submission uniqueness, and deadline rules. 
 - New mid-match members are not added to the frozen roster. Spectator access is a game-owned safe projection; next-cycle eligibility still requires presence and player bounds. Never replace the current roster with all room members.
 - Finish with `completeMatch(ctx, { matchId, actor })` after server-validated completion, atomically with final scores. Providing `actor` checks participation, not permission to end the game's phase. Omitting it bypasses that check and belongs only in an already-authorized internal path.
 - `abandonMatch(ctx, { matchId, reason, actor? })` accepts `host-ended`, `everyone-away`, or `hard-deadline`. `host-ended` requires a resolved host actor; the other reasons are trusted maintenance decisions, not client-selectable shortcuts. These helpers update envelopes, not game-specific rows.
-- Presence is derived from timestamps. Host self-healing occurs during heartbeat/leave, not a background timer; active-match transfers restrict candidates to frozen participants. Do not promise immediate transfer while every client is disconnected.
+- Presence is derived from timestamps. Host self-healing occurs during heartbeat/leave, not a background timer. It selects the non-host-stale candidate with the lowest seat index, breaking ties by player ID; active-match transfers restrict candidates to frozen participants still in the room. A later mutation can heal the host when no candidate was previously eligible, so do not promise immediate transfer while every client is disconnected.
 
 ## Continue every sweeper page
 
@@ -173,9 +193,9 @@ export default crons;
 
 Never restart only the first page at every interval: healthy early matches can starve abandoned later ones. Keep `requireActiveMatch` and game-phase deadline guards on commands for both timed and untimed envelopes, even when cron sweeping is enabled.
 
-## Wire the real React client
+## Compose the React client
 
-- Use the application's `ConvexProvider` from `convex/react`. There is no Parlor guest provider. Own one `useGuestCredential({ issuer, autoAcquire: true })` at the application boundary and share its result through application-owned state/context. Handle loading, renewal failure, retry, and memory-only storage explicitly.
+- Use the application's `ConvexProvider` from `convex/react`. Own one `useGuestCredential({ issuer, autoAcquire: true })` at the application boundary and share its result through application-owned state/context; Parlor does not export a guest provider. Handle loading, renewal failure, retry, and memory-only storage explicitly. Inspect `examples/first-tap/app/providers.tsx`, `app/page.tsx`, and `app/guest-issuer.ts` in that example; `app/room-view.tsx` owns live controls and browser hooks. Retry an initial failed acquisition with `acquire()` when no proof exists; use `refresh()` for retained proof. Keep selected-room state outside temporarily credential-gated rendering.
 - Do not query or mutate guest-only endpoints until `credential` exists; use Convex's `"skip"` query argument while waiting. Send the credential as `guestToken`, not as a player ID.
 - Import `@parlor/react/styles.css` when using Parlor's UI. Inspect exported component props rather than guessing them.
 - `useHeartbeat` requires a sender returning `void` or `PromiseLike<void>`, not the heartbeat mutation result. For a component with nullable `roomId`/`guestToken` and a `heartbeat` mutation hook:
@@ -195,15 +215,15 @@ Wake lock and audio are progressive browser capabilities. Denial, unsupported br
 
 ## Prove the integration and hand it off
 
-Use the consuming game's real Convex deployment and HTTP guest issuer with separate browser identities. Verify create → join → start → submit → reveal → score → rematch, refresh preserving the player/seat, late-join spectators, rejected unauthorized commands, and hidden-state projections. Exercise host departure, background/foreground, connection loss/recovery, and sweeper continuation beyond the first page. Check on real mobile browsers, including denied wake lock/audio; if unavailable, report that gap explicitly rather than calling viewport emulation device proof.
+Use the consuming game's configured Convex backend and HTTP guest issuer with separate browser identities. Verify create → join → start → submit → reveal → score → rematch, refresh preserving the player/seat, late-join spectators, rejected unauthorized commands, and hidden-state projections. Exercise host departure, background/foreground, connection loss/recovery, and sweeper continuation beyond the first page. Check physical mobile browsers, including denied wake lock/audio; if unavailable, report that gap explicitly rather than calling viewport emulation device proof.
 
 The playground's local simulation is not evidence that guest signing, Convex functions, cookies, scheduling, or deployed mobile flows work. Obtain human review for credential handling, authorization/projections, schema/data migrations, and any production deployment or secret change. Report the exact revision and paths exercised, remaining risks, and environment limitations without performance or stability claims.
 
-For a bug or missing primitive, check [existing issues](https://github.com/misty-step/parlor/issues), prepare a minimal reproduction with the pinned commit and expected/actual behavior, and follow the user's permission boundary before publishing it. Exclude tokens, cookies, private data, and secrets.
+For a bug or missing primitive, prepare a minimal reproduction with the pinned commit and expected/actual behavior. Linear owns current work, prioritization, and selected unresolved opportunities; create or update an item only when the user requests it. Historical GitHub reports may remain useful evidence, but are not an automatic intake queue. Exclude tokens, cookies, private data, and secrets. Keep durable contracts and portable procedures in the repository, concise work summaries in Linear, and raw or sensitive run output in approved retained artifact storage.
 
 ## References
 
-- [Developer docs](https://parlor.mistystep.io/docs/getting-started/) and [API reference](https://parlor.mistystep.io/docs/api/).
+- [Start here](https://parlor.mistystep.io/docs/getting-started/), [Run First Tap](https://parlor.mistystep.io/docs/first-game/), [source installation](https://parlor.mistystep.io/docs/installation/), and [API reference](https://parlor.mistystep.io/docs/api/).
 - [Rooms and presence](https://parlor.mistystep.io/docs/rooms-and-presence/), [matches](https://parlor.mistystep.io/docs/matches/), and [React](https://parlor.mistystep.io/docs/react/).
 - [Agent onboarding](https://parlor.mistystep.io/docs/agents/), [documentation index](https://parlor.mistystep.io/llms.txt), and [full documentation](https://parlor.mistystep.io/llms-full.txt).
 - [Source repository](https://github.com/misty-step/parlor) and [canonical skill source](https://github.com/misty-step/parlor/blob/master/skills/parlor/SKILL.md). Use the installed commit instead of `master` when resolving a contract difference.

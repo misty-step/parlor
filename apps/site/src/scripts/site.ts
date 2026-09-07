@@ -10,15 +10,31 @@ const query = document.querySelector<HTMLInputElement>("#search-query");
 const results = document.querySelector<HTMLUListElement>(".search-results");
 const status = document.querySelector<HTMLParagraphElement>(".search-status");
 const trigger = document.querySelector<HTMLButtonElement>("[data-search-open]");
+const copyStatus = document.querySelector<HTMLElement>("[data-copy-status]");
 let entries: SearchEntry[] | undefined;
 let loading: Promise<void> | undefined;
+
+function announce(message: string) {
+  if (copyStatus) copyStatus.textContent = message;
+}
+
+async function copyText(value: string, success: string) {
+  try {
+    await navigator.clipboard.writeText(value);
+    announce(success);
+    return true;
+  } catch {
+    announce("Copy failed. Select the text instead.");
+    return false;
+  }
+}
 
 function renderResults() {
   if (!query || !results || !status || !entries) return;
   const terms = query.value.toLowerCase().trim().split(/\s+/).filter(Boolean);
   results.replaceChildren();
   if (!terms.length) {
-    status.textContent = "Type to search guides and API reference.";
+    status.textContent = "Type to search the guides and API reference.";
     return;
   }
   const matches = entries
@@ -40,7 +56,7 @@ function renderResults() {
     .sort((a, b) => b.rank - a.rank)
     .slice(0, 8);
   status.textContent = matches.length
-    ? `${matches.length} ${matches.length === 1 ? "guide" : "guides"} found. Tab to explore results.`
+    ? `${matches.length} ${matches.length === 1 ? "guide" : "guides"} found.`
     : "No guides found. Try “rooms”, “auth”, or “matches”.";
   for (const { entry } of matches) {
     const item = document.createElement("li");
@@ -54,6 +70,20 @@ function renderResults() {
     item.append(link);
     results.append(item);
   }
+}
+
+function moveSelection(delta: number) {
+  if (!results) return;
+  const links = [...results.querySelectorAll("a")];
+  if (!links.length) return;
+  const current = links.findIndex((link) => link === document.activeElement);
+  const next =
+    current < 0
+      ? delta > 0
+        ? 0
+        : links.length - 1
+      : (current + delta + links.length) % links.length;
+  links[next]?.focus();
 }
 
 async function openSearch() {
@@ -73,8 +103,7 @@ async function openSearch() {
     try {
       await loading;
     } catch {
-      status.textContent =
-        "Search could not load. Check your connection or browse the documentation below.";
+      status.textContent = "Search could not load. Browse the documentation below.";
       return;
     }
   }
@@ -88,6 +117,21 @@ if (trigger) {
   });
 }
 query?.addEventListener("input", renderResults);
+dialog?.addEventListener("keydown", (event) => {
+  const target = event.target;
+  const inResults = target instanceof Element && target.closest(".search-results");
+  if (target !== query && !inResults) return;
+  if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+    event.preventDefault();
+    moveSelection(event.key === "ArrowDown" ? 1 : -1);
+  } else if (event.key === "Enter" && target === query) {
+    const first = results?.querySelector("a");
+    if (first) {
+      event.preventDefault();
+      first.click();
+    }
+  }
+});
 document.querySelector("[data-search-close]")?.addEventListener("click", () => dialog?.close());
 dialog?.addEventListener("click", (event) => {
   if (event.target === dialog) dialog.close();
@@ -97,7 +141,10 @@ document.addEventListener("keydown", (event) => {
   const editing =
     target instanceof HTMLElement &&
     (target.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(target.tagName));
-  if (event.key === "/" && !event.metaKey && !event.ctrlKey && !event.altKey && !editing) {
+  if (
+    (!editing && event.key === "/" && !event.metaKey && !event.ctrlKey && !event.altKey) ||
+    ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k")
+  ) {
     event.preventDefault();
     void openSearch();
   }
@@ -112,17 +159,14 @@ for (const block of document.querySelectorAll<HTMLPreElement>(".prose pre, pre[d
   button.textContent = "Copy";
   button.setAttribute("aria-label", "Copy code");
   button.addEventListener("click", async () => {
-    try {
-      await navigator.clipboard.writeText(code.textContent ?? "");
+    if (await copyText(code.textContent ?? "", "Code copied")) {
       button.textContent = "Copied";
-      button.setAttribute("aria-label", "Code copied");
-    } catch {
+    } else {
       button.textContent = "Select code";
       const range = document.createRange();
       range.selectNodeContents(code);
       window.getSelection()?.removeAllRanges();
       window.getSelection()?.addRange(range);
-      button.setAttribute("aria-label", "Code selected; copy with your keyboard");
     }
     window.setTimeout(() => {
       button.textContent = "Copy";
@@ -130,6 +174,27 @@ for (const block of document.querySelectorAll<HTMLPreElement>(".prose pre, pre[d
     }, 2500);
   });
   block.append(button);
+}
+
+const copyPage = document.querySelector<HTMLButtonElement>("[data-copy-page]");
+if (copyPage) {
+  copyPage.hidden = false;
+  copyPage.addEventListener("click", async () => {
+    const path = copyPage.dataset.copyPage;
+    if (!path) return;
+    try {
+      const response = await fetch(path);
+      if (!response.ok) throw new Error("unavailable");
+      if (await copyText(await response.text(), "Page copied as Markdown")) {
+        copyPage.textContent = "Copied";
+        window.setTimeout(() => {
+          copyPage.textContent = "Copy page for your agent";
+        }, 2500);
+      }
+    } catch {
+      announce("Could not copy this page. Open the Markdown link instead.");
+    }
+  });
 }
 
 for (const menu of document.querySelectorAll<HTMLDetailsElement>(".mobile-menu")) {
@@ -143,22 +208,22 @@ for (const menu of document.querySelectorAll<HTMLDetailsElement>(".mobile-menu")
 
 const roomPhases = {
   lobby: {
-    label: "One room. Everyone in.",
-    status: "4 friends, no accounts",
-    ticket: "Room ready",
-    description: "Share a code. Friends join from their phones.",
+    label: "Meet you in",
+    status: "4 friends. No accounts.",
+    ticket: "The room is ready",
+    description: "One shared code. Everyone joins from their own phone.",
     late: "Jo is watching",
   },
   match: {
-    label: "Your game takes the floor.",
-    status: "4 players locked in",
+    label: "This match is locked.",
+    status: "4 players. Late arrivals watch.",
     ticket: "Match in progress",
-    description: "Freeze the lineup. Late arrivals watch this match.",
+    description: "Freeze the lineup. New friends can watch, then play next time.",
     late: "Jo is watching",
   },
   rematch: {
     label: "Same room. New round.",
-    status: "5 friends, next match",
+    status: "5 friends. Next match.",
     ticket: "Jo can play next",
     description: "Keep the room. Include new friends in the next match.",
     late: "Jo is playing",
@@ -201,4 +266,31 @@ if (navigation) {
   mobile.addEventListener("change", updateNavigation);
 }
 
-export { openSearch };
+const panels = document.querySelectorAll<HTMLElement>("[data-code-panel]");
+for (const button of document.querySelectorAll<HTMLButtonElement>("[data-code-tab]")) {
+  button.addEventListener("click", () => {
+    const tab = button.dataset.codeTab;
+    for (const control of document.querySelectorAll("[data-code-tab]")) {
+      control.setAttribute("aria-pressed", String(control === button));
+    }
+    for (const panel of panels) {
+      panel.hidden = panel.dataset.codePanel !== tab;
+    }
+  });
+}
+
+const tocLinks = [...document.querySelectorAll<HTMLAnchorElement>("[data-toc-link]")];
+if (tocLinks.length) {
+  const headings = tocLinks
+    .map((link) => document.getElementById(link.hash.slice(1)))
+    .filter((heading): heading is HTMLElement => heading !== null);
+  const sync = () => {
+    const current =
+      headings.findLast((heading) => heading.getBoundingClientRect().top <= 120) ?? headings[0];
+    for (const link of tocLinks) {
+      link.setAttribute("aria-current", link.hash === `#${current.id}` ? "true" : "false");
+    }
+  };
+  sync();
+  document.addEventListener("scroll", sync, { passive: true });
+}

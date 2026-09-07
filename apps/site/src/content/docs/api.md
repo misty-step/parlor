@@ -5,13 +5,13 @@ section: Reference
 order: 80
 ---
 
-## Distribution and import rules
+## Imports and distribution
 
-All five packages currently identify as private `0.1.0` workspace packages. This is a **pre-1.0 source distribution**, not an available stable npm release. Follow [source installation](/docs/getting-started/#install-from-source), keep the full checkout's build configuration, and build packages before consuming their `dist` exports.
+All five packages are private `0.1.0` workspace packages distributed from source. Follow [installation](/docs/installation/), retain the full checkout's build configuration, and build the packages before consuming their `dist` exports.
 
-Use only the subpaths listed below. Do not import private `dist` internals or application-generated code from Parlor. Import your own `api`/`internal` from `convex/_generated/api` and database IDs from `convex/_generated/dataModel`.
+The tables below list supported import paths. Use your application's `api`/`internal` from `convex/_generated/api` and database IDs from `convex/_generated/dataModel`; library internals and reference-app generated code are separate from this public surface.
 
-The examples and guides describe current source contracts; they do not promise API stability across source revisions.
+These contracts describe current source. Compare them with your pinned checkout when updating an integration; package version alone does not identify a stable API revision. [First Tap](/docs/first-game/#find-the-implementation) shows the APIs composed in an application.
 
 ## @parlor/core
 
@@ -88,7 +88,7 @@ declare function verifyGuestToken(
 
 Constants include `GUEST_TOKEN_VERSION` (1), `MIN_SECRET_BYTES` (32), `MAX_TOKEN_LENGTH` (4096), `MAX_SEGMENT_LENGTH` (2048), `MAX_KEY_ID_LENGTH` (64), `MAX_AUDIENCE_LENGTH` (128), `MAX_IDENTIFIER_LENGTH` (128), `DEFAULT_CLOCK_SKEW_MS` (30,000), `DEFAULT_TOKEN_LIFETIME_MS` (900,000) and `MAX_TOKEN_LIFETIME_MS` (86,400,000).
 
-The [authentication guide](/docs/authentication/) covers error codes, configuration, rotation and a complete cookie-backed HTTP issuer. No cookie or HTTP function is exported by this package.
+The [authentication guide](/docs/authentication/) covers errors, configuration, rotation, and the example's cookie-backed HTTP issuer. Your application owns cookie and HTTP behavior.
 
 ## @parlor/convex
 
@@ -103,9 +103,9 @@ The [authentication guide](/docs/authentication/) covers error codes, configurat
 | `@parlor/convex/presence`    | `recordHeartbeat`, `selfHealHost`, `HeartbeatResult`                                                                                                         |
 | `@parlor/convex/abandonment` | `sweepAbandonedMatches`, `SweepResult`                                                                                                                       |
 
-There is no exported `@parlor/convex/maintenance`, `/crons`, `/runtime` or `/_generated` subpath. Register [your own internal maintenance wrapper](/docs/matches/#register-an-internal-wrapper).
+Register an [application-owned maintenance wrapper](/docs/matches/#register-an-internal-wrapper) and cron using your generated internal API. Maintenance, crons, runtime internals, and generated code are not package subpaths.
 
-### Registered endpoints versus composing helpers
+### Endpoints and helpers
 
 Re-export registered functions from your app's Convex modules. Invoke composing helpers directly inside an app-generated query/mutation handler with its `ctx`.
 
@@ -129,7 +129,7 @@ Re-export registered functions from your app's Convex modules. Invoke composing 
 
 Root type exports also include `ActorKind`, `ConvexCtx`, `ConvexMutationCtx`, `ConvexQueryCtx`, `MatchDoc`, `MatchId`, `MatchParticipantDoc`, `MatchStatus`, `PlayerDoc`, `RoomId`, `RoomMemberDoc` and `AbandonmentReason`. The integration's database ID types are Convex IDs, unlike the pure core brands.
 
-### Presence helper inputs
+### Presence helpers
 
 `recordHeartbeat(ctx, { roomId, actor, now })` writes presence and attempts host repair; its internal `HeartbeatResult` contains raw `room`, `member`, and `hostPlayerId`, not the public endpoint's projection.
 
@@ -152,7 +152,7 @@ Hooks: `useGuestCredential`, `useHeartbeat`, `useWakeLock`, with `Use*Options` a
 
 The root re-exports the audio controller, factories, raw engine helpers, cue map, storage-key constants, sound catalogue and audio types from `@parlor/web`. It does **not** re-export the browser credential-store types; import `GuestCredentialIssuer` from `@parlor/web`.
 
-There is no React subpath for individual components/hooks and no guest-auth provider. See [React](/docs/react/) for complete component and hook examples, real props, audio and CSS usage.
+Import components and hooks from the root; individual React subpaths and a guest-auth provider are not exported. See [React integration](/docs/react/) for focused hook/component excerpts, audio, styling, and links to the complete app.
 
 ## @parlor/web
 
@@ -176,4 +176,4 @@ The browser contracts include `GuestCredential` (opaque branded string), `GuestC
 
 Audio exports are `AUDIO_ENABLED_STORAGE_KEY`, `AUDIO_VOLUME_STORAGE_KEY`, `AudioController`, `createAudioController`, `DEFAULT_PARLOR_SOUNDS`, `bindAudioCues`, `playRawSound`, `sounds`, `SoundName`, `ParlorSoundCue`, `AudioControllerOptions`, `AudioEngineLike`, `AudioPlayOptions`, and `AudioSnapshot`.
 
-There is no clipboard utility export. A wake lock is best effort, an audio cue is presentation, and browser storage is not an identity authority. [React and browser capabilities](/docs/react/) describes the shared underlying behavior.
+For clipboard actions, use the browser API directly; there is no clipboard utility export. Wake lock is best effort, audio is presentation, and server verification establishes identity. [React and browser capabilities](/docs/react/) explains the shared behavior.

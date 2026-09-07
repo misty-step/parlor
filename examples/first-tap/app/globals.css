@@ -1,0 +1,422 @@
+:root {
+  color-scheme: light;
+  --ink: #16324f;
+  --muted: #536579;
+  --surface: #ffffff;
+  --background: #ecf3f8;
+  --line: #c4d2de;
+  --tap: #c8293e;
+  --success: #276256;
+  font-family: "Trebuchet MS", Arial, sans-serif;
+  color: var(--ink);
+  background: var(--background);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-size: 1rem;
+  line-height: 1.55;
+}
+
+.shell {
+  max-width: 43rem;
+  margin-inline: auto;
+  padding: max(1.25rem, env(safe-area-inset-top)) max(1rem, env(safe-area-inset-right))
+    max(2rem, env(safe-area-inset-bottom)) max(1rem, env(safe-area-inset-left));
+}
+
+h1,
+h2,
+h3,
+p {
+  margin-top: 0;
+}
+
+h1 {
+  margin-bottom: 0.2rem;
+  font-size: clamp(2rem, 6vw, 2.7rem);
+  line-height: 1.1;
+  letter-spacing: -0.05em;
+}
+
+h2 {
+  margin-bottom: 0.8rem;
+  font-size: 1.4rem;
+  line-height: 1.3;
+}
+
+h3 {
+  margin-bottom: 0.6rem;
+  font-size: 1.15rem;
+  line-height: 1.35;
+}
+
+p:last-child {
+  margin-bottom: 0;
+}
+
+a {
+  color: #205b8a;
+  text-underline-offset: 0.2em;
+}
+
+button,
+input {
+  font: inherit;
+}
+
+button,
+summary {
+  touch-action: manipulation;
+}
+
+button {
+  min-height: 2.9rem;
+  max-width: 100%;
+  padding: 0.65rem 1rem;
+  border: 1px solid var(--ink);
+  border-radius: 0.5rem;
+  color: var(--surface);
+  background: var(--ink);
+  font-weight: 700;
+  cursor: pointer;
+}
+
+button:hover:not(:disabled) {
+  filter: brightness(1.12);
+}
+
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+button.secondary {
+  color: var(--ink);
+  background: var(--surface);
+  border-color: var(--line);
+}
+
+button.danger {
+  color: var(--surface);
+  background: #9c2536;
+  border-color: #9c2536;
+}
+
+button.danger.secondary {
+  color: #9c2536;
+  background: var(--surface);
+}
+
+:focus-visible {
+  outline: 3px solid #ad500c;
+  outline-offset: 4px;
+}
+
+label {
+  display: block;
+  margin-bottom: 0.4rem;
+  font-weight: 700;
+}
+
+input {
+  width: 100%;
+  min-height: 2.9rem;
+  padding: 0.65rem 0.8rem;
+  border: 1px solid #7e94a8;
+  border-radius: 0.5rem;
+  color: var(--ink);
+  background: var(--surface);
+}
+
+code {
+  font-size: 0.88em;
+  overflow-wrap: anywhere;
+}
+
+.app-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
+  margin-block: 0.5rem 1.6rem;
+}
+
+.app-header > div {
+  flex: 1;
+}
+
+.app-header p {
+  color: var(--muted);
+  font-size: 0.95rem;
+}
+
+.sound-toggle {
+  flex: 0 0 auto;
+  padding-inline: 0.7rem;
+  font-size: 0.9rem;
+}
+
+.panel {
+  padding: 1.4rem;
+  border: 1px solid var(--line);
+  border-radius: 0.9rem;
+  background: var(--surface);
+}
+
+.lobby form {
+  margin-block: 1.4rem;
+}
+
+.hint,
+.parlor-room-code__description {
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+input + .hint {
+  margin-top: 0.4rem;
+}
+
+.join-form {
+  display: grid;
+  gap: 0.8rem;
+  margin-top: 1.5rem;
+  padding-top: 1.4rem;
+  border-top: 1px solid var(--line);
+}
+
+.join-form > button {
+  justify-self: start;
+}
+
+.parlor-room-code {
+  --parlor-field-background: var(--surface);
+  --parlor-field-foreground: var(--ink);
+  --parlor-field-border: #7e94a8;
+  --parlor-focus-color: #ad500c;
+}
+
+.error {
+  padding: 0.8rem;
+  border-left: 3px solid #9c2536;
+  color: #872133;
+  background: #fff0f2;
+  overflow-wrap: anywhere;
+}
+
+.room-stack {
+  display: grid;
+  gap: 1rem;
+}
+
+.room-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 1.2rem;
+}
+
+.room-header h2 {
+  margin-bottom: 0;
+}
+
+.room-code {
+  display: inline-block;
+  margin-left: 0.4rem;
+  font-size: 1.8rem;
+  letter-spacing: 0.12em;
+}
+
+.parlor-connection-status {
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.match-state {
+  padding: 1.5rem 1rem;
+  border-radius: 0.65rem;
+  background: var(--background);
+  text-align: center;
+}
+
+.match-state h3 {
+  font-size: 1.6rem;
+}
+
+.match-state p {
+  max-width: 34rem;
+  margin-inline: auto;
+}
+
+.match-state button + p {
+  margin-top: 0.8rem;
+}
+
+.match-number {
+  margin-bottom: 0.25rem;
+  color: var(--muted);
+}
+
+.tap-button {
+  display: block;
+  width: min(100%, 17rem);
+  aspect-ratio: 1;
+  margin: 1.4rem auto 1.2rem;
+  padding: 1rem;
+  border: 3px solid #a72233;
+  border-radius: 50%;
+  box-shadow: 0 0.5rem 0 #832034;
+  color: var(--surface);
+  background: var(--tap);
+  font-size: clamp(1.8rem, 7vw, 2.4rem);
+  line-height: 1.15;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.tap-button:active:not(:disabled) {
+  transform: translateY(0.35rem);
+  box-shadow: 0 0.15rem 0 #832034;
+}
+
+.winner {
+  color: var(--success);
+  overflow-wrap: anywhere;
+}
+
+.roster {
+  margin-top: 1.6rem;
+}
+
+.roster ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.roster li {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  padding-block: 0.8rem;
+  border-bottom: 1px solid var(--line);
+}
+
+.player-name {
+  min-width: 0;
+  flex: 1;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.player-role {
+  flex: 0 0 auto;
+  max-width: 45%;
+  color: var(--muted);
+  font-size: 0.8rem;
+  text-align: right;
+}
+
+summary {
+  width: fit-content;
+  padding-block: 0.65rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.identity-details {
+  margin-top: 0.8rem;
+  font-size: 0.85rem;
+}
+
+.player-id {
+  display: block;
+  user-select: all;
+}
+
+.room-controls {
+  margin-top: 1.4rem;
+}
+
+.button-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+}
+
+.button-row + .hint {
+  margin-top: 0.7rem;
+}
+
+.close-confirmation {
+  margin-top: 1rem;
+  padding: 1rem;
+  border: 1px solid #c798a0;
+  border-radius: 0.5rem;
+}
+
+.share-room > summary {
+  padding-block: 0.15rem;
+}
+
+.share-content {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: start;
+  gap: 1.2rem;
+  margin-top: 1.3rem;
+}
+
+.share-content button {
+  margin-block: 0.7rem;
+}
+
+.guest-tools {
+  padding: 1.2rem 0.2rem;
+}
+
+.guest-tools h2 {
+  margin-bottom: 0.4rem;
+  font-size: 1rem;
+}
+
+.app-footer {
+  padding-top: 1rem;
+  border-top: 1px solid var(--line);
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+@media (max-width: 480px) {
+  .panel {
+    padding: 1rem;
+  }
+
+  .share-content {
+    grid-template-columns: 1fr;
+  }
+
+  .share-content .parlor-qr-code {
+    justify-self: center;
+  }
+
+  .app-header {
+    gap: 0.6rem;
+  }
+
+  .player-role {
+    max-width: 40%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tap-button:active:not(:disabled) {
+    transform: none;
+  }
+}

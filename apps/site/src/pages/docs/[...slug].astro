@@ -2,6 +2,7 @@
 import { getCollection, render } from "astro:content";
 import type { CollectionEntry } from "astro:content";
 import Base from "../../layouts/Base.astro";
+import project from "../../../../../package.json";
 
 export async function getStaticPaths() {
   return (await getCollection("docs")).map((entry) => ({ params: { slug: entry.id }, props: { entry } }));
@@ -19,18 +20,20 @@ const toc = headings.filter((heading) => heading.depth === 2 || heading.depth ==
 <Base title={`${entry.data.title} — Parlor docs`} description={entry.data.description} isDocs>
   <div class="docs-shell">
     <aside class="docs-sidebar" aria-label="Documentation navigation">
-      <a class="docs-home" href="/docs/getting-started/">The Parlor handbook <span>0.1.0</span></a>
+      <div class="docs-home"><a href="/docs/getting-started/">The handbook</a><span>v{project.version}</span></div>
       <details class="docs-navigation" open>
-        <summary>Browse documentation</summary>
+        <summary>Browse the handbook <span aria-hidden="true">⌄</span></summary>
         <nav aria-label="Documentation">{sections.map((section) => <div class="docs-nav-group"><strong>{section}</strong>{docs.filter((doc) => doc.data.section === section).map((doc) => <a href={`/docs/${doc.id}/`} aria-current={doc.id === entry.id ? "page" : undefined}>{doc.data.title}</a>)}</div>)}</nav>
       </details>
-      <a class="sidebar-agent" href="/docs/agents/"><span aria-hidden="true">&lt;/&gt;</span><strong>Building with an agent?</strong><span>Give it the field guide.</span></a>
+      <a class="sidebar-agent" href="/docs/agents/"><span aria-hidden="true">&lt;/&gt;</span><span><strong>For your coding agent</strong><small>Same map. Different reader.</small></span></a>
     </aside>
     <main id="main" class="docs-main">
-      <header class="doc-heading"><p>{entry.data.section}</p><h1>{entry.data.title}</h1><p class="doc-description">{entry.data.description}</p><div class="doc-tools"><a href={`/docs/${entry.id}.md`}>Read as Markdown</a><a href={`https://github.com/misty-step/parlor/edit/master/apps/site/src/content/docs/${entry.id}.md`}>Edit this page <span aria-hidden="true">↗</span></a></div></header>
+      <header class="doc-heading"><nav class="doc-breadcrumb" aria-label="Breadcrumb"><a href="/docs/getting-started/">Documentation</a><span aria-hidden="true">/</span><span>{entry.data.section}</span></nav><h1>{entry.data.title}</h1><p class="doc-description">{entry.data.description}</p><div class="doc-tools"><button type="button" class="copy-page-button" data-copy-page={`/docs/${entry.id}.md`} hidden>Copy page for your agent</button><a href={`/docs/${entry.id}.md`}>Markdown <span aria-hidden="true">↗</span></a></div></header>
+      {toc.length > 0 && <details class="mobile-toc"><summary>On this page</summary><nav aria-label="Page sections">{toc.filter((heading) => heading.depth === 2).map((heading) => <a href={`#${heading.slug}`}>{heading.text}</a>)}</nav></details>}
       <article class="prose"><Content /></article>
-      <nav class="doc-pagination" aria-label="Adjacent guides">{previous ? <a href={`/docs/${previous.id}/`}><span>Previous</span><strong>{previous.data.title}</strong></a> : <span />}{next && <a href={`/docs/${next.id}/`}><span>Next</span><strong>{next.data.title}</strong></a>}</nav>
+      <div class="doc-feedback"><span>Help the next person find their way.</span><a href={`https://github.com/misty-step/parlor/edit/master/apps/site/src/content/docs/${entry.id}.md`}>Improve this page <span aria-hidden="true">↗</span></a></div>
+      <nav class="doc-pagination" aria-label="Adjacent guides">{previous ? <a href={`/docs/${previous.id}/`}><span>Previous</span><strong>{previous.data.title}</strong></a> : <span />}{next && <a href={`/docs/${next.id}/`}><span>Up next</span><strong>{next.data.title}</strong></a>}</nav>
     </main>
-    <aside class="docs-toc" aria-label="On this page"><strong>On this page</strong><nav>{toc.map((heading) => <a class:list={[{ "toc-nested": heading.depth === 3 }]} href={`#${heading.slug}`}>{heading.text}</a>)}</nav><a class="toc-help" href="https://github.com/misty-step/parlor/issues">Something not clicking?<br /><span>Open an issue</span></a></aside>
+    <aside class="docs-toc" aria-label="On this page"><strong>On this page</strong><nav>{toc.map((heading) => <a class:list={[{ "toc-nested": heading.depth === 3 }]} data-toc-link href={`#${heading.slug}`}>{heading.text}</a>)}</nav><a class="toc-help" href="https://github.com/misty-step/parlor/issues">Stuck on something?<br /><span>Ask on GitHub <span aria-hidden="true">↗</span></span></a></aside>
   </div>
 </Base>

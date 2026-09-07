@@ -1,6 +1,14 @@
 ---
 import Base from "../layouts/Base.astro";
 ---
-<Base title="Page not found — Parlor" noindex>
-  <main id="main" class="not-found container"><span class="error-number">404</span><h1>This room isn’t here.</h1><p>The page may have moved. The handbook is a good place to find your way back.</p><div class="hero-actions"><a class="button" href="/docs/getting-started/">Open the handbook</a><a class="button button-outline" href="/">Back to Parlor</a></div></main>
+<Base title="Page not found — Parlor" description="This page is not in the Parlor handbook." noindex>
+  <main id="main" class="not-found container">
+    <span class="error-number">404</span>
+    <h1>This room isn’t here.</h1>
+    <p>The page may have moved. The handbook is a good place to find your way back.</p>
+    <div class="hero-actions">
+      <a class="button" href="/docs/getting-started/">Open the handbook</a>
+      <a class="button button-outline" href="/">Back to Parlor</a>
+    </div>
+  </main>
 </Base>

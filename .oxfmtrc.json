@@ -6,6 +6,7 @@
     "**/.wrangler/**",
     "**/_generated/**",
     "**/coverage/**",
+    "**/.next/**",
     "**/playwright-report/**",
     "**/test-results/**"
   ]

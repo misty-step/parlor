@@ -1,13 +1,13 @@
-<button class="search-trigger" type="button" data-search-open hidden aria-label="Search documentation">
-  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5" /><path d="m16 16 5 5" /></svg><span>Search docs</span><kbd>/</kbd>
+<button class="search-trigger" type="button" data-search-open hidden aria-label="Search documentation" aria-haspopup="dialog" aria-controls="doc-search">
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5" /><path d="m16 16 5 5" /></svg><span>Search</span><kbd>/</kbd>
 </button>
 <dialog id="doc-search" aria-labelledby="search-title">
   <div class="search-panel">
-    <div class="search-heading"><h2 id="search-title">Find your next move</h2><button class="icon-button" type="button" data-search-close aria-label="Close search">✕</button></div>
-    <label for="search-query">Search the documentation</label>
-    <input id="search-query" type="search" placeholder="Try “guest tokens” or “rematch”" autocomplete="off" spellcheck="false" />
-    <p class="search-status" role="status">Type to search guides and API reference.</p>
-    <ul class="search-results" aria-label="Search results"></ul>
-    <a class="search-browse" href="/docs/getting-started/">Browse all documentation</a>
+    <div class="search-heading"><h2 id="search-title">Search the handbook</h2><button class="icon-button" type="button" data-search-close aria-label="Close search"><svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="m4 4 10 10M4 14 14 4" /></svg></button></div>
+    <label class="sr-only" for="search-query">Search documentation</label>
+    <input id="search-query" type="search" placeholder="Rooms, guest tokens, your first game…" autocomplete="off" spellcheck="false" aria-controls="search-results" aria-describedby="search-status" />
+    <p id="search-status" class="search-status" role="status">Type to search the guides and API reference.</p>
+    <ul id="search-results" class="search-results" aria-label="Search results"></ul>
+    <div class="search-footer"><a href="/docs/getting-started/">Browse the handbook</a><span><kbd>↑</kbd><kbd>↓</kbd> to explore <kbd>esc</kbd> to close</span></div>
   </div>
 </dialog>

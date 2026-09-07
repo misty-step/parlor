@@ -1,15 +1,15 @@
 ---
 title: Matches and rematches
-description: Freeze participants, compose game transitions, enforce deadlines and sweep every abandonment page.
+description: Freeze participants, compose game transitions, enforce deadlines, and continue every abandonment page.
 section: Guides
 order: 40
 ---
 
-## A match is one immutable roster and one lifecycle
+## Match envelopes
 
-A room persists across match cycles. Each `beginMatch` creates a new envelope and participant snapshot; completed or abandoned envelopes are not reused.
+A room persists across match cycles. Each `beginMatch` creates a new lifecycle envelope and participant snapshot; completed or abandoned envelopes remain history.
 
-Every envelope has `id`, `roomId`, `cycle` and `startedAt`, an optional `hardDeadline` policy flag, plus one of:
+Every envelope has `id`, `roomId`, `cycle`, and `startedAt`, an optional `hardDeadline` policy flag, plus one of:
 
 | `status`    | Additional fields                                                           |
 | ----------- | --------------------------------------------------------------------------- |
@@ -17,12 +17,14 @@ Every envelope has `id`, `roomId`, `cycle` and `startedAt`, an optional `hardDea
 | `completed` | `completedAt`                                                               |
 | `abandoned` | `abandonedAt`, `reason: "everyone-away" \| "hard-deadline" \| "host-ended"` |
 
-Stored Convex documents use `_id`; composing helpers return an envelope with **`id`**. Use the generated `Id<"matches">` in your game schema and code, not core's separate nominal `MatchId` brand.
+Stored Convex documents use `_id`; composing helpers return **`id`**. Use your generated `Id<"matches">` in database code, distinct from core's nominal `MatchId` brand. [First Tap's `convex/game.ts`](https://github.com/misty-step/parlor/blob/master/examples/first-tap/convex/game.ts) shows the complete start, command, and result flow.
 
 ## Start inside the game mutation
 
+This excerpt runs inside your generated mutation handler. `actor` comes from `await resolvePlayer(ctx, guestToken)`, and `roomId` is a Convex room ID:
+
 ```typescript
-beginMatch(ctx, {
+const match = await beginMatch(ctx, {
   roomId,
   actor,
   minPlayers: 2,
@@ -30,175 +32,118 @@ beginMatch(ctx, {
 });
 ```
 
-This is a **signature excerpt**, not a standalone file. `ctx` is your generated mutation context, `actor` comes from `await resolvePlayer(ctx, guestToken)`, and `roomId` is a Convex room ID. [Getting started](/docs/getting-started/#add-the-game-backend) supplies a complete game mutation.
+Import `beginMatch` from `@parlor/convex`. Initialize your game state using `match.id` **in the same mutation**, so a failure rolls back both game and match writes.
 
 `beginMatch(ctx, input)`:
 
-1. Requires an open room, the actor's membership and current host authority.
-2. Rejects an existing active envelope. An already-expired active envelope yields `MATCH_NOT_ACTIVE`; it is not silently recycled or swept by starting again.
-3. Chooses the next cycle after the highest recorded room cycle.
-4. Selects members with `eligibleFromCycle <= cycle` and presence classified `present`, sorted by seat index.
-5. Validates player-count bounds, then writes the envelope and `{ matchId, playerId, seatIndex }` rows in the caller's transaction.
+1. Requires an open room, the actor's membership, and current host authority.
+2. Rejects an existing active envelope. An expired one yields `MATCH_NOT_ACTIVE`; starting again does not sweep or recycle it.
+3. Chooses the cycle after the highest recorded room cycle.
+4. Selects members with `eligibleFromCycle <= cycle` and presence classified `present`, sorted by seat.
+5. Validates player bounds, then writes the envelope and `{ matchId, playerId, seatIndex }` participant rows in the caller's transaction.
 
-Defaults in the Convex helper are **2–12 players**. Valid overrides satisfy integer `1 <= minPlayers <= maxPlayers <= 12`. It rejects too many eligible players rather than picking an arbitrary subset. The lower-level core selector defaults to 1–12, so do not confuse these two APIs.
+Convex helper defaults are **2–12 players**. Overrides must be integers satisfying `1 <= minPlayers <= maxPlayers <= 12`. Too many eligible players is an error rather than an arbitrary subset selection. The lower-level core selector has a separate **1–12** default.
 
-`nowMs?: number` is an optional trusted-server input to the helper. Do not expose it as a client-selected timestamp. The helper checks host membership but does not separately require the host to be in the selected snapshot; games that need a playing host must enforce that requirement.
+`nowMs?: number` is a trusted-server input, not a browser-selected timestamp. Host membership is required, but the host need not be in the selected snapshot; enforce a playing-host requirement in your game if it has one.
 
 ### Opt out of the default hard deadline
 
-The trusted game start mutation can pass **`hardDeadline: false`** to `beginMatch` for a match with no 30-minute cap. Omitting it or passing `true` retains the default cap, including for older stored matches without the field. This is a per-match policy, not a global setting or a custom duration.
+A trusted start mutation may pass **`hardDeadline: false`** for a match without the default **30-minute cap**. Omitted or `true` retains the cap, including older stored matches without this field. This is a per-match policy, not a global setting or custom duration.
 
-An untimed envelope carries `hardDeadline: false` through active projections, completion and abandonment. `requireActiveMatch`, completion and the sweeper respect the opt-out. **Everyone-away abandonment still applies**, as do your game's own phase/deadline rules and host-ended closure. Choose the policy in trusted game code; do not let an arbitrary command extend or disable an existing match's deadline.
+The opt-out survives active projections, completion, and abandonment. `requireActiveMatch`, completion, and the sweeper respect it. **Everyone-away abandonment still applies**, along with game-phase deadlines and host-ended closure. Choose this policy in trusted game code; a client command cannot extend or disable an existing envelope's deadline.
 
-`startMatch` is also exported as a registered reference mutation with `{ roomId, guestToken? }`. It creates only the default envelope and participants. For a real game, compose `beginMatch` with your game initialization rather than starting an empty match from the browser and inserting game rows later.
+The registered `startMatch({ roomId, guestToken? })` reference mutation creates only a default envelope and participants; it does not expose `hardDeadline`. Games with their own state compose `beginMatch` with initialization instead.
 
 ### Start failures
 
 The helper throws `ConvexError({ code })`:
 
 - `ROOM_NOT_OPEN`, `NOT_A_ROOM_MEMBER`, `HOST_REQUIRED`.
-- `MATCH_ALREADY_ACTIVE`, or `MATCH_NOT_ACTIVE` when the existing active envelope has expired.
+- `MATCH_ALREADY_ACTIVE`, or `MATCH_NOT_ACTIVE` for an expired existing active envelope.
 - `NOT_ENOUGH_PRESENT_PLAYERS`, `TOO_MANY_PRESENT_PLAYERS`.
-- `MATCH_PLAYER_BOUNDS_INVALID`, `MATCH_TIMESTAMP_INVALID`, `ROOM_DATA_INVALID`, or `MATCH_DATA_INVALID` if the stored cycle history cannot produce a valid next cycle.
+- `MATCH_PLAYER_BOUNDS_INVALID`, `MATCH_TIMESTAMP_INVALID`, `ROOM_DATA_INVALID`, or `MATCH_DATA_INVALID` when stored cycle history cannot produce a valid next cycle.
 
-Identity resolution can additionally fail with `UNAUTHENTICATED` or `PLAYER_NOT_FOUND`. Resolve, initialize and transition within one mutation so any failure rolls back the entire change.
+Identity resolution may also throw `UNAUTHENTICATED` or `PLAYER_NOT_FOUND`. Resolve, initialize, and transition within one mutation so failure rolls back the whole change.
 
 ## Authorize every game action
 
-`requireActiveMatch(ctx, matchId, roomId?)` returns an active envelope or throws. It verifies existence, active status and the **default 30-minute hard deadline unless that match has `hardDeadline: false`**, even if the cron has not persisted abandonment. If supplied, `roomId` must match the envelope's room.
+`requireActiveMatch(ctx, matchId, roomId?)` returns an active envelope or throws. It checks existence, status, room association when supplied, and the **30-minute hard deadline unless `hardDeadline: false`**, even before a cron persists abandonment.
 
-It does **not** resolve the caller, require room membership, require a frozen participant, check game phase, or enforce a game's shorter round deadline.
-
-Complete reusable game helper, assuming it is saved as `convex/access.ts`:
+The game separately resolves the actor and checks membership, frozen participation, phase, turn, submission uniqueness, and any shorter round deadline. For a participant-only command, this is the authorization excerpt after resolving `actor` and checking the active match:
 
 ```typescript
-import { requireActiveMatch, resolvePlayer } from "@parlor/convex";
-import { ConvexError } from "convex/values";
-import type { Id } from "./_generated/dataModel";
-import type { MutationCtx } from "./_generated/server";
-
-export async function requirePlayingMember(
-  ctx: MutationCtx,
-  roomId: Id<"rooms">,
-  matchId: Id<"matches">,
-  guestToken: string,
-) {
-  const actor = await resolvePlayer(ctx, guestToken);
-  const match = await requireActiveMatch(ctx, matchId, roomId);
-  const member = await ctx.db
-    .query("roomMembers")
-    .withIndex("by_room_player", (q) => q.eq("roomId", roomId).eq("playerId", actor.playerId))
-    .unique();
-  if (!member || member.closedAt !== undefined) {
-    throw new ConvexError({ code: "NOT_A_ROOM_MEMBER" });
-  }
-  const participant = await ctx.db
-    .query("matchParticipants")
-    .withIndex("by_match_player", (q) => q.eq("matchId", matchId).eq("playerId", actor.playerId))
-    .unique();
-  if (!participant) {
-    throw new ConvexError({ code: "MATCH_PARTICIPANT_REQUIRED" });
-  }
-  return { actor, match, participant };
+const participant = await ctx.db
+  .query("matchParticipants")
+  .withIndex("by_match_player", (q) => q.eq("matchId", matchId).eq("playerId", actor.playerId))
+  .unique();
+if (!participant) {
+  throw new ConvexError({ code: "MATCH_PARTICIPANT_REQUIRED" });
 }
 ```
 
-Your rules may deliberately allow a frozen participant to reconnect or act after leaving the lobby. Make that decision explicit. The helper above requires current open membership as well as frozen participation. A spectator-safe query may require only membership, but must still hide private game data.
+Use your generated mutation context and `ConvexError` from `convex/values`. When a command requires current open membership too, query `roomMembers.by_room_player` for `roomId` and `actor.playerId`; reject a missing member or defined `closedAt` with `NOT_A_ROOM_MEMBER`. A game may deliberately let a frozen participant act after leaving the lobby, but must make that policy explicit.
 
-`requireActiveMatch` failures are `MATCH_NOT_ACTIVE`, `MATCH_ROOM_MISMATCH`, or `MATCH_TIMESTAMP_INVALID`. Never replace this check with `getRoomState().activeMatch !== null`: that is a persisted projection, not a command authorization decision.
+[First Tap's tap mutation](https://github.com/misty-step/parlor/blob/master/examples/first-tap/convex/game.ts) requires open membership and uses `completeMatch(ctx, { matchId, actor })` to enforce frozen participation atomically with the winner write. Other commands that do not complete a match need their own participant guard, such as the excerpt above.
+
+Queries need authorization too. A spectator-safe query can require membership without participation, while projecting only fields that viewer may see. Hidden answers and unrevealed state stay on the server; React visibility is presentation.
+
+`requireActiveMatch` failures are `MATCH_NOT_ACTIVE`, `MATCH_ROOM_MISMATCH`, and `MATCH_TIMESTAMP_INVALID`. The room query's `activeMatch` is a persisted projection, not a replacement for this command guard.
 
 ## Complete or abandon
 
-These are composable server helpers, not automatically exposed endpoints:
+Import and await these composing helpers inside an authorized mutation:
 
 ```typescript
-completeMatch(ctx, { matchId, actor });
-abandonMatch(ctx, { matchId, reason: "host-ended", actor });
+await completeMatch(ctx, { matchId, actor });
+await abandonMatch(ctx, { matchId, reason: "host-ended", actor });
 ```
 
-**Signature excerpts.** Import from `@parlor/convex`, await the returned promises, and obtain `actor` from the trusted resolver.
+These are **alternative transition excerpts**, not two operations to run on the same match:
 
-- `completeMatch(ctx, { matchId, actor?, nowMs? })` requires active status and an unelapsed hard deadline when enabled. Supplying `actor` checks frozen participation, not host status or current room membership. Omitting it skips participant authorization for trusted server workflows; do not expose an unguarded public completion mutation.
-- `abandonMatch(ctx, { matchId, reason, actor?, nowMs? })` requires a stored active envelope and a valid end time. For `host-ended`, it requires the actor to be the current room host and a member. `everyone-away` and `hard-deadline` are trusted maintenance reasons: the helper does not prove those conditions or authorize an actor for you. Do not accept those reasons from an arbitrary client.
-- Both replace only the match envelope. Write game-owned final scores/results in the same transaction. Neither deletes submissions, clears a room nor schedules the next match.
+- `completeMatch(ctx, { matchId, actor?, nowMs? })` requires active status and an unelapsed hard deadline when enabled. Supplying `actor` checks frozen participation, not host status, current room membership, or permission to finish the game's phase. Omitting it skips participant authorization for an already-authorized trusted workflow.
+- `abandonMatch(ctx, { matchId, reason, actor?, nowMs? })` requires a stored active envelope and valid end time. `host-ended` requires the resolved actor to be the current host and a member. `everyone-away` and `hard-deadline` are trusted maintenance decisions: the helper does not prove those conditions or authorize a caller for you.
+- Both update only the envelope. Commit game-owned results and final scores in the same transaction. Your app separately owns submissions, room cleanup, and starting another match.
 
-Terminal envelopes cannot transition again (`MATCH_NOT_ACTIVE`). Timestamp violations use `MATCH_TIMESTAMP_INVALID`; completion's participant check uses `MATCH_PARTICIPANT_REQUIRED`, and host-ended abandonment uses `HOST_REQUIRED`.
+Terminal envelopes reject another transition with `MATCH_NOT_ACTIVE`. Timestamp violations use `MATCH_TIMESTAMP_INVALID`; completion's participant check uses `MATCH_PARTICIPANT_REQUIRED`, and host-ended abandonment uses `HOST_REQUIRED`.
 
 ## Late arrivals and rematches
 
-When a new player joins during cycle 1, their room membership is eligible from cycle 2; cycle 1's participant rows do not change. They may watch only the projections your game permits.
+A new member joining during cycle 1 is eligible from cycle 2. Cycle 1's participant rows remain frozen; the newcomer may watch only projections the game permits.
 
-After cycle 1 is completed or abandoned, the host calls the same game start mutation. The new cycle snapshots members who are **currently present** and eligible, including that late arrival. Queued membership is not a guarantee of automatic inclusion if the player is absent at start.
+After completion or abandonment, the host invokes the same game start mutation. The next cycle snapshots **currently present**, eligible members within player bounds. A queued late arrival still needs to be present at start.
 
-Leaving and rejoining does not rewrite old snapshots. In particular, a returning participant may have a new room seat while the old match retains its original frozen seat. Use `matchParticipants` for game eligibility and match seating, not a mutable lobby roster.
+Leaving and rejoining does not rewrite old snapshots. A returning participant may have a new room seat while the current match retains their frozen seat. Use `matchParticipants` for match eligibility and seating, and the mutable room roster for the lobby. Try the [late-arrival check](/docs/first-game/#check-a-late-arrival).
 
 ## Sweep every page
 
-`sweepAbandonedMatches(ctx, { limit?, cursor?, nowMs? })` examines a **bounded page** of active envelopes in `by_status_started_at` order. It returns:
-
-```typescript
-interface SweepResult {
-  readonly scanned: number;
-  readonly abandoned: number;
-  readonly hasMore: boolean;
-  readonly continueCursor: string | null;
-}
-```
+`sweepAbandonedMatches(ctx, { limit?, cursor?, nowMs? })` examines a bounded page of active envelopes in `by_status_started_at` order. It returns `{ scanned, abandoned, hasMore, continueCursor }`: the counts are numbers, `hasMore` is a boolean, and `continueCursor` is an opaque string or `null`.
 
 It abandons an envelope when:
 
-- Its enabled hard deadline has elapsed (**at least 30 minutes**), taking precedence over the other reason; or
-- Every frozen participant has left the room or has no presence evidence within the last **10 minutes**. A spectator heartbeat does not keep a match alive.
+- Its enabled hard deadline has elapsed (**at least 30 minutes**), taking precedence over everyone-away; or
+- Every frozen participant has left the room or has no presence evidence within the last **10 minutes**. Spectator heartbeats do not keep the match alive.
 
-Missing `lastSeenAt` uses `joinedAt`. A participant exactly 10 minutes old is still within the abandonment grace window. An empty participant snapshot is vacuously everyone-away; an oversized snapshot is conservatively not everyone-away, though enabled hard expiry still applies. Matches with `hardDeadline: false` skip only the hard-expiry condition, not everyone-away cleanup.
+Missing `lastSeenAt` uses `joinedAt`. A participant exactly 10 minutes old remains within the abandonment grace window. An empty snapshot is vacuously everyone-away; an oversized snapshot conservatively is not, although enabled hard expiry still applies. `hardDeadline: false` skips only the hard-expiry condition.
 
-`limit` defaults to 100 and is capped at 100. A non-positive or non-safe-integer limit throws `SWEEP_LIMIT_INVALID`. Keep cursors opaque; do not restart at the first page after each scheduled continuation. A page can abandon zero matches and still have `hasMore: true`.
+`limit` defaults to **100** and is capped at **100**. Non-positive or non-safe-integer limits throw `SWEEP_LIMIT_INVALID`. A page can abandon zero matches and still return `hasMore: true`.
 
 ### Register an internal wrapper
 
-Complete `convex/maintenance.ts` for your app:
+The complete application files are [`convex/maintenance.ts`](https://github.com/misty-step/parlor/blob/master/examples/first-tap/convex/maintenance.ts) and [`convex/crons.ts`](https://github.com/misty-step/parlor/blob/master/examples/first-tap/convex/crons.ts). Inside the internal mutation, the load-bearing continuation is:
 
 ```typescript
-import { sweepAbandonedMatches } from "@parlor/convex";
-import { v } from "convex/values";
-import { internal } from "./_generated/api";
-import { internalMutation } from "./_generated/server";
-
-export const sweepAbandoned = internalMutation({
-  args: { cursor: v.optional(v.string()) },
-  returns: v.null(),
-  handler: async (ctx, args): Promise<null> => {
-    const result = await sweepAbandonedMatches(ctx, { limit: 50, ...args });
-    if (result.hasMore && result.continueCursor !== null) {
-      await ctx.scheduler.runAfter(0, internal.maintenance.sweepAbandoned, {
-        cursor: result.continueCursor,
-      });
-    }
-    return null;
-  },
-});
+const result = await sweepAbandonedMatches(ctx, { limit: 50, ...args });
+if (result.hasMore && result.continueCursor !== null) {
+  await ctx.scheduler.runAfter(0, internal.maintenance.sweepAbandoned, {
+    cursor: result.continueCursor,
+  });
+}
 ```
 
-Complete `convex/crons.ts` for an app without existing crons:
+The wrapper declares `cursor: v.optional(v.string())` and an explicit `Promise<null>` handler return with `returns: v.null()`; that return annotation avoids an inference cycle through the generated `internal` reference. Import `internal` and `internalMutation` from **your application's** generated code.
 
-```typescript
-import { cronJobs } from "convex/server";
-import { internal } from "./_generated/api";
+Merge a one-minute interval into the app's existing `cronJobs()` registry, targeting `internal.maintenance.sweepAbandoned` with `{}`. That begins a traversal; the wrapper schedules every following page until `hasMore` is false. Starting only the first page on each interval can starve later active matches indefinitely. A package dependency does not register the application's cron.
 
-const crons = cronJobs();
-crons.interval(
-  "abandon unattended matches",
-  { minutes: 1 },
-  internal.maintenance.sweepAbandoned,
-  {},
-);
-export default crons;
-```
+The sweeper handles match envelopes. [Host repair](/docs/rooms-and-presence/#heartbeats-and-host-self-healing) runs in heartbeat/leave; presence is derived on read; room closure, game-data cleanup, and retention have their own owners. Keep active-match and phase-deadline checks on commands even with scheduled maintenance.
 
-If you already have a cron module, add the interval to its existing `cronJobs()` object rather than replacing other schedules. The explicit handler return type avoids a TypeScript inference cycle through the generated `internal` reference.
-
-The interval begins a traversal with `{}`. The wrapper schedules subsequent pages immediately using your **own generated internal reference**, until `hasMore` is false. Calling only the first page on every interval can starve later active matches indefinitely. Do not assume Parlor's reference application's cron is installed merely because its package is a dependency.
-
-The sweeper does **not** transfer hosts, store away flags, close rooms, clean game tables, or relax deadline checks. Host repair belongs to heartbeat/leave; game cleanup and retention belong to your application.
-
-Next: [authentication](/docs/authentication/) and [React lifecycle hooks](/docs/react/).
+Next: [guest authentication](/docs/authentication/) and [React lifecycle hooks](/docs/react/).

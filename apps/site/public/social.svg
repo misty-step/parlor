@@ -1,10 +1,19 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
-  <rect width="1200" height="630" fill="#2540b8"/>
-  <circle cx="980" cy="90" r="120" fill="#f3c02a"/>
-  <circle cx="90" cy="560" r="90" fill="#e14f7a"/>
-  <circle cx="1120" cy="520" r="70" fill="#4ec9a6"/>
-  <text x="80" y="150" fill="#fff6df" font-family="Fredoka, sans-serif" font-size="72" font-weight="600">parlor</text>
-  <text x="80" y="310" fill="#fff6df" font-family="Fredoka, sans-serif" font-size="92" font-weight="600">Make room</text>
-  <text x="80" y="410" fill="#fff6df" font-family="Fredoka, sans-serif" font-size="92" font-weight="600">for play.</text>
-  <text x="80" y="500" fill="#f2e2b8" font-family="DM Sans, sans-serif" font-size="32">Open-source rooms for game night.</text>
+  <rect width="1200" height="630" fill="#fafbfd"/>
+  <rect x="660" y="55" width="490" height="520" rx="38" fill="#edf1ff"/>
+  <g fill="#2e43af"><rect x="64" y="56" width="46" height="46" rx="15"/></g>
+  <g fill="white"><circle cx="78" cy="70" r="5"/><circle cx="96" cy="70" r="5"/><circle cx="78" cy="88" r="5"/><circle cx="96" cy="88" r="5"/></g>
+  <text x="124" y="93" fill="#2e43af" font-family="Fredoka, sans-serif" font-size="42">parlor</text>
+  <g fill="#1c2c52" font-family="Fredoka, sans-serif" font-size="76"><text x="64" y="235">You bring</text><text x="64" y="321">the game.</text><text x="64" y="407">We make room.</text></g>
+  <text x="64" y="479" fill="#57647b" font-family="DM Sans Variable, sans-serif" font-size="24">The multiplayer toolkit for game night.</text>
+  <text x="64" y="556" fill="#2e43af" font-family="DM Sans Variable, sans-serif" font-size="21">parlor.mistystep.io</text>
+  <ellipse cx="905" cy="329" rx="198" ry="124" fill="#1f3088"/>
+  <ellipse cx="905" cy="318" rx="198" ry="124" fill="#2e43af"/>
+  <ellipse cx="905" cy="318" rx="181" ry="108" fill="none" stroke="#98abe4"/>
+  <g fill="white"><rect x="795" y="282" width="48" height="61" rx="7"/><rect x="852" y="282" width="48" height="61" rx="7"/><rect x="909" y="282" width="48" height="61" rx="7"/><rect x="966" y="282" width="48" height="61" rx="7"/></g>
+  <g fill="#1c2c52" font-family="Fredoka, sans-serif" font-size="35" text-anchor="middle"><text x="819" y="325">P</text><text x="876" y="325">L</text><text x="933" y="325">A</text><text x="990" y="325">Y</text></g>
+  <g transform="rotate(-7 774 157)"><rect x="714" y="126" width="138" height="69" rx="13" fill="white"/><rect x="727" y="141" width="38" height="38" rx="12" fill="#f2ce58"/><text x="777" y="167" fill="#1c2c52" font-family="DM Sans Variable, sans-serif" font-size="18">Alex</text></g>
+  <g transform="rotate(6 1074 245)"><rect x="1000" y="207" width="138" height="69" rx="13" fill="white"/><rect x="1012" y="222" width="38" height="38" rx="8" fill="#bfe6d7"/><text x="1060" y="248" fill="#1c2c52" font-family="DM Sans Variable, sans-serif" font-size="18">Jules</text></g>
+  <g transform="rotate(-4 1024 477)"><rect x="952" y="443" width="138" height="69" rx="13" fill="white"/><circle cx="986" cy="477" r="19" fill="#cfc6ee"/><text x="1019" y="483" fill="#1c2c52" font-family="DM Sans Variable, sans-serif" font-size="18">Sam</text></g>
+  <g transform="rotate(-5 735 425)"><rect x="678" y="390" width="138" height="69" rx="13" fill="white"/><rect x="693" y="405" width="38" height="38" rx="14" fill="#a6bbed"/><text x="746" y="432" fill="#1c2c52" font-family="DM Sans Variable, sans-serif" font-size="18">You</text></g>
 </svg>

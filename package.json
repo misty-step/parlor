@@ -6,6 +6,7 @@
   "type": "module",
   "scripts": {
     "build": "pnpm -r --if-present build",
+    "build:packages": "pnpm -r --filter './packages/**' --filter './integrations/**' --if-present build",
     "dev": "pnpm --filter @parlor/playground dev",
     "dev:site": "pnpm --filter @parlor/site dev",
     "build:site": "pnpm --filter @parlor/site build",

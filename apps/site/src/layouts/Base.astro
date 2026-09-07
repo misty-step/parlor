@@ -1,9 +1,9 @@
 ---
 import "@fontsource-variable/dm-sans/wght.css";
 import "@fontsource/fredoka/latin-500.css";
-import "@fontsource/fredoka/latin-600.css";
 import "../styles/global.css";
 import Search from "../components/Search.astro";
+import project from "../../../../package.json";
 
 interface Props {
   title?: string;
@@ -12,8 +12,8 @@ interface Props {
   noindex?: boolean;
 }
 const {
-  title = "Parlor — Make room for play",
-  description = "The open-source multiplayer toolkit for game night. Rooms, guest identity, presence, and match lifecycles for Convex and React. You bring the game.",
+  title = "Parlor — You bring the game. We make room.",
+  description = "Open-source multiplayer building blocks for games played together. Guest identity, rooms, presence, and matches for Convex and React.",
   isDocs = false,
   noindex = false,
 } = Astro.props;
@@ -24,18 +24,21 @@ const canonical = new URL(Astro.url.pathname, Astro.site);
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="theme-color" content="#2639a5" />
+    <meta name="theme-color" content="#2e43af" />
     <title>{title}</title>
     <meta name="description" content={description} />
     <link rel="canonical" href={canonical} />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <link rel="alternate" type="text/plain" title="Parlor documentation for agents" href="/llms.txt" />
+    <link rel="alternate" type="text/plain" title="Documentation for agents" href="/llms.txt" />
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="Parlor" />
     <meta property="og:title" content={title} />
     <meta property="og:description" content={description} />
     <meta property="og:url" content={canonical} />
     <meta property="og:image" content={new URL("/social.png", Astro.site)} />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="Parlor. You bring the game. We make room." />
     <meta name="twitter:card" content="summary_large_image" />
     {noindex && <meta name="robots" content="noindex" />}
   </head>
@@ -44,25 +47,25 @@ const canonical = new URL(Astro.url.pathname, Astro.site);
     <header class="site-header">
       <div class="header-inner">
         <a class="wordmark" href="/" aria-label="Parlor home">
-          <svg viewBox="0 0 40 40" width="35" height="35" aria-hidden="true"><rect x="1" y="1" width="38" height="38" rx="13" fill="currentColor" /><g fill="#fff"><circle cx="13" cy="13" r="4" /><circle cx="27" cy="13" r="4" /><circle cx="13" cy="27" r="4" /><circle cx="27" cy="27" r="4" /></g></svg>
+          <svg viewBox="0 0 40 40" width="34" height="34" aria-hidden="true"><rect width="40" height="40" rx="13" fill="currentColor" /><g fill="#fff"><circle cx="13" cy="13" r="4" /><circle cx="27" cy="13" r="4" /><circle cx="13" cy="27" r="4" /><circle cx="27" cy="27" r="4" /></g></svg>
           <span>parlor</span>
         </a>
         <nav class="desktop-nav" aria-label="Main navigation">
-          <a href="/#why-parlor">Why Parlor</a>
-          <a href="/#in-the-wild">Made with Parlor</a>
-          <a href="/docs/getting-started/" aria-current={isDocs ? "true" : undefined}>Docs</a>
+          <a href="/#why-parlor">Overview</a>
+          <a href="/docs/getting-started/" aria-current={isDocs ? "true" : undefined}>Documentation</a>
+          <a href="/docs/agents/">For agents</a>
           <a href="https://github.com/misty-step/parlor">GitHub <span aria-hidden="true">↗</span></a>
         </nav>
         <div class="header-actions">
           <Search />
-          <a class="button button-small header-cta" href="/docs/getting-started/">Start building</a>
+          <a class="button button-small header-cta" href="/docs/first-game/">Start building</a>
           <details class="mobile-menu">
-            <summary aria-label="Open navigation">Menu</summary>
+            <summary>Menu <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M2 5h12M2 11h12" /></svg></summary>
             <nav aria-label="Mobile navigation">
-              <a href="/#why-parlor">Why Parlor</a>
+              <a href="/#why-parlor">Overview</a>
               <a href="/#in-the-wild">Made with Parlor</a>
               <a href="/docs/getting-started/">Documentation</a>
-              <a href="/docs/agents/">Build with your agent</a>
+              <a href="/docs/agents/">For agents</a>
               <a href="https://github.com/misty-step/parlor">GitHub</a>
             </nav>
           </details>
@@ -71,14 +74,15 @@ const canonical = new URL(Astro.url.pathname, Astro.site);
     </header>
     <slot />
     <footer class="site-footer">
-      <div class="footer-inner">
-        <div><a class="wordmark footer-wordmark" href="/">parlor</a><p>A little less plumbing.<br />A lot more play.</p></div>
-        <nav aria-label="Resources"><strong>Build something</strong><a href="/docs/getting-started/">Get started</a><a href="/docs/api/">API reference</a><a href="/docs/agents/">Agent skill</a></nav>
-        <nav aria-label="Project"><strong>Out in the open</strong><a href="https://github.com/misty-step/parlor">Source on GitHub</a><a href="https://github.com/misty-step/parlor/issues">Issues & ideas</a><a href="/license.txt">MIT license</a></nav>
-        <div class="footer-credit"><a href="https://mistystep.io">Made by Misty Step</a><p>For people who bring<br />people together.</p></div>
+      <div class="container footer-inner">
+        <div class="footer-brand"><a class="wordmark" href="/">parlor</a><p>For games that bring<br />people together.</p><a class="release-link" href="/docs/installation/">v{project.version} <span>Source release</span></a></div>
+        <nav aria-label="Developer resources"><strong>Make a game</strong><a href="/docs/first-game/">Run the example</a><a href="/docs/installation/">Install Parlor</a><a href="/docs/api/">API reference</a><a href="/docs/agents/">Agent skill</a></nav>
+        <nav aria-label="Open source project"><strong>Make it better</strong><a href="https://github.com/misty-step/parlor">Source code</a><a href="https://github.com/misty-step/parlor/issues">Issues & ideas</a><a href="/license.txt">MIT license</a><a href="/llms.txt">llms.txt</a></nav>
+        <div class="footer-credit"><strong>A Misty Step project</strong><p>Tools for the things<br />we want to exist.</p><a href="https://mistystep.io">Meet Misty Step <span aria-hidden="true">↗</span></a></div>
       </div>
-      <div class="footer-bottom"><span>© {new Date().getFullYear()} Misty Step</span><span>Convex + React. Your imagination.</span><a href="/llms.txt">llms.txt</a></div>
+      <div class="container footer-bottom"><span>© {new Date().getFullYear()} Misty Step</span><span>Built with Convex. Made for React.</span><a href="https://poppycock.mistystep.io">Prefer to play? Try Poppycock.</a></div>
     </footer>
+    <div class="sr-only" role="status" data-copy-status></div>
     <script src="../scripts/site.ts"></script>
   </body>
 </html>

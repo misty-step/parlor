@@ -8,13 +8,14 @@ Parlor handles rooms, guest credentials, presence, host transfer, frozen match p
 
 ## Start here
 
-| Audience      | Path                                                                                                                                                                   |
-| ------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Humans        | [Getting started](https://parlor.mistystep.io/docs/getting-started/)                                                                                                   |
-| Coding agents | [Agent onboarding](https://parlor.mistystep.io/docs/agents/), [`/skill.md`](https://parlor.mistystep.io/skill.md), [`/llms.txt`](https://parlor.mistystep.io/llms.txt) |
-| API map       | [Reference](https://parlor.mistystep.io/docs/api/)                                                                                                                     |
+| Audience               | Path                                                                                                                                                                   |
+| ---------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Humans                 | [Start here](https://parlor.mistystep.io/docs/getting-started/)                                                                                                        |
+| Run a complete example | [First Tap](https://parlor.mistystep.io/docs/first-game/)                                                                                                              |
+| Coding agents          | [Agent onboarding](https://parlor.mistystep.io/docs/agents/), [`/skill.md`](https://parlor.mistystep.io/skill.md), [`/llms.txt`](https://parlor.mistystep.io/llms.txt) |
+| API map                | [Reference](https://parlor.mistystep.io/docs/api/)                                                                                                                     |
 
-Packages are private workspace packages in this repository. They are not published to npm. Consume them from a pinned source checkout; see the getting-started guide.
+Packages are private workspace packages in this repository. They are not published to npm. Consume them from a pinned source checkout.
 
 ## Packages
 
@@ -28,7 +29,7 @@ Packages are private workspace packages in this repository. They are not publish
 
 ## Made with Parlor
 
-[Poppycock](https://poppycock.mistystep.io) is a production 3–12 player bluffing game on this toolkit. [LineJam](https://github.com/misty-step/linejam) is a planned migration, not a shipped integration.
+[Poppycock](https://poppycock.mistystep.io) is a production 3–12 player bluffing game on this toolkit. [First Tap](examples/first-tap) is the bundled development example.
 
 ## Development
 
@@ -39,11 +40,15 @@ pnpm install
 pnpm check      # format, typecheck, lint, test
 pnpm check:all  # check + package builds + Playwright mobile E2E + Convex smoke
 pnpm dev        # playground at http://localhost:5173
-pnpm dev:site   # documentation site
+pnpm --filter @parlor/first-tap dev:backend
+pnpm --filter @parlor/first-tap run setup
+pnpm --filter @parlor/first-tap dev
+pnpm --filter @parlor/first-tap typecheck   # needs a running dev:backend
+pnpm dev:site
 pnpm deploy:site
 ```
 
-The playground is a deterministic local rehearsal. It does not issue real guest tokens or talk to Convex.
+The playground is a deterministic local rehearsal. It does not issue real guest tokens or talk to Convex. First Tap does.
 
 ## License
 

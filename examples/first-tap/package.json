@@ -1,0 +1,32 @@
+{
+  "name": "@parlor/first-tap",
+  "version": "0.1.0",
+  "private": true,
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "dev": "next dev --hostname 127.0.0.1 --port 3000",
+    "dev:backend": "convex dev",
+    "setup": "node scripts/setup.mjs",
+    "build:app": "next build",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@parlor/auth": "workspace:*",
+    "@parlor/convex": "workspace:*",
+    "@parlor/core": "workspace:*",
+    "@parlor/react": "workspace:*",
+    "@parlor/web": "workspace:*",
+    "convex": "1.45.0",
+    "effect": "3.22.1",
+    "next": "16.3.4",
+    "react": "19.2.8",
+    "react-dom": "19.2.8"
+  },
+  "devDependencies": {
+    "@types/node": "26.0.0",
+    "@types/react": "19.2.18",
+    "@types/react-dom": "19.2.7",
+    "typescript": "7.0.2"
+  }
+}

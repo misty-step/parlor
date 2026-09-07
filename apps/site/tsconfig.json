@@ -1,5 +1,6 @@
 {
   "extends": "astro/tsconfigs/strict",
+  "compilerOptions": { "moduleDetection": "force" },
   "include": [".astro/types.d.ts", "**/*"],
   "exclude": ["dist", "node_modules"]
 }
