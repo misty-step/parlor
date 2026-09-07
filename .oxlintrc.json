@@ -25,6 +25,8 @@
   },
   "ignorePatterns": [
     "**/dist/**",
+    "**/.astro/**",
+    "**/.wrangler/**",
     "**/_generated/**",
     "**/coverage/**",
     "**/playwright-report/**",

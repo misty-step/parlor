@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
+  <rect width="1200" height="630" fill="#2540b8"/>
+  <circle cx="980" cy="90" r="120" fill="#f3c02a"/>
+  <circle cx="90" cy="560" r="90" fill="#e14f7a"/>
+  <circle cx="1120" cy="520" r="70" fill="#4ec9a6"/>
+  <text x="80" y="150" fill="#fff6df" font-family="Fredoka, sans-serif" font-size="72" font-weight="600">parlor</text>
+  <text x="80" y="310" fill="#fff6df" font-family="Fredoka, sans-serif" font-size="92" font-weight="600">Make room</text>
+  <text x="80" y="410" fill="#fff6df" font-family="Fredoka, sans-serif" font-size="92" font-weight="600">for play.</text>
+  <text x="80" y="500" fill="#f2e2b8" font-family="DM Sans, sans-serif" font-size="32">Open-source rooms for game night.</text>
+</svg>

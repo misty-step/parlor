@@ -1,0 +1,36 @@
+---
+import { getCollection, render } from "astro:content";
+import type { CollectionEntry } from "astro:content";
+import Base from "../../layouts/Base.astro";
+
+export async function getStaticPaths() {
+  return (await getCollection("docs")).map((entry) => ({ params: { slug: entry.id }, props: { entry } }));
+}
+interface Props { entry: CollectionEntry<"docs"> }
+const { entry } = Astro.props;
+const { Content, headings } = await render(entry);
+const docs = (await getCollection("docs")).sort((a, b) => a.data.order - b.data.order);
+const sections = ["Start", "Guides", "Reference"];
+const current = docs.findIndex((doc) => doc.id === entry.id);
+const previous = docs[current - 1];
+const next = docs[current + 1];
+const toc = headings.filter((heading) => heading.depth === 2 || heading.depth === 3);
+---
+<Base title={`${entry.data.title} — Parlor docs`} description={entry.data.description} isDocs>
+  <div class="docs-shell">
+    <aside class="docs-sidebar" aria-label="Documentation navigation">
+      <a class="docs-home" href="/docs/getting-started/">The Parlor handbook <span>0.1.0</span></a>
+      <details class="docs-navigation" open>
+        <summary>Browse documentation</summary>
+        <nav aria-label="Documentation">{sections.map((section) => <div class="docs-nav-group"><strong>{section}</strong>{docs.filter((doc) => doc.data.section === section).map((doc) => <a href={`/docs/${doc.id}/`} aria-current={doc.id === entry.id ? "page" : undefined}>{doc.data.title}</a>)}</div>)}</nav>
+      </details>
+      <a class="sidebar-agent" href="/docs/agents/"><span aria-hidden="true">&lt;/&gt;</span><strong>Building with an agent?</strong><span>Give it the field guide.</span></a>
+    </aside>
+    <main id="main" class="docs-main">
+      <header class="doc-heading"><p>{entry.data.section}</p><h1>{entry.data.title}</h1><p class="doc-description">{entry.data.description}</p><div class="doc-tools"><a href={`/docs/${entry.id}.md`}>Read as Markdown</a><a href={`https://github.com/misty-step/parlor/edit/master/apps/site/src/content/docs/${entry.id}.md`}>Edit this page <span aria-hidden="true">↗</span></a></div></header>
+      <article class="prose"><Content /></article>
+      <nav class="doc-pagination" aria-label="Adjacent guides">{previous ? <a href={`/docs/${previous.id}/`}><span>Previous</span><strong>{previous.data.title}</strong></a> : <span />}{next && <a href={`/docs/${next.id}/`}><span>Next</span><strong>{next.data.title}</strong></a>}</nav>
+    </main>
+    <aside class="docs-toc" aria-label="On this page"><strong>On this page</strong><nav>{toc.map((heading) => <a class:list={[{ "toc-nested": heading.depth === 3 }]} href={`#${heading.slug}`}>{heading.text}</a>)}</nav><a class="toc-help" href="https://github.com/misty-step/parlor/issues">Something not clicking?<br /><span>Open an issue</span></a></aside>
+  </div>
+</Base>

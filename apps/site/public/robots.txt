@@ -1,0 +1,3 @@
+User-agent: *
+Allow: /
+Sitemap: https://parlor.mistystep.io/sitemap.xml

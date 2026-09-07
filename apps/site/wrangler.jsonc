@@ -1,0 +1,22 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "parlor-site",
+  "account_id": "b069014f6a46558ea9146fb6c4ff8f6c",
+  "compatibility_date": "2026-09-07",
+  "assets": {
+    "directory": "./dist",
+    "html_handling": "auto-trailing-slash",
+    "not_found_handling": "404-page",
+  },
+  "env": {
+    "staging": {
+      "name": "parlor-site-staging",
+      "workers_dev": true,
+    },
+    "production": {
+      "name": "parlor-site",
+      "workers_dev": false,
+      "routes": [{ "pattern": "parlor.mistystep.io", "custom_domain": true }],
+    },
+  },
+}

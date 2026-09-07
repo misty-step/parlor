@@ -1,38 +1,34 @@
 # Parlor
 
-An accountless, phone-first multiplayer game substrate built on [Convex](https://convex.dev) and [React](https://react.dev).
+An accountless, phone-first multiplayer toolkit for game night. Built on [Convex](https://convex.dev) and [React](https://react.dev).
 
-Parlor handles the repetitive plumbing of in-person party games—room codes, guest credentials, participant freezing, host transfer, heartbeats, and abandonment sweeping—so each game can focus purely on game mechanics, prompts, and presentation.
+Parlor handles rooms, guest credentials, presence, host transfer, frozen match participants, and abandonment sweeping. Each game keeps its own rules, prompts, scoring, and look.
 
----
+**[parlor.mistystep.io](https://parlor.mistystep.io)** · MIT licensed · pre-1.0 source distribution
+
+## Start here
+
+| Audience      | Path                                                                                                                                                                   |
+| ------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Humans        | [Getting started](https://parlor.mistystep.io/docs/getting-started/)                                                                                                   |
+| Coding agents | [Agent onboarding](https://parlor.mistystep.io/docs/agents/), [`/skill.md`](https://parlor.mistystep.io/skill.md), [`/llms.txt`](https://parlor.mistystep.io/llms.txt) |
+| API map       | [Reference](https://parlor.mistystep.io/docs/api/)                                                                                                                     |
+
+Packages are private workspace packages in this repository. They are not published to npm. Consume them from a pinned source checkout; see the getting-started guide.
 
 ## Packages
 
-| Package              | Path                  | Description                                                                       |
-| -------------------- | --------------------- | --------------------------------------------------------------------------------- |
-| **`@parlor/core`**   | `packages/core`       | Pure domain types, presence classification, room bounds                           |
-| **`@parlor/auth`**   | `packages/auth`       | HMAC-SHA256 guest credentials (`@parlor/auth/server`)                             |
-| **`@parlor/convex`** | `integrations/convex` | Convex schema (`parlorTables`), room/match queries, mutations, sweeper            |
-| **`@parlor/react`**  | `packages/react`      | RoomCodeInput, QRCodeDisplay, ConnectionStatus, AvatarBadge, AudioProvider, hooks |
-| **`@parlor/web`**    | `packages/web`        | Screen wake lock, audio cues & controller, clipboard utilities                    |
+| Package          | Path                  | Description                                           |
+| ---------------- | --------------------- | ----------------------------------------------------- |
+| `@parlor/core`   | `packages/core`       | Domain types, presence classification, room bounds    |
+| `@parlor/auth`   | `packages/auth`       | HMAC-SHA256 guest credentials (`@parlor/auth/server`) |
+| `@parlor/convex` | `integrations/convex` | Schema, rooms, matches, presence, sweeper             |
+| `@parlor/react`  | `packages/react`      | Room UI, QR, connection, avatars, audio, hooks        |
+| `@parlor/web`    | `packages/web`        | Wake lock, audio, credential storage                  |
 
----
+## Made with Parlor
 
-## Reference Implementation
-
-See [Poppycock](https://github.com/misty-step/poppycock) ([poppycock.mistystep.io](https://poppycock.mistystep.io)) for a complete, production-grade 3–12 player bluffing game built on Parlor.
-
----
-
-## Agent Skill
-
-Parlor includes an agent skill for AI coding harnesses at [`skills/parlor/SKILL.md`](skills/parlor/SKILL.md). When loaded (`skill://parlor`), agents are guided on:
-
-- How to structure schema, queries, mutations, and client shells.
-- Parlor's load-bearing invariants (server authority, frozen eligibility, host transfer).
-- How to file issues, papercuts, and feature requests via `gh issue create --repo misty-step/parlor`.
-
----
+[Poppycock](https://poppycock.mistystep.io) is a production 3–12 player bluffing game on this toolkit. [LineJam](https://github.com/misty-step/linejam) is a planned migration, not a shipped integration.
 
 ## Development
 
@@ -40,7 +36,15 @@ Requirements: Node.js 22.12+, pnpm 11.25.0.
 
 ```sh
 pnpm install
-pnpm check      # format, typecheck, lint, test (103 tests across 8 suites)
+pnpm check      # format, typecheck, lint, test
 pnpm check:all  # check + package builds + Playwright mobile E2E + Convex smoke
-pnpm dev        # launch the playground app on http://localhost:5173
+pnpm dev        # playground at http://localhost:5173
+pnpm dev:site   # documentation site
+pnpm deploy:site
 ```
+
+The playground is a deterministic local rehearsal. It does not issue real guest tokens or talk to Convex.
+
+## License
+
+[MIT](LICENSE) © Misty Step

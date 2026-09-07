@@ -5,6 +5,7 @@ packages:
 
 allowBuilds:
   esbuild: true
+  workerd: true
 
 blockExoticSubdeps: true
 minimumReleaseAge: 1440

@@ -2,6 +2,8 @@
   "$schema": "./node_modules/oxfmt/configuration_schema.json",
   "ignorePatterns": [
     "**/dist/**",
+    "**/.astro/**",
+    "**/.wrangler/**",
     "**/_generated/**",
     "**/coverage/**",
     "**/playwright-report/**",
