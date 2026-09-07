@@ -106,19 +106,19 @@ h4 {
   border: 1.5px solid var(--felt);
   border-radius: var(--radius-control);
   background: var(--felt);
-  color: var(--cream);
-  font: 650 0.9375rem/1 var(--display);
+  color: #ffffff;
+  font: 700 0.9375rem/1 var(--display);
   text-decoration: none;
   cursor: pointer;
-  transition:
-    background 0.15s ease,
-    border-color 0.15s ease,
-    transform 0.1s ease;
+  transition: all 0.15s ease;
 }
 
 .button:hover {
   background: var(--felt-deep);
   border-color: var(--felt-deep);
+  color: #ffffff;
+  box-shadow: 0 4px 14px rgba(34, 53, 126, 0.28);
+  transform: translateY(-1px);
 }
 
 .button-small {
@@ -128,25 +128,32 @@ h4 {
 }
 
 .button-outline {
-  background: transparent;
+  background: #ffffff;
   color: var(--ink);
   border-color: var(--line);
 }
 
 .button-outline:hover {
-  background: var(--soft);
-  border-color: var(--line);
-  color: var(--ink);
+  background: var(--felt);
+  border-color: var(--felt);
+  color: #ffffff;
+  box-shadow: 0 4px 14px rgba(48, 71, 165, 0.2);
+  transform: translateY(-1px);
 }
 
 .button-yellow {
   background: var(--mustard);
   border-color: var(--mustard);
-  color: var(--ink);
+  color: #1a2738;
+  font-weight: 800;
 }
 
 .button-yellow:hover {
-  filter: brightness(0.95);
+  background: #deb83e;
+  border-color: #d2ac34;
+  color: #101924;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.18);
+  transform: translateY(-1px);
 }
 
 .text-link {
@@ -324,6 +331,12 @@ summary:focus-visible {
 /* ─────────────────────────────────────────────────────────────────────────────
    Hero
    ───────────────────────────────────────────────────────────────────────────── */
+
+.hero-section {
+  background:
+    radial-gradient(ellipse 80% 50% at 50% -15%, #eaf0fc 0%, transparent 70%), var(--paper);
+  border-bottom: 1px solid var(--line);
+}
 
 .hero {
   display: grid;
@@ -741,10 +754,15 @@ summary:focus-visible {
    Ownership & Architecture
    ───────────────────────────────────────────────────────────────────────────── */
 
+.why-section {
+  background: #ffffff;
+  border-bottom: 1px solid var(--line);
+}
+
 .ownership-section {
-  background: var(--cream);
+  background: #f1f4fb;
   padding: 5.5rem 0;
-  border-block: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
 }
 
 .ownership-grid {
@@ -952,9 +970,19 @@ summary:focus-visible {
    Showcase (Poppycock Section)
    ───────────────────────────────────────────────────────────────────────────── */
 
+.package-section {
+  background: #ffffff;
+  border-bottom: 1px solid var(--line);
+}
+
 .showcase-section {
-  background: var(--cream);
+  background: #ebf6f3;
   padding: 5.5rem 0;
+  border-bottom: 1px solid #cee5df;
+}
+
+.start-section {
+  background: var(--paper);
   border-bottom: 1px solid var(--line);
 }
 
@@ -1163,14 +1191,20 @@ summary:focus-visible {
    ───────────────────────────────────────────────────────────────────────────── */
 
 .faq-section {
-  padding-bottom: 5.5rem;
+  background: #f4f6fa;
+  padding: 5.5rem 0;
+  border-bottom: 1px solid var(--line);
 }
 
-.faq-section h2 {
-  margin: 0 0 2rem;
-  font-size: clamp(1.75rem, 3vw, 2.5rem);
+.faq-heading {
+  grid-template-columns: 1fr;
+  margin-bottom: 2rem;
 }
 
+.faq-heading h2 {
+  margin: 0;
+  font-size: clamp(2rem, 3.8vw, 3rem);
+}
 .faq-list {
   display: grid;
   gap: 0;

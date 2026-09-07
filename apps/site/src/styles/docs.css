@@ -82,25 +82,28 @@
 
 .docs-nav-link {
   display: block;
-  padding: 0.5rem 0.75rem;
-  border-left: 2px solid transparent;
+  padding: 0.5rem 0.85rem;
+  border: none;
   border-radius: var(--radius-control);
   color: var(--muted);
   font-size: 0.875rem;
   line-height: 1.45;
   text-decoration: none;
+  transition:
+    background 0.12s ease,
+    color 0.12s ease;
 }
 
 .docs-nav-link:hover {
-  background: var(--paper);
+  background: var(--soft);
   color: var(--felt);
 }
 
 .docs-nav-link[aria-current="page"] {
-  border-left-color: var(--felt);
   background: var(--soft);
-  color: var(--felt);
-  font-weight: 700;
+  color: var(--felt-deep);
+  font-weight: 750;
+  border: none;
 }
 
 .sidebar-agent {
@@ -385,6 +388,24 @@
 
 .prose a:hover {
   color: var(--felt-deep);
+}
+
+.prose a.external-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
+}
+
+.prose td a.external-link,
+.prose th a.external-link {
+  display: inline;
+}
+
+.prose td a.external-link .external-link__icon,
+.prose th a.external-link .external-link__icon {
+  display: inline;
+  vertical-align: -0.1em;
+  margin-left: 0.15em;
 }
 
 .prose :not(pre) > code {

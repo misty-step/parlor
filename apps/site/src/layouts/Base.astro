@@ -1,7 +1,7 @@
 ---
 import "@fontsource-variable/dm-sans/wght.css";
 import "@fontsource-variable/manrope/wght.css";
-import { Copy, Menu } from "@lucide/astro";
+import { ArrowUpRight, Copy, Menu } from "@lucide/astro";
 import "../styles/global.css";
 import Brand from "../components/Brand.astro";
 import ExternalLink from "../components/ExternalLink.astro";
@@ -51,21 +51,21 @@ const canonical = new URL(Astro.url.pathname, Astro.site);
       <div class="header-inner">
         <a class="brand-link" href="/" aria-label="Parlor home"><Brand /></a>
         <nav class="desktop-nav" aria-label="Main navigation">
-          <a href="/#why-parlor">Overview</a>
           <a href="/docs/getting-started/" aria-current={isDocs ? "true" : undefined}>Documentation</a>
-          <a href="/docs/agents/">For agents</a>
+          <a href="/docs/first-game/">First Tap</a>
+          <a href="/design/">Design</a>
           <ExternalLink href="https://github.com/misty-step/parlor">GitHub</ExternalLink>
         </nav>
         <div class="header-actions">
           <Search />
-          <a class="button button-small header-cta" href="/docs/first-game/">Start building</a>
+          <a class="button button-small header-cta" href="/docs/first-game/">Get started</a>
           <details class="mobile-menu">
             <summary>Menu <Menu size={18} stroke-width={1.75} aria-hidden="true" /></summary>
             <nav aria-label="Mobile navigation">
-              <a href="/#why-parlor">Overview</a>
-              <a href="/#in-the-wild">Made with Parlor</a>
               <a href="/docs/getting-started/">Documentation</a>
+              <a href="/docs/first-game/">First Tap</a>
               <a href="/docs/agents/">For agents</a>
+              <a href="/design/">Design kit</a>
               <ExternalLink href="https://github.com/misty-step/parlor">GitHub</ExternalLink>
             </nav>
           </details>
@@ -98,19 +98,20 @@ const canonical = new URL(Astro.url.pathname, Astro.site);
           <a href="/license.txt">MIT license</a>
         </nav>
         <div class="footer-credit">
-          <strong>A Misty Step project</strong>
+          <strong>A <ExternalLink href="https://mistystep.io">Misty Step</ExternalLink> project</strong>
           <p>Tools for the things<br />we want to exist.</p>
           <ExternalLink href="https://mistystep.io">Meet Misty Step</ExternalLink>
         </div>
       </div>
       <div class="container footer-bottom">
-        <span>© {new Date().getFullYear()} Misty Step</span>
+        <span>© {new Date().getFullYear()} <ExternalLink href="https://mistystep.io">Misty Step</ExternalLink></span>
         <a href="/llms.txt">Documentation for agents</a>
         <ExternalLink href="https://poppycock.mistystep.io">Prefer to play? Try Poppycock.</ExternalLink>
       </div>
     </footer>
     <div class="sr-only" role="status" data-copy-status></div>
     <template id="copy-icon"><Copy size={15} stroke-width={1.75} aria-hidden="true" /></template>
+    <template id="external-link-icon"><ArrowUpRight size={14} stroke-width={1.75} class="external-link__icon" aria-hidden="true" /></template>
     <script src="../scripts/site.ts"></script>
   </body>
 </html>

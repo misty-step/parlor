@@ -213,30 +213,21 @@ for (const menu of document.querySelectorAll<HTMLDetailsElement>(".mobile-menu")
     if (event.key === "Escape") menu.open = false;
   });
 }
-for (const link of document.querySelectorAll<HTMLAnchorElement>(
-  ".prose a[href^='http://'], .prose a[href^='https://']",
-)) {
-  if (link.hostname !== window.location.hostname && !link.querySelector(".external-link__icon")) {
-    link.target = "_blank";
-    link.rel = "noopener noreferrer";
-    link.classList.add("external-link");
-    const icon = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-    icon.setAttribute("width", "14");
-    icon.setAttribute("height", "14");
-    icon.setAttribute("viewBox", "0 0 24 24");
-    icon.setAttribute("fill", "none");
-    icon.setAttribute("stroke", "currentColor");
-    icon.setAttribute("stroke-width", "1.75");
-    icon.setAttribute("aria-hidden", "true");
-    icon.classList.add("external-link__icon");
-    const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
-    path.setAttribute("d", "M7 17L17 7M7 7h10v10");
-    icon.append(path);
-    link.append(icon);
-    const sr = document.createElement("span");
-    sr.className = "sr-only";
-    sr.textContent = " (opens in a new tab)";
-    link.append(sr);
+const externalLinkTemplate = document.querySelector<HTMLTemplateElement>("#external-link-icon");
+if (externalLinkTemplate) {
+  for (const link of document.querySelectorAll<HTMLAnchorElement>(
+    ".prose a[href^='http://'], .prose a[href^='https://']",
+  )) {
+    if (link.hostname !== window.location.hostname && !link.querySelector(".external-link__icon")) {
+      link.target = "_blank";
+      link.rel = "noopener noreferrer";
+      link.classList.add("external-link");
+      link.append(externalLinkTemplate.content.cloneNode(true));
+      const sr = document.createElement("span");
+      sr.className = "sr-only";
+      sr.textContent = " (opens in a new tab)";
+      link.append(sr);
+    }
   }
 }
 

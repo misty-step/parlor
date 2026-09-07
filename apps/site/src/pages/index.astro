@@ -70,90 +70,94 @@ const packages = [
 ---
 <Base>
   <main id="main">
-    <section class="hero container" aria-labelledby="hero-title">
-      <div class="hero-copy">
-        <a class="hero-proof" href="#in-the-wild">
-          <span class="proof-dot" aria-hidden="true"></span>
-          <span>Already powering Poppycock</span>
-          <ArrowRight size={14} stroke-width={2} aria-hidden="true" />
-        </a>
-        <h1 id="hero-title">You bring<br />the game.<br />We make room.</h1>
-        <p class="hero-description">The multiplayer toolkit for game night.</p>
-        <p class="hero-detail">
-          Guest identity, rooms, presence, and matches for Convex and React. Build what makes your game special. Leave the shared plumbing to Parlor.
-        </p>
-        <div class="hero-actions">
-          <a class="button" href="/docs/first-game/">
-            Build your first game
-            <ArrowRight size={18} stroke-width={1.75} aria-hidden="true" />
+    <section class="hero-section" aria-labelledby="hero-title">
+      <div class="container hero">
+        <div class="hero-copy">
+          <a class="hero-proof" href="#in-the-wild">
+            <span class="proof-dot" aria-hidden="true"></span>
+            <span>Already powering Poppycock</span>
+            <ArrowRight size={14} stroke-width={2} aria-hidden="true" />
           </a>
-          <a class="button button-outline" href="/docs/agents/">
-            Build with an agent
-          </a>
-        </div>
-        <div class="hero-footnote">
-          <a href="/license.txt">Open source, MIT licensed</a>
-          <span>TypeScript, end to end</span>
-        </div>
-      </div>
-      <RoomSketch />
-    </section>
-
-    <section id="why-parlor" class="section container why-section" aria-labelledby="why-title">
-      <div class="section-heading">
-        <h2 id="why-title">More game.<br />Less getting started.</h2>
-        <p>
-          You have an idea for the next great party game.<br class="desktop-break" />
-          You probably don’t have an idea for the next great heartbeat implementation.
-        </p>
-      </div>
-      <div class="benefits">
-        <div class="benefit">
-          <div class="benefit-symbol join-symbol" aria-hidden="true">
-            <span>P</span><span>L</span><span>A</span><span>Y</span>
-          </div>
-          <h3>Get everyone in.</h3>
-          <p>
-            A short room code. A QR link. A guest identity that your app can keep across refreshes. Fewer steps between an invitation and the first round.
+          <h1 id="hero-title">You bring<br />the game.<br />We make room.</h1>
+          <p class="hero-description">The multiplayer toolkit for game night.</p>
+          <p class="hero-detail">
+            Guest identity, rooms, presence, and matches for Convex and React. Build what makes your game special. Leave the shared plumbing to Parlor.
           </p>
-          <a class="benefit-link text-link" href="/docs/rooms-and-presence/">
-            <span>Rooms & guest access</span>
-            <ArrowRight size={16} stroke-width={1.75} aria-hidden="true" />
-          </a>
-        </div>
-        <div class="benefit">
-          <div class="benefit-symbol presence-symbol" aria-hidden="true">
-            <UsersRound size={20} stroke-width={1.75} />
-            <span>Still together</span>
+          <div class="hero-actions">
+            <a class="button" href="/docs/first-game/">
+              Build your first game
+              <ArrowRight size={18} stroke-width={1.75} aria-hidden="true" />
+            </a>
+            <a class="button button-outline" href="/docs/agents/">
+              Build with an agent
+            </a>
           </div>
-          <h3>Keep the room together.</h3>
-          <p>
-            Visibility-aware heartbeats and host handoff when someone leaves. The game keeps its room; you decide what an interruption means for play.
-          </p>
-          <a class="benefit-link text-link" href="/docs/rooms-and-presence/#heartbeats-and-host-self-healing">
-            <span>Presence & host handoff</span>
-            <ArrowRight size={16} stroke-width={1.75} aria-hidden="true" />
-          </a>
-        </div>
-        <div class="benefit">
-          <div class="benefit-symbol rematch-symbol" aria-hidden="true">
-            <span>Match 1</span>
-            <RotateCcw size={16} stroke-width={2} />
-            <span>Match 2</span>
+          <div class="hero-footnote">
+            <a href="/license.txt">Open source, MIT licensed</a>
+            <span>TypeScript, end to end</span>
           </div>
-          <h3>Make room for one more.</h3>
-          <p>
-            Freeze the lineup for each match. Let late arrivals watch, then include them in the next round. A rematch starts fresh, without starting over.
-          </p>
-          <a class="benefit-link text-link" href="/docs/matches/">
-            <span>Matches & rematches</span>
-            <ArrowRight size={16} stroke-width={1.75} aria-hidden="true" />
-          </a>
         </div>
+        <RoomSketch />
       </div>
     </section>
 
-    <section class="ownership-section" aria-labelledby="ownership-title">
+    <section id="why-parlor" class="section why-section" aria-labelledby="why-title">
+      <div class="container">
+        <div class="section-heading">
+          <h2 id="why-title">More game.<br />Less getting started.</h2>
+          <p>
+            You have an idea for the next great party game.<br class="desktop-break" />
+            You probably don’t have an idea for the next great heartbeat implementation.
+          </p>
+        </div>
+        <div class="benefits">
+          <div class="benefit">
+            <div class="benefit-symbol join-symbol" aria-hidden="true">
+              <span>P</span><span>L</span><span>A</span><span>Y</span>
+            </div>
+            <h3>Get everyone in.</h3>
+            <p>
+              A short room code. A QR link. A guest identity that your app can keep across refreshes. Fewer steps between an invitation and the first round.
+            </p>
+            <a class="benefit-link text-link" href="/docs/rooms-and-presence/">
+              <span>Rooms & guest access</span>
+              <ArrowRight size={16} stroke-width={1.75} aria-hidden="true" />
+            </a>
+          </div>
+          <div class="benefit">
+            <div class="benefit-symbol presence-symbol" aria-hidden="true">
+              <UsersRound size={20} stroke-width={1.75} />
+              <span>Still together</span>
+            </div>
+            <h3>Keep the room together.</h3>
+            <p>
+              Visibility-aware heartbeats and host handoff when someone leaves. The game keeps its room; you decide what an interruption means for play.
+            </p>
+            <a class="benefit-link text-link" href="/docs/rooms-and-presence/#heartbeats-and-host-self-healing">
+              <span>Presence & host handoff</span>
+              <ArrowRight size={16} stroke-width={1.75} aria-hidden="true" />
+            </a>
+          </div>
+          <div class="benefit">
+            <div class="benefit-symbol rematch-symbol" aria-hidden="true">
+              <span>Match 1</span>
+              <RotateCcw size={16} stroke-width={2} />
+              <span>Match 2</span>
+            </div>
+            <h3>Make room for one more.</h3>
+            <p>
+              Freeze the lineup for each match. Let late arrivals watch, then include them in the next round. A rematch starts fresh, without starting over.
+            </p>
+            <a class="benefit-link text-link" href="/docs/matches/">
+              <span>Matches & rematches</span>
+              <ArrowRight size={16} stroke-width={1.75} aria-hidden="true" />
+            </a>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section ownership-section" aria-labelledby="ownership-title">
       <div class="container ownership-grid">
         <div class="ownership-copy">
           <p class="section-kicker">A library inside your game</p>
@@ -205,37 +209,39 @@ const packages = [
       </div>
     </section>
 
-    <section class="section container package-section" aria-labelledby="package-title">
-      <div class="section-heading">
-        <h2 id="package-title">Five pieces.<br />Plenty of possibilities.</h2>
-        <p>
-          Bluffing, drawing, trivia, voting, and ideas<br class="desktop-break" />
-          that don’t have a name yet. Pick what you need.
-        </p>
-      </div>
-      <div class="package-list">
-        {packages.map(({ name, description, href, Icon }) => (
-          <a href={href} class="package-row">
-            <span class="package-mark" aria-hidden="true">
-              <Icon size={18} stroke-width={1.75} />
-            </span>
-            <code>@parlor/{name}</code>
-            <p>{description}</p>
-            <span class="package-arrow" aria-hidden="true">
-              <ArrowRight size={16} stroke-width={1.75} />
-            </span>
-          </a>
-        ))}
-      </div>
-      <div class="release-note">
-        <span class="release-tag">Source-first</span>
-        <p>
-          Parlor is pre-1.0 and installed from a pinned source checkout. The packages aren’t on npm yet. <a href="/docs/installation/">Here’s how to bring them into your app.</a>
-        </p>
+    <section class="section package-section" aria-labelledby="package-title">
+      <div class="container">
+        <div class="section-heading">
+          <h2 id="package-title">Five pieces.<br />Plenty of possibilities.</h2>
+          <p>
+            Bluffing, drawing, trivia, voting, and ideas<br class="desktop-break" />
+            that don’t have a name yet. Pick what you need.
+          </p>
+        </div>
+        <div class="package-list">
+          {packages.map(({ name, description, href, Icon }) => (
+            <a href={href} class="package-row">
+              <span class="package-mark" aria-hidden="true">
+                <Icon size={18} stroke-width={1.75} />
+              </span>
+              <code>@parlor/{name}</code>
+              <p>{description}</p>
+              <span class="package-arrow" aria-hidden="true">
+                <ArrowRight size={16} stroke-width={1.75} />
+              </span>
+            </a>
+          ))}
+        </div>
+        <div class="release-note">
+          <span class="release-tag">Source-first</span>
+          <p>
+            Parlor is pre-1.0 and installed from a pinned source checkout. The packages aren’t on npm yet. <a href="/docs/installation/">Here’s how to bring them into your app.</a>
+          </p>
+        </div>
       </div>
     </section>
 
-    <section id="in-the-wild" class="showcase-section" aria-labelledby="showcase-title">
+    <section id="in-the-wild" class="section showcase-section" aria-labelledby="showcase-title">
       <div class="container showcase-grid">
         <div class="showcase-art">
           <div class="poppy-window">
@@ -254,7 +260,7 @@ const packages = [
               <span class="poppy-players">3–12 players. Bring your best poker face.</span>
             </div>
           </div>
-          <span class="showcase-caption">A Parlor-powered game by Misty Step</span>
+          <span class="showcase-caption">A Parlor-powered game by <ExternalLink href="https://mistystep.io">Misty Step</ExternalLink></span>
         </div>
         <div class="showcase-copy">
           <p class="section-kicker">Out of the library. Around the table.</p>
@@ -269,67 +275,73 @@ const packages = [
       </div>
     </section>
 
-    <section class="section container start-section" aria-labelledby="start-title">
-      <div class="section-heading">
-        <h2 id="start-title">Your next move.</h2>
-        <p>A working example for you.<br />A field guide for your coding agent.</p>
-      </div>
-      <div class="start-paths">
-        <article class="start-path">
-          <span class="path-symbol" aria-hidden="true">
-            <Play size={20} stroke-width={2} />
-          </span>
-          <h3>Start with something that works.</h3>
-          <p>
-            Run First Tap: a small game with a real guest issuer, two-player rooms, a server-decided winner, and rematches. Read the code. Make it yours.
-          </p>
-          <div class="start-path-actions">
-            <a class="button" href="/docs/first-game/">
-              Run the example
-              <ArrowRight size={18} stroke-width={1.75} aria-hidden="true" />
-            </a>
-            <a class="path-secondary" href="/docs/installation/">Already have a game? Integrate Parlor.</a>
-          </div>
-        </article>
-        <article class="start-path agent-path">
-          <span class="path-symbol" aria-hidden="true">
-            <Bot size={20} stroke-width={1.75} />
-          </span>
-          <h3>Give your agent a head start.</h3>
-          <p>
-            Install the portable skill and start with the same contracts as the human docs. No special harness. No mystery setup script.
-          </p>
-          <pre data-copy><code>Read https://parlor.mistystep.io/skill.md
+    <section class="section start-section" aria-labelledby="start-title">
+      <div class="container">
+        <div class="section-heading">
+          <h2 id="start-title">Your next move.</h2>
+          <p>A working example for you.<br />A field guide for your coding agent.</p>
+        </div>
+        <div class="start-paths">
+          <article class="start-path">
+            <span class="path-symbol" aria-hidden="true">
+              <Play size={20} stroke-width={2} />
+            </span>
+            <h3>Start with something that works.</h3>
+            <p>
+              Run First Tap: a small game with a real guest issuer, two-player rooms, a server-decided winner, and rematches. Read the code. Make it yours.
+            </p>
+            <div class="start-path-actions">
+              <a class="button" href="/docs/first-game/">
+                Run the example
+                <ArrowRight size={18} stroke-width={1.75} aria-hidden="true" />
+              </a>
+              <a class="path-secondary" href="/docs/installation/">Already have a game? Integrate Parlor.</a>
+            </div>
+          </article>
+          <article class="start-path agent-path">
+            <span class="path-symbol" aria-hidden="true">
+              <Bot size={20} stroke-width={1.75} />
+            </span>
+            <h3>Give your agent a head start.</h3>
+            <p>
+              Install the portable skill and start with the same contracts as the human docs. No special harness. No mystery setup script.
+            </p>
+            <pre data-copy><code>Read https://parlor.mistystep.io/skill.md
 and the getting-started guide.
 Help me build a party game with Parlor.
 Use the source APIs. Verify two players.</code></pre>
-          <a class="text-link inline-link" href="/docs/agents/">
-            <span>Set up your agent</span>
-            <ArrowRight size={16} stroke-width={1.75} aria-hidden="true" />
-          </a>
-        </article>
+            <a class="text-link inline-link" href="/docs/agents/">
+              <span>Set up your agent</span>
+              <ArrowRight size={16} stroke-width={1.75} aria-hidden="true" />
+            </a>
+          </article>
+        </div>
       </div>
     </section>
 
-    <section class="faq-section container" aria-labelledby="faq-title">
-      <h2 id="faq-title">A few things worth knowing.</h2>
-      <div class="faq-list">
-        <details>
-          <summary>Is Parlor a hosted service?</summary>
-          <p>No. Parlor is a library in your application. You deploy your own Convex backend and React app, and retain ownership of the data. The Parlor website does not host your players or games.</p>
-        </details>
-        <details>
-          <summary>Do I need to use Convex and React?</summary>
-          <p>The room and match backend is built for Convex. React gives you the ready-made UI components and hooks. The core policies and browser controllers are separate packages, but Parlor is not a backend-agnostic multiplayer framework.</p>
-        </details>
-        <details>
-          <summary>Can I use it commercially?</summary>
-          <p>Yes. Parlor is <a href="/license.txt">MIT licensed</a>. Keep the copyright and license notice with the code. Hosting and Convex usage are your own operating costs.</p>
-        </details>
-        <details>
-          <summary>How stable is the API?</summary>
-          <p>Parlor powers Poppycock, but the library is still pre-1.0. Pin a source revision, review changes before updating, and verify your own game’s behavior. <a href="/docs/installation/">The installation guide</a> covers that workflow.</p>
-        </details>
+    <section class="section faq-section" aria-labelledby="faq-title">
+      <div class="container">
+        <div class="section-heading faq-heading">
+          <h2 id="faq-title">A few things worth knowing.</h2>
+        </div>
+        <div class="faq-list">
+          <details>
+            <summary>Is Parlor a hosted service?</summary>
+            <p>No. Parlor is a library in your application. You deploy your own Convex backend and React app, and retain ownership of the data. The Parlor website does not host your players or games.</p>
+          </details>
+          <details>
+            <summary>Do I need to use Convex and React?</summary>
+            <p>The room and match backend is built for Convex. React gives you the ready-made UI components and hooks. The core policies and browser controllers are separate packages, but Parlor is not a backend-agnostic multiplayer framework.</p>
+          </details>
+          <details>
+            <summary>Can I use it commercially?</summary>
+            <p>Yes. Parlor is <a href="/license.txt">MIT licensed</a>. Keep the copyright and license notice with the code. Hosting and Convex usage are your own operating costs.</p>
+          </details>
+          <details>
+            <summary>How stable is the API?</summary>
+            <p>Parlor powers Poppycock, but the library is still pre-1.0. Pin a source revision, review changes before updating, and verify your own game’s behavior. <a href="/docs/installation/">The installation guide</a> covers that workflow.</p>
+          </details>
+        </div>
       </div>
     </section>
 
