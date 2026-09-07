@@ -11,6 +11,7 @@ const results = document.querySelector<HTMLUListElement>(".search-results");
 const status = document.querySelector<HTMLParagraphElement>(".search-status");
 const trigger = document.querySelector<HTMLButtonElement>("[data-search-open]");
 const copyStatus = document.querySelector<HTMLElement>("[data-copy-status]");
+const copyIconTemplate = document.querySelector<HTMLTemplateElement>("#copy-icon");
 let entries: SearchEntry[] | undefined;
 let loading: Promise<void> | undefined;
 
@@ -156,20 +157,25 @@ for (const block of document.querySelectorAll<HTMLPreElement>(".prose pre, pre[d
   const button = document.createElement("button");
   button.type = "button";
   button.className = "copy-button";
-  button.textContent = "Copy";
+  const label = document.createElement("span");
+  label.textContent = "Copy";
+  if (copyIconTemplate) {
+    button.append(copyIconTemplate.content.cloneNode(true));
+  }
+  button.append(label);
   button.setAttribute("aria-label", "Copy code");
   button.addEventListener("click", async () => {
     if (await copyText(code.textContent ?? "", "Code copied")) {
-      button.textContent = "Copied";
+      label.textContent = "Copied";
     } else {
-      button.textContent = "Select code";
+      label.textContent = "Select code";
       const range = document.createRange();
       range.selectNodeContents(code);
       window.getSelection()?.removeAllRanges();
       window.getSelection()?.addRange(range);
     }
     window.setTimeout(() => {
-      button.textContent = "Copy";
+      label.textContent = "Copy";
       button.setAttribute("aria-label", "Copy code");
     }, 2500);
   });
@@ -179,6 +185,8 @@ for (const block of document.querySelectorAll<HTMLPreElement>(".prose pre, pre[d
 const copyPage = document.querySelector<HTMLButtonElement>("[data-copy-page]");
 if (copyPage) {
   copyPage.hidden = false;
+  const copyPageLabel = copyPage.querySelector<HTMLElement>("[data-copy-label]");
+  const originalText = copyPageLabel?.textContent ?? "Copy page for your agent";
   copyPage.addEventListener("click", async () => {
     const path = copyPage.dataset.copyPage;
     if (!path) return;
@@ -186,9 +194,9 @@ if (copyPage) {
       const response = await fetch(path);
       if (!response.ok) throw new Error("unavailable");
       if (await copyText(await response.text(), "Page copied as Markdown")) {
-        copyPage.textContent = "Copied";
+        if (copyPageLabel) copyPageLabel.textContent = "Copied";
         window.setTimeout(() => {
-          copyPage.textContent = "Copy page for your agent";
+          if (copyPageLabel) copyPageLabel.textContent = originalText;
         }, 2500);
       }
     } catch {
@@ -205,28 +213,51 @@ for (const menu of document.querySelectorAll<HTMLDetailsElement>(".mobile-menu")
     if (event.key === "Escape") menu.open = false;
   });
 }
+for (const link of document.querySelectorAll<HTMLAnchorElement>(
+  ".prose a[href^='http://'], .prose a[href^='https://']",
+)) {
+  if (link.hostname !== window.location.hostname && !link.querySelector(".external-link__icon")) {
+    link.target = "_blank";
+    link.rel = "noopener noreferrer";
+    link.classList.add("external-link");
+    const icon = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    icon.setAttribute("width", "14");
+    icon.setAttribute("height", "14");
+    icon.setAttribute("viewBox", "0 0 24 24");
+    icon.setAttribute("fill", "none");
+    icon.setAttribute("stroke", "currentColor");
+    icon.setAttribute("stroke-width", "1.75");
+    icon.setAttribute("aria-hidden", "true");
+    icon.classList.add("external-link__icon");
+    const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+    path.setAttribute("d", "M7 17L17 7M7 7h10v10");
+    icon.append(path);
+    link.append(icon);
+    const sr = document.createElement("span");
+    sr.className = "sr-only";
+    sr.textContent = " (opens in a new tab)";
+    link.append(sr);
+  }
+}
 
 const roomPhases = {
   lobby: {
-    label: "Meet you in",
-    status: "4 friends. No accounts.",
-    ticket: "The room is ready",
-    description: "One shared code. Everyone joins from their own phone.",
-    late: "Jo is watching",
+    label: "Come on in.",
+    status: "Four friends. One room.",
+    ticket: "Everyone starts here",
+    late: "Jo can watch this match",
   },
   match: {
     label: "This match is locked.",
-    status: "4 players. Late arrivals watch.",
+    status: "The lineup is frozen.",
     ticket: "Match in progress",
-    description: "Freeze the lineup. New friends can watch, then play next time.",
     late: "Jo is watching",
   },
   rematch: {
     label: "Same room. New round.",
-    status: "5 friends. Next match.",
-    ticket: "Jo can play next",
-    description: "Keep the room. Include new friends in the next match.",
-    late: "Jo is playing",
+    status: "All five friends. Next match.",
+    ticket: "Next match includes Jo",
+    late: "Jo is ready to play",
   },
 } as const;
 
@@ -241,7 +272,6 @@ for (const button of document.querySelectorAll<HTMLButtonElement>("[data-phase-b
       ["[data-room-label]", next.label],
       ["[data-room-status]", next.status],
       ["[data-ticket]", next.ticket],
-      ["[data-sketch-description]", next.description],
       ["[data-late-copy]", next.late],
     ];
     for (const [selector, text] of updates) {
@@ -250,6 +280,11 @@ for (const button of document.querySelectorAll<HTMLButtonElement>("[data-phase-b
     }
     const latePlayer = sketch.querySelector<HTMLElement>("[data-late-player]");
     if (latePlayer) latePlayer.hidden = phase === "lobby";
+    const newGuest = sketch.querySelector<HTMLElement>("[data-new-guest]");
+    if (newGuest) newGuest.hidden = phase === "lobby";
+    for (const icon of sketch.querySelectorAll<HTMLElement>("[data-phase-icon]")) {
+      icon.hidden = icon.dataset.phaseIcon !== phase;
+    }
     for (const control of sketch.querySelectorAll("[data-phase-button]")) {
       control.setAttribute("aria-pressed", String(control === button));
     }

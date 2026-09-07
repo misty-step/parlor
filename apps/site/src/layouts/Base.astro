@@ -1,7 +1,10 @@
 ---
 import "@fontsource-variable/dm-sans/wght.css";
-import "@fontsource/fredoka/latin-500.css";
+import "@fontsource-variable/manrope/wght.css";
+import { Copy, Menu } from "@lucide/astro";
 import "../styles/global.css";
+import Brand from "../components/Brand.astro";
+import ExternalLink from "../components/ExternalLink.astro";
 import Search from "../components/Search.astro";
 import project from "../../../../package.json";
 
@@ -24,7 +27,7 @@ const canonical = new URL(Astro.url.pathname, Astro.site);
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="theme-color" content="#2e43af" />
+    <meta name="theme-color" content="#3047a5" />
     <title>{title}</title>
     <meta name="description" content={description} />
     <link rel="canonical" href={canonical} />
@@ -46,27 +49,24 @@ const canonical = new URL(Astro.url.pathname, Astro.site);
     <a class="skip-link" href="#main">Skip to content</a>
     <header class="site-header">
       <div class="header-inner">
-        <a class="wordmark" href="/" aria-label="Parlor home">
-          <svg viewBox="0 0 40 40" width="34" height="34" aria-hidden="true"><rect width="40" height="40" rx="13" fill="currentColor" /><g fill="#fff"><circle cx="13" cy="13" r="4" /><circle cx="27" cy="13" r="4" /><circle cx="13" cy="27" r="4" /><circle cx="27" cy="27" r="4" /></g></svg>
-          <span>parlor</span>
-        </a>
+        <a class="brand-link" href="/" aria-label="Parlor home"><Brand /></a>
         <nav class="desktop-nav" aria-label="Main navigation">
           <a href="/#why-parlor">Overview</a>
           <a href="/docs/getting-started/" aria-current={isDocs ? "true" : undefined}>Documentation</a>
           <a href="/docs/agents/">For agents</a>
-          <a href="https://github.com/misty-step/parlor">GitHub <span aria-hidden="true">↗</span></a>
+          <ExternalLink href="https://github.com/misty-step/parlor">GitHub</ExternalLink>
         </nav>
         <div class="header-actions">
           <Search />
           <a class="button button-small header-cta" href="/docs/first-game/">Start building</a>
           <details class="mobile-menu">
-            <summary>Menu <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M2 5h12M2 11h12" /></svg></summary>
+            <summary>Menu <Menu size={18} stroke-width={1.75} aria-hidden="true" /></summary>
             <nav aria-label="Mobile navigation">
               <a href="/#why-parlor">Overview</a>
               <a href="/#in-the-wild">Made with Parlor</a>
               <a href="/docs/getting-started/">Documentation</a>
               <a href="/docs/agents/">For agents</a>
-              <a href="https://github.com/misty-step/parlor">GitHub</a>
+              <ExternalLink href="https://github.com/misty-step/parlor">GitHub</ExternalLink>
             </nav>
           </details>
         </div>
@@ -75,14 +75,42 @@ const canonical = new URL(Astro.url.pathname, Astro.site);
     <slot />
     <footer class="site-footer">
       <div class="container footer-inner">
-        <div class="footer-brand"><a class="wordmark" href="/">parlor</a><p>For games that bring<br />people together.</p><a class="release-link" href="/docs/installation/">v{project.version} <span>Source release</span></a></div>
-        <nav aria-label="Developer resources"><strong>Make a game</strong><a href="/docs/first-game/">Run the example</a><a href="/docs/installation/">Install Parlor</a><a href="/docs/api/">API reference</a><a href="/docs/agents/">Agent skill</a></nav>
-        <nav aria-label="Open source project"><strong>Make it better</strong><a href="https://github.com/misty-step/parlor">Source code</a><a href="https://github.com/misty-step/parlor/issues">Issues & ideas</a><a href="/license.txt">MIT license</a><a href="/llms.txt">llms.txt</a></nav>
-        <div class="footer-credit"><strong>A Misty Step project</strong><p>Tools for the things<br />we want to exist.</p><a href="https://mistystep.io">Meet Misty Step <span aria-hidden="true">↗</span></a></div>
+        <div class="footer-brand">
+          <a class="brand-link" href="/" aria-label="Parlor home"><Brand /></a>
+          <p>For games that bring<br />people together.</p>
+          <a class="release-link" href="/docs/installation/">
+            <span>v{project.version}</span>
+            <span class="badge">Source release</span>
+          </a>
+        </div>
+        <nav aria-label="Developer resources">
+          <strong>Make a game</strong>
+          <a href="/docs/first-game/">Run the example</a>
+          <a href="/docs/installation/">Install Parlor</a>
+          <a href="/docs/api/">API reference</a>
+          <a href="/docs/agents/">Agent skill</a>
+        </nav>
+        <nav aria-label="Open source project">
+          <strong>Make it better</strong>
+          <ExternalLink href="https://github.com/misty-step/parlor">Source code</ExternalLink>
+          <ExternalLink href="https://github.com/misty-step/parlor/issues">Issues & ideas</ExternalLink>
+          <a href="/design/">Design kit</a>
+          <a href="/license.txt">MIT license</a>
+        </nav>
+        <div class="footer-credit">
+          <strong>A Misty Step project</strong>
+          <p>Tools for the things<br />we want to exist.</p>
+          <ExternalLink href="https://mistystep.io">Meet Misty Step</ExternalLink>
+        </div>
       </div>
-      <div class="container footer-bottom"><span>© {new Date().getFullYear()} Misty Step</span><span>Built with Convex. Made for React.</span><a href="https://poppycock.mistystep.io">Prefer to play? Try Poppycock.</a></div>
+      <div class="container footer-bottom">
+        <span>© {new Date().getFullYear()} Misty Step</span>
+        <a href="/llms.txt">Documentation for agents</a>
+        <ExternalLink href="https://poppycock.mistystep.io">Prefer to play? Try Poppycock.</ExternalLink>
+      </div>
     </footer>
     <div class="sr-only" role="status" data-copy-status></div>
+    <template id="copy-icon"><Copy size={15} stroke-width={1.75} aria-hidden="true" /></template>
     <script src="../scripts/site.ts"></script>
   </body>
 </html>

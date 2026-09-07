@@ -1,0 +1,22 @@
+:root {
+  color-scheme: light;
+  --felt: #3047a5;
+  --felt-deep: #22357e;
+  --paper: #fbfcfe;
+  --cream: #ffffff;
+  --ink: #20304a;
+  --muted: #5c687c;
+  --line: #dfe4ee;
+  --soft: #edf1fb;
+  --mint: #c9e5dc;
+  --mustard: #f0d58e;
+  --lilac: #dcd5f0;
+  --display: "Manrope Variable", "Manrope", sans-serif;
+  --body: "DM Sans Variable", "DM Sans", sans-serif;
+  --mono: ui-monospace, "SFMono-Regular", Consolas, monospace;
+  --radius-control: 0.65rem;
+  --radius-panel: 1.25rem;
+  --shadow: 0 12px 35px #2436650c;
+  --content-width: 1200px;
+  --icon-stroke: 1.75;
+}

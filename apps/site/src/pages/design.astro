@@ -1,0 +1,242 @@
+---
+import {
+  ArrowRight,
+  BookOpen,
+  Check,
+  ChevronDown,
+  DoorOpen,
+  Download,
+  Radio,
+  RefreshCw,
+  UsersRound,
+} from "@lucide/astro";
+import Brand from "../components/Brand.astro";
+import BrandMark from "../components/BrandMark.astro";
+import ExternalLink from "../components/ExternalLink.astro";
+import Base from "../layouts/Base.astro";
+import "../styles/design.css";
+
+const foundationColors = [
+  { name: "Cobalt", token: "--felt", role: "Brand & primary actions" },
+  { name: "Deep cobalt", token: "--felt-deep", role: "Strong brand surfaces" },
+  { name: "Ink", token: "--ink", role: "Headings & body text" },
+  { name: "Muted ink", token: "--muted", role: "Supporting text" },
+  { name: "Paper", token: "--paper", role: "Page background" },
+  { name: "White", token: "--cream", role: "Cards & inverse text" },
+  { name: "Line", token: "--line", role: "Borders & dividers" },
+  { name: "Soft blue", token: "--soft", role: "Quiet emphasis" },
+];
+const accentColors = [
+  { name: "Mint", token: "--mint", role: "A little welcome" },
+  { name: "Mustard", token: "--mustard", role: "A little energy" },
+  { name: "Lilac", token: "--lilac", role: "A little possibility" },
+];
+const spaces = [4, 8, 12, 16, 24, 32, 48, 64];
+---
+<Base
+  title="Design kit — Parlor"
+  description="The Open Door identity, colors, typography, and shared interface components for Parlor. Download the mark and explore the design decisions."
+>
+  <main id="main" class="design-kit">
+    <div class="container">
+      <header class="kit-intro">
+        <p class="kit-page-label">Design kit</p>
+        <h1>Made to make room.</h1>
+        <p>The identity and interface parts behind Parlor. Welcoming enough for game night, clear enough to build with.</p>
+      </header>
+
+      <nav class="kit-nav" aria-label="Design kit sections">
+        <a href="#identity">Mark & wordmark</a>
+        <a href="#color">Color</a>
+        <a href="#type-and-space">Type & spacing</a>
+        <a href="#interface">Icons & actions</a>
+      </nav>
+
+      <section class="kit-section" id="identity" aria-labelledby="identity-title">
+        <div class="kit-section-heading">
+          <h2 id="identity-title">An open door. A quiet P.</h2>
+          <p>The open counter makes an entrance. The angled foot suggests a door left open. One shape, without choosing a genre for your game.</p>
+        </div>
+
+        <div class="kit-wordmark-grid">
+          <figure class="kit-wordmark-panel kit-wordmark-panel--light">
+            <div class="kit-wordmark-stage"><Brand size="large" /></div>
+            <figcaption><strong>Cobalt on white</strong><span>Primary lockup</span></figcaption>
+          </figure>
+          <figure class="kit-wordmark-panel kit-wordmark-panel--dark">
+            <div class="kit-wordmark-stage"><Brand size="large" /></div>
+            <figcaption><strong>White on cobalt</strong><span>Inverse lockup</span></figcaption>
+          </figure>
+        </div>
+
+        <div class="kit-identity-spec">
+          <div>
+            <h3>At working sizes</h3>
+            <div class="kit-scale-specimens">
+              <div><BrandMark size={16} /><code>16px mark</code></div>
+              <div><Brand size="small" /><code>small</code></div>
+              <div><Brand /><code>default</code></div>
+            </div>
+            <p class="kit-component-api"><code>&lt;BrandMark size={32} /&gt;</code><code>&lt;Brand size="default" /&gt;</code></p>
+          </div>
+          <div class="kit-identity-rules">
+            <h3>Keep its space</h3>
+            <p>Allow at least one stem width of clear space: 7 units around the 40-unit drawing. Use the mark from 16px and the lockup from its <code>small</code> size.</p>
+            <p>Keep it one color and upright. No outlines, stretching, or busy backgrounds. The wordmark stays lowercase.</p>
+          </div>
+        </div>
+
+        <div class="kit-asset-actions">
+          <a href="/brand-mark.svg" download="parlor-mark.svg" class="button button-outline">
+            <Download size={18} stroke-width={1.75} aria-hidden="true" /> Download mark
+          </a>
+          <a href="/favicon.svg" download="parlor-favicon.svg" class="text-link">
+            Download favicon <Download size={16} stroke-width={1.75} aria-hidden="true" />
+          </a>
+          <span>SVG artwork. The mark has a transparent background.</span>
+        </div>
+
+        <details class="kit-directions">
+          <summary>
+            <span>Directions explored<small>Open Door is the selected identity.</small></span>
+            <ChevronDown size={20} stroke-width={1.75} aria-hidden="true" />
+          </summary>
+          <div class="kit-directions-grid">
+            <article class="kit-direction">
+              <div class="kit-direction-art kit-direction-art--door" aria-hidden="true">
+                <BrandMark size={64} />
+                <span>Come on in.</span>
+              </div>
+              <div class="kit-direction-title"><h3>Open Door</h3><span class="kit-selected"><Check size={16} stroke-width={1.75} aria-hidden="true" /> Selected</span></div>
+              <p>An invitation and an initial in one open silhouette. Clear at small sizes, and not tied to any one kind of game.</p>
+            </article>
+            <article class="kit-direction">
+              <div class="kit-direction-art kit-direction-art--playbook" aria-hidden="true">
+                <svg viewBox="0 0 40 40" width="64" height="64" fill="none">
+                  <rect x="7" y="5" width="20" height="27" rx="3" transform="rotate(-12 17 18.5)" stroke="currentColor" stroke-width="3" />
+                  <rect x="15" y="9" width="20" height="27" rx="3" transform="rotate(10 25 22.5)" fill="currentColor" />
+                  <path d="m22 17 7 1.2m-8 4.8 7 1.2" stroke="var(--lilac)" stroke-width="2.5" stroke-linecap="round" />
+                </svg>
+                <span>Your next move.</span>
+              </div>
+              <div class="kit-direction-title"><h3>Playbook</h3></div>
+              <p>Overlapping cards suggest a stack of possibilities. Lively, but too close to a card-game identity for a toolkit that welcomes every genre.</p>
+            </article>
+            <article class="kit-direction">
+              <div class="kit-direction-art kit-direction-art--ground" aria-hidden="true">
+                <svg viewBox="0 0 40 40" width="64" height="64" fill="none">
+                  <rect x="13" y="13" width="14" height="14" rx="5" fill="currentColor" />
+                  <g stroke="currentColor" stroke-width="5" stroke-linecap="round">
+                    <path d="M13 5Q20 1 27 5" />
+                    <path d="M13 5Q20 1 27 5" transform="rotate(120 20 20)" />
+                    <path d="M13 5Q20 1 27 5" transform="rotate(240 20 20)" />
+                  </g>
+                </svg>
+                <span>All together now.</span>
+              </div>
+              <div class="kit-direction-title"><h3>Common Ground</h3></div>
+              <p>Three seats around a shared center put the group first. Sociable, but less distinctive than the doorway when reduced to a browser tab.</p>
+            </article>
+          </div>
+        </details>
+      </section>
+
+      <section class="kit-section" id="color" aria-labelledby="color-title">
+        <div class="kit-section-heading">
+          <h2 id="color-title">Cobalt does the talking.</h2>
+          <p>White gives it room. Ink carries the reading. The pastels add warmth in small amounts, never as small-text colors.</p>
+        </div>
+        <div class="kit-palette-grid">
+          {foundationColors.map((color) => (
+            <div class="kit-swatch">
+              <div class="kit-swatch-color" style={`background: var(${color.token})`} aria-hidden="true"></div>
+              <div class="kit-swatch-label"><strong>{color.name}</strong><code>{color.token}</code><span>{color.role}</span></div>
+            </div>
+          ))}
+        </div>
+        <div class="kit-palette-grid kit-palette-grid--accents">
+          {accentColors.map((color) => (
+            <div class="kit-swatch">
+              <div class="kit-swatch-color" style={`background: var(${color.token})`} aria-hidden="true"></div>
+              <div class="kit-swatch-label"><strong>{color.name}</strong><code>{color.token}</code><span>{color.role}</span></div>
+            </div>
+          ))}
+        </div>
+        <p class="kit-note">These specimens use the live CSS tokens. Pair ink with light surfaces, and white with cobalt or deep cobalt.</p>
+      </section>
+
+      <section class="kit-section" id="type-and-space" aria-labelledby="type-title">
+        <div class="kit-section-heading">
+          <h2 id="type-title">Friendly type. Exact spacing.</h2>
+          <p>Manrope brings character to the name and headings. DM Sans keeps the instructions easy to read. A 4px rhythm holds the pieces together.</p>
+        </div>
+        <div class="kit-type-space-grid">
+          <div class="kit-type-specimens">
+            <div class="kit-type-specimen">
+              <h3>Manrope Variable <code>--display</code></h3>
+              <p class="kit-display-sample">A room for every kind of game.</p>
+              <p class="kit-type-meta">Headings 600–800. Tight leading, sentence case.</p>
+            </div>
+            <div class="kit-type-specimen">
+              <h3>DM Sans Variable <code>--body</code></h3>
+              <p class="kit-body-sample">Give the game room to be itself. Keep labels short, instructions plain, and the next action easy to find.</p>
+              <p class="kit-type-meta">Body 400–500, labels 600. Comfortable leading; keep prose under 70 characters per line.</p>
+            </div>
+            <div class="kit-type-specimen">
+              <h3>System monospace <code>--mono</code></h3>
+              <p class="kit-mono-sample">@parlor/convex</p>
+              <p class="kit-type-meta">Code, package names, and values. Not decorative labels.</p>
+            </div>
+          </div>
+          <div class="kit-space-specimens">
+            <h3>A little breathing room</h3>
+            <ul class="kit-spacing-scale" aria-label="Spacing scale in pixels">
+              {spaces.map((space) => (
+                <li><code>{space}px</code><span style={`width: ${space}px`} aria-hidden="true"></span></li>
+              ))}
+            </ul>
+            <p>Use 8–12px inside a control, 16–24px inside a panel, and 24–32px between related pieces. Give new sections more room.</p>
+            <div class="kit-radius-specimens">
+              <div><span class="kit-radius-sample kit-radius-sample--control" aria-hidden="true"></span><strong>Controls</strong><code>--radius-control</code></div>
+              <div><span class="kit-radius-sample kit-radius-sample--panel" aria-hidden="true"></span><strong>Panels</strong><code>--radius-panel</code></div>
+            </div>
+            <p class="kit-note">Align content edges and action rows. Let layout do the work before adding offsets.</p>
+          </div>
+        </div>
+      </section>
+
+      <section class="kit-section" id="interface" aria-labelledby="interface-title">
+        <div class="kit-section-heading">
+          <h2 id="interface-title">The same parts, everywhere.</h2>
+          <p>Real components, real destinations. One icon family and a clear distinction between staying here and heading elsewhere.</p>
+        </div>
+        <div class="kit-interface-grid">
+          <div class="kit-icon-specimen">
+            <h3>Lucide icons</h3>
+            <ul class="kit-icon-samples" aria-label="Icon sizes">
+              <li><span><UsersRound size={16} stroke-width={1.75} aria-hidden="true" /></span><code>16px</code></li>
+              <li><span><DoorOpen size={18} stroke-width={1.75} aria-hidden="true" /></span><code>18px</code></li>
+              <li><span><Radio size={20} stroke-width={1.75} aria-hidden="true" /></span><code>20px</code></li>
+              <li><span><RefreshCw size={24} stroke-width={1.75} aria-hidden="true" /></span><code>24px</code></li>
+            </ul>
+            <p>Use 1.75px strokes and a fixed icon box. Pair symbols with clear labels; hide decorative icons from assistive technology.</p>
+            <ExternalLink href="https://lucide.dev/icons/" class="text-link">Browse Lucide icons</ExternalLink>
+          </div>
+          <div class="kit-action-specimen">
+            <h3>Actions & destinations</h3>
+            <div class="kit-button-row">
+              <a href="/docs/first-game/" class="button">Start building <ArrowRight size={18} stroke-width={1.75} aria-hidden="true" /></a>
+              <a href="/docs/installation/" class="button button-outline"><BookOpen size={18} stroke-width={1.75} aria-hidden="true" /> Installation</a>
+            </div>
+            <p>One primary action per group. Equal control heights, centered icons, and labels that say what happens next.</p>
+            <div class="kit-link-row">
+              <a href="/docs/architecture/" class="text-link">Read the architecture <ArrowRight size={16} stroke-width={1.75} aria-hidden="true" /></a>
+              <ExternalLink href="https://github.com/misty-step/parlor" class="text-link">View GitHub</ExternalLink>
+            </div>
+            <p class="kit-note">Internal links stay in this tab. External links open a new one, with an upward-right arrow and an accessible announcement.</p>
+          </div>
+        </div>
+      </section>
+    </div>
+  </main>
+</Base>

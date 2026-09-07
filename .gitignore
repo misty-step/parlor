@@ -8,5 +8,6 @@ test-results/
 .env.local
 .convex/
 **/convex/_generated/
+!examples/first-tap/convex/_generated/
 .astro/
 .wrangler/

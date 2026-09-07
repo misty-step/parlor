@@ -1,0 +1,14 @@
+---
+import { ArrowUpRight } from "@lucide/astro";
+interface Props {
+  href: string;
+  class?: string;
+  title?: string;
+}
+const { href, class: className, title } = Astro.props;
+---
+<a href={href} class:list={["external-link", className]} target="_blank" rel="noopener noreferrer" title={title}>
+  <slot />
+  <ArrowUpRight size={16} stroke-width={1.75} aria-hidden="true" class="external-link__icon" />
+  <span class="sr-only"> (opens in a new tab)</span>
+</a>

@@ -135,7 +135,7 @@ pnpm --filter @parlor/first-tap typecheck
 pnpm --filter @parlor/first-tap build:app
 ```
 
-Both need `convex/_generated`, so keep `dev:backend` running. The repository's own `pnpm check` skips these files for that reason; the library packages, playground, and Convex integration tests do not depend on a provisioned backend.
+The example's generated Convex types are committed so `pnpm check` and fresh checkouts typecheck immediately without a running backend. When you modify schema or endpoints, keep `dev:backend` running to synchronize `convex/_generated`.
 
 ## Diagnose setup failures
 

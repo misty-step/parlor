@@ -30,8 +30,6 @@
     "**/_generated/**",
     "**/coverage/**",
     "**/.next/**",
-    "examples/*/app/**",
-    "examples/*/convex/**",
     "**/playwright-report/**",
     "**/test-results/**"
   ]

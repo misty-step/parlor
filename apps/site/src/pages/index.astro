@@ -1,7 +1,20 @@
 ---
 import Base from "../layouts/Base.astro";
+import ExternalLink from "../components/ExternalLink.astro";
 import RoomSketch from "../components/RoomSketch.astro";
 import { Code } from "astro:components";
+import {
+  ArrowRight,
+  Bot,
+  Database,
+  KeyRound,
+  Layers,
+  MonitorSmartphone,
+  Play,
+  RotateCcw,
+  SlidersHorizontal,
+  UsersRound,
+} from "@lucide/astro";
 
 const schemaCode = `import { parlorTables } from "@parlor/convex/schema";
 import { defineSchema } from "convex/server";
@@ -23,52 +36,315 @@ const match = await beginMatch(ctx, {
 
 // Your game state belongs to match.id.`;
 const packages = [
-  { name: "convex", description: "Rooms, membership, host transfer, and match lifecycles.", href: "/docs/api/#parlorconvex", mark: "◇" },
-  { name: "react", description: "Room inputs, QR codes, presence hooks, and audio controls.", href: "/docs/api/#parlorreact", mark: "✳" },
-  { name: "auth", description: "Signed guest tokens. A seat at the table, without a sign-up.", href: "/docs/api/#parlorauth", mark: "◒" },
-  { name: "core", description: "Pure domain types and the policies beneath every room.", href: "/docs/api/#parlorcore", mark: "▦" },
-  { name: "web", description: "Credential storage, heartbeats, wake locks, and sound.", href: "/docs/api/#parlorweb", mark: "◌" },
+  {
+    name: "convex",
+    description: "Rooms, membership, host transfer, and match lifecycles.",
+    href: "/docs/api/#parlorconvex",
+    Icon: Database,
+  },
+  {
+    name: "react",
+    description: "Room inputs, QR codes, presence hooks, and audio controls.",
+    href: "/docs/api/#parlorreact",
+    Icon: MonitorSmartphone,
+  },
+  {
+    name: "auth",
+    description: "Signed guest tokens. A seat at the table, without a sign-up.",
+    href: "/docs/api/#parlorauth",
+    Icon: KeyRound,
+  },
+  {
+    name: "core",
+    description: "Pure domain types and the policies beneath every room.",
+    href: "/docs/api/#parlorcore",
+    Icon: Layers,
+  },
+  {
+    name: "web",
+    description: "Credential storage, heartbeats, wake locks, and sound.",
+    href: "/docs/api/#parlorweb",
+    Icon: SlidersHorizontal,
+  },
 ];
 ---
 <Base>
   <main id="main">
     <section class="hero container" aria-labelledby="hero-title">
       <div class="hero-copy">
-        <a class="hero-proof" href="#in-the-wild"><span class="proof-dot" aria-hidden="true"></span>Already at play in Poppycock <span aria-hidden="true">↗</span></a>
+        <a class="hero-proof" href="#in-the-wild">
+          <span class="proof-dot" aria-hidden="true"></span>
+          <span>Already powering Poppycock</span>
+          <ArrowRight size={14} stroke-width={2} aria-hidden="true" />
+        </a>
         <h1 id="hero-title">You bring<br />the game.<br />We make room.</h1>
         <p class="hero-description">The multiplayer toolkit for game night.</p>
-        <p class="hero-detail">Guest identity, rooms, presence, and matches for Convex and React. Build what makes your game special. Leave the shared plumbing to Parlor.</p>
-        <div class="hero-actions"><a class="button" href="/docs/first-game/">Build your first game</a><a class="button button-outline" href="/docs/agents/">Build with an agent</a></div>
-        <div class="hero-footnote"><a href="/license.txt">Open source, MIT licensed</a><span>TypeScript, end to end</span></div>
+        <p class="hero-detail">
+          Guest identity, rooms, presence, and matches for Convex and React. Build what makes your game special. Leave the shared plumbing to Parlor.
+        </p>
+        <div class="hero-actions">
+          <a class="button" href="/docs/first-game/">
+            Build your first game
+            <ArrowRight size={18} stroke-width={1.75} aria-hidden="true" />
+          </a>
+          <a class="button button-outline" href="/docs/agents/">
+            Build with an agent
+          </a>
+        </div>
+        <div class="hero-footnote">
+          <a href="/license.txt">Open source, MIT licensed</a>
+          <span>TypeScript, end to end</span>
+        </div>
       </div>
       <RoomSketch />
     </section>
 
     <section id="why-parlor" class="section container why-section" aria-labelledby="why-title">
-      <div class="section-heading"><h2 id="why-title">More game.<br />Less getting started.</h2><p>You have an idea for the next great party game.<br class="desktop-break" /> You probably don’t have an idea for the next great heartbeat implementation.</p></div>
+      <div class="section-heading">
+        <h2 id="why-title">More game.<br />Less getting started.</h2>
+        <p>
+          You have an idea for the next great party game.<br class="desktop-break" />
+          You probably don’t have an idea for the next great heartbeat implementation.
+        </p>
+      </div>
       <div class="benefits">
-        <div class="benefit"><div class="benefit-symbol join-symbol" aria-hidden="true"><span>P</span><span>L</span><span>A</span><span>Y</span></div><h3>Get everyone in.</h3><p>A short room code. A QR link. A guest identity that your app can keep across refreshes. Fewer steps between an invitation and the first round.</p><a class="text-link" href="/docs/rooms-and-presence/">Rooms & guest access</a></div>
-        <div class="benefit"><div class="benefit-symbol presence-symbol" aria-hidden="true"><i></i><i></i><i></i><span>Still together</span></div><h3>Keep the room together.</h3><p>Visibility-aware heartbeats and host handoff when someone leaves. The game keeps its room; you decide what an interruption means for play.</p><a class="text-link" href="/docs/rooms-and-presence/#heartbeats-and-host-self-healing">Presence & host handoff</a></div>
-        <div class="benefit"><div class="benefit-symbol rematch-symbol" aria-hidden="true"><span>Round 1</span><b>↻</b><span>Round 2</span></div><h3>Make room for one more.</h3><p>Freeze the lineup for each match. Let late arrivals watch, then include them in the next round. A rematch starts fresh, without starting over.</p><a class="text-link" href="/docs/matches/">Matches & rematches</a></div>
+        <div class="benefit">
+          <div class="benefit-symbol join-symbol" aria-hidden="true">
+            <span>P</span><span>L</span><span>A</span><span>Y</span>
+          </div>
+          <h3>Get everyone in.</h3>
+          <p>
+            A short room code. A QR link. A guest identity that your app can keep across refreshes. Fewer steps between an invitation and the first round.
+          </p>
+          <a class="benefit-link text-link" href="/docs/rooms-and-presence/">
+            <span>Rooms & guest access</span>
+            <ArrowRight size={16} stroke-width={1.75} aria-hidden="true" />
+          </a>
+        </div>
+        <div class="benefit">
+          <div class="benefit-symbol presence-symbol" aria-hidden="true">
+            <UsersRound size={20} stroke-width={1.75} />
+            <span>Still together</span>
+          </div>
+          <h3>Keep the room together.</h3>
+          <p>
+            Visibility-aware heartbeats and host handoff when someone leaves. The game keeps its room; you decide what an interruption means for play.
+          </p>
+          <a class="benefit-link text-link" href="/docs/rooms-and-presence/#heartbeats-and-host-self-healing">
+            <span>Presence & host handoff</span>
+            <ArrowRight size={16} stroke-width={1.75} aria-hidden="true" />
+          </a>
+        </div>
+        <div class="benefit">
+          <div class="benefit-symbol rematch-symbol" aria-hidden="true">
+            <span>Match 1</span>
+            <RotateCcw size={16} stroke-width={2} />
+            <span>Match 2</span>
+          </div>
+          <h3>Make room for one more.</h3>
+          <p>
+            Freeze the lineup for each match. Let late arrivals watch, then include them in the next round. A rematch starts fresh, without starting over.
+          </p>
+          <a class="benefit-link text-link" href="/docs/matches/">
+            <span>Matches & rematches</span>
+            <ArrowRight size={16} stroke-width={1.75} aria-hidden="true" />
+          </a>
+        </div>
       </div>
     </section>
 
-    <section class="ownership-section" aria-labelledby="ownership-title"><div class="container ownership-grid">
-      <div class="ownership-copy"><p class="section-kicker">A library inside your game</p><h2 id="ownership-title">A shared foundation.<br />Not a shared personality.</h2><p>Parlor runs inside your Convex backend. Your app owns its data, its rules, and everything players see. No separate multiplayer service. No prescribed game loop.</p><div class="ownership-lists"><div><h3>We handle</h3><ul><li>Guests & room membership</li><li>Presence & host handoff</li><li>Match state & frozen lineups</li></ul></div><div><h3>You create</h3><ul><li>Prompts, turns & surprises</li><li>Private answers & scoring</li><li>A game that feels like yours</li></ul></div></div><a class="text-link" href="/docs/architecture/">Understand the boundaries <span aria-hidden="true">↗</span></a></div>
-      <div class="integration-code"><div class="code-switcher" role="group" aria-label="Integration examples"><button type="button" data-code-tab="schema" aria-pressed="true">The shared schema</button><button type="button" data-code-tab="match" aria-pressed="false">Your next match</button></div><div data-code-panel="schema"><div class="code-filename">convex/schema.ts</div><Code code={schemaCode} lang="ts" theme="github-light" /></div><div data-code-panel="match" hidden><div class="code-filename">Inside your game mutation</div><Code code={matchCode} lang="ts" theme="github-light" /></div><p>Regular TypeScript. Ordinary Convex tables.<br /><a href="/docs/first-game/">See it in a complete game.</a></p></div>
-    </div></section>
+    <section class="ownership-section" aria-labelledby="ownership-title">
+      <div class="container ownership-grid">
+        <div class="ownership-copy">
+          <p class="section-kicker">A library inside your game</p>
+          <h2 id="ownership-title">A shared foundation.<br />Not a shared personality.</h2>
+          <p>
+            Parlor runs inside your Convex backend. Your app owns its data, its rules, and everything players see. No separate multiplayer service. No prescribed game loop.
+          </p>
+          <div class="ownership-lists">
+            <div>
+              <h3>We handle</h3>
+              <ul>
+                <li>Guests & room membership</li>
+                <li>Presence & host handoff</li>
+                <li>Match state & frozen lineups</li>
+              </ul>
+            </div>
+            <div>
+              <h3>You create</h3>
+              <ul>
+                <li>Prompts, turns & surprises</li>
+                <li>Private answers & scoring</li>
+                <li>A game that feels like yours</li>
+              </ul>
+            </div>
+          </div>
+          <a class="text-link inline-link" href="/docs/architecture/">
+            <span>Understand the boundaries</span>
+            <ArrowRight size={16} stroke-width={1.75} aria-hidden="true" />
+          </a>
+        </div>
+        <div class="integration-code">
+          <div class="code-switcher" role="group" aria-label="Integration examples">
+            <button type="button" data-code-tab="schema" aria-pressed="true">The shared schema</button>
+            <button type="button" data-code-tab="match" aria-pressed="false">Your next match</button>
+          </div>
+          <div data-code-panel="schema">
+            <div class="code-filename">convex/schema.ts</div>
+            <Code code={schemaCode} lang="ts" theme="github-light" />
+          </div>
+          <div data-code-panel="match" hidden>
+            <div class="code-filename">Inside your game mutation</div>
+            <Code code={matchCode} lang="ts" theme="github-light" />
+          </div>
+          <p>
+            Regular TypeScript. Ordinary Convex tables.<br />
+            <a href="/docs/first-game/">See it in a complete game.</a>
+          </p>
+        </div>
+      </div>
+    </section>
 
-    <section class="section container package-section" aria-labelledby="package-title"><div class="section-heading"><h2 id="package-title">Five pieces.<br />Plenty of possibilities.</h2><p>Bluffing, drawing, trivia, voting, and ideas<br class="desktop-break" /> that don’t have a name yet. Pick what you need.</p></div><div class="package-list">{packages.map((pkg) => <a href={pkg.href} class="package-row"><span class="package-mark" aria-hidden="true">{pkg.mark}</span><code>@parlor/{pkg.name}</code><p>{pkg.description}</p><span aria-hidden="true">↗</span></a>)}</div><div class="release-note"><span class="release-tag">Source-first</span><p>Parlor is pre-1.0 and installed from a pinned source checkout. The packages aren’t on npm yet. <a href="/docs/installation/">Here’s how to bring them into your app.</a></p></div></section>
+    <section class="section container package-section" aria-labelledby="package-title">
+      <div class="section-heading">
+        <h2 id="package-title">Five pieces.<br />Plenty of possibilities.</h2>
+        <p>
+          Bluffing, drawing, trivia, voting, and ideas<br class="desktop-break" />
+          that don’t have a name yet. Pick what you need.
+        </p>
+      </div>
+      <div class="package-list">
+        {packages.map(({ name, description, href, Icon }) => (
+          <a href={href} class="package-row">
+            <span class="package-mark" aria-hidden="true">
+              <Icon size={18} stroke-width={1.75} />
+            </span>
+            <code>@parlor/{name}</code>
+            <p>{description}</p>
+            <span class="package-arrow" aria-hidden="true">
+              <ArrowRight size={16} stroke-width={1.75} />
+            </span>
+          </a>
+        ))}
+      </div>
+      <div class="release-note">
+        <span class="release-tag">Source-first</span>
+        <p>
+          Parlor is pre-1.0 and installed from a pinned source checkout. The packages aren’t on npm yet. <a href="/docs/installation/">Here’s how to bring them into your app.</a>
+        </p>
+      </div>
+    </section>
 
-    <section id="in-the-wild" class="showcase-section" aria-labelledby="showcase-title"><div class="container showcase-grid"><div class="showcase-art"><div class="poppy-window"><div class="window-bar"><span class="window-dots" aria-hidden="true"><i></i><i></i><i></i></span><span>poppycock.mistystep.io</span><span aria-hidden="true">↗</span></div><div class="poppy-poster"><span class="poppy-name">poppycock!</span><p>A game of<br />beautiful nonsense.</p><div class="poppy-options" aria-hidden="true"><span>Invent a lie.</span><span>Find the truth.</span><span>Trust nobody.</span></div><span class="poppy-players">3–12 players. Bring your best poker face.</span></div></div><span class="showcase-caption">A Parlor-powered game by Misty Step</span></div><div class="showcase-copy"><p class="section-kicker">Out of the library. Around the table.</p><h2 id="showcase-title">Built for games<br />people actually play.</h2><p>Poppycock is a bluffing game about making the wrong answer sound very, very right.</p><p>It’s also why Parlor exists. The rooms, guest identities, presence, and matches are shared. The beautiful nonsense is all Poppycock.</p><div class="hero-actions"><a class="button" href="https://poppycock.mistystep.io">Play Poppycock <span aria-hidden="true">↗</span></a><a class="text-link" href="https://github.com/misty-step/poppycock">Read the source</a></div></div></div></section>
+    <section id="in-the-wild" class="showcase-section" aria-labelledby="showcase-title">
+      <div class="container showcase-grid">
+        <div class="showcase-art">
+          <div class="poppy-window">
+            <div class="window-bar">
+              <span class="window-dots" aria-hidden="true"><i></i><i></i><i></i></span>
+              <span>poppycock.mistystep.io</span>
+            </div>
+            <div class="poppy-poster">
+              <span class="poppy-name">poppycock!</span>
+              <p>A game of<br />beautiful nonsense.</p>
+              <div class="poppy-options" aria-hidden="true">
+                <span>Invent a lie.</span>
+                <span>Find the truth.</span>
+                <span>Trust nobody.</span>
+              </div>
+              <span class="poppy-players">3–12 players. Bring your best poker face.</span>
+            </div>
+          </div>
+          <span class="showcase-caption">A Parlor-powered game by Misty Step</span>
+        </div>
+        <div class="showcase-copy">
+          <p class="section-kicker">Out of the library. Around the table.</p>
+          <h2 id="showcase-title">Built for games<br />people actually play.</h2>
+          <p>Poppycock is a bluffing game about making the wrong answer sound very, very right.</p>
+          <p>It’s also why Parlor exists. The rooms, guest identities, presence, and matches are shared. The beautiful nonsense is all Poppycock.</p>
+          <div class="showcase-actions">
+            <ExternalLink class="button" href="https://poppycock.mistystep.io">Play Poppycock</ExternalLink>
+            <ExternalLink class="text-link showcase-source" href="https://github.com/misty-step/poppycock">Read the source</ExternalLink>
+          </div>
+        </div>
+      </div>
+    </section>
 
-    <section class="section container start-section" aria-labelledby="start-title"><div class="section-heading"><h2 id="start-title">Your next move.</h2><p>A working example for you.<br />A field guide for your coding agent.</p></div><div class="start-paths"><article class="start-path"><span class="path-symbol" aria-hidden="true">▶</span><h3>Start with something that works.</h3><p>Run First Tap: a small game with a real guest issuer, two-player rooms, a server-decided winner, and rematches. Read the code. Make it yours.</p><a class="button" href="/docs/first-game/">Run the example</a><a class="path-secondary" href="/docs/installation/">Already have a game? Integrate Parlor.</a></article><article class="start-path agent-path"><span class="path-symbol" aria-hidden="true">&lt;/&gt;</span><h3>Give your agent a head start.</h3><p>Install the portable skill and start with the same contracts as the human docs. No special harness. No mystery setup script.</p><pre data-copy><code>Read https://parlor.mistystep.io/skill.md
+    <section class="section container start-section" aria-labelledby="start-title">
+      <div class="section-heading">
+        <h2 id="start-title">Your next move.</h2>
+        <p>A working example for you.<br />A field guide for your coding agent.</p>
+      </div>
+      <div class="start-paths">
+        <article class="start-path">
+          <span class="path-symbol" aria-hidden="true">
+            <Play size={20} stroke-width={2} />
+          </span>
+          <h3>Start with something that works.</h3>
+          <p>
+            Run First Tap: a small game with a real guest issuer, two-player rooms, a server-decided winner, and rematches. Read the code. Make it yours.
+          </p>
+          <div class="start-path-actions">
+            <a class="button" href="/docs/first-game/">
+              Run the example
+              <ArrowRight size={18} stroke-width={1.75} aria-hidden="true" />
+            </a>
+            <a class="path-secondary" href="/docs/installation/">Already have a game? Integrate Parlor.</a>
+          </div>
+        </article>
+        <article class="start-path agent-path">
+          <span class="path-symbol" aria-hidden="true">
+            <Bot size={20} stroke-width={1.75} />
+          </span>
+          <h3>Give your agent a head start.</h3>
+          <p>
+            Install the portable skill and start with the same contracts as the human docs. No special harness. No mystery setup script.
+          </p>
+          <pre data-copy><code>Read https://parlor.mistystep.io/skill.md
 and the getting-started guide.
 Help me build a party game with Parlor.
-Use the source APIs. Verify two players.</code></pre><a class="text-link" href="/docs/agents/">Set up your agent <span aria-hidden="true">↗</span></a></article></div></section>
+Use the source APIs. Verify two players.</code></pre>
+          <a class="text-link inline-link" href="/docs/agents/">
+            <span>Set up your agent</span>
+            <ArrowRight size={16} stroke-width={1.75} aria-hidden="true" />
+          </a>
+        </article>
+      </div>
+    </section>
 
-    <section class="faq-section container" aria-labelledby="faq-title"><h2 id="faq-title">A few things worth knowing.</h2><div class="faq-list"><details><summary>Is Parlor a hosted service?</summary><p>No. Parlor is a library in your application. You deploy your own Convex backend and React app, and retain ownership of the data. The Parlor website does not host your players or games.</p></details><details><summary>Do I need to use Convex and React?</summary><p>The room and match backend is built for Convex. React gives you the ready-made UI components and hooks. The core policies and browser controllers are separate packages, but Parlor is not a backend-agnostic multiplayer framework.</p></details><details><summary>Can I use it commercially?</summary><p>Yes. Parlor is <a href="/license.txt">MIT licensed</a>. Keep the copyright and license notice with the code. Hosting and Convex usage are your own operating costs.</p></details><details><summary>How stable is the API?</summary><p>Parlor powers Poppycock, but the library is still pre-1.0. Pin a source revision, review changes before updating, and verify your own game’s behavior. <a href="/docs/installation/">The installation guide</a> covers that workflow.</p></details></div></section>
+    <section class="faq-section container" aria-labelledby="faq-title">
+      <h2 id="faq-title">A few things worth knowing.</h2>
+      <div class="faq-list">
+        <details>
+          <summary>Is Parlor a hosted service?</summary>
+          <p>No. Parlor is a library in your application. You deploy your own Convex backend and React app, and retain ownership of the data. The Parlor website does not host your players or games.</p>
+        </details>
+        <details>
+          <summary>Do I need to use Convex and React?</summary>
+          <p>The room and match backend is built for Convex. React gives you the ready-made UI components and hooks. The core policies and browser controllers are separate packages, but Parlor is not a backend-agnostic multiplayer framework.</p>
+        </details>
+        <details>
+          <summary>Can I use it commercially?</summary>
+          <p>Yes. Parlor is <a href="/license.txt">MIT licensed</a>. Keep the copyright and license notice with the code. Hosting and Convex usage are your own operating costs.</p>
+        </details>
+        <details>
+          <summary>How stable is the API?</summary>
+          <p>Parlor powers Poppycock, but the library is still pre-1.0. Pin a source revision, review changes before updating, and verify your own game’s behavior. <a href="/docs/installation/">The installation guide</a> covers that workflow.</p>
+        </details>
+      </div>
+    </section>
 
-    <section class="closing-section"><div class="container closing-inner"><div><h2>The best part<br />is what you make.</h2><p>Make something worth gathering around.</p></div><a class="button button-yellow" href="/docs/getting-started/">Make room for your game</a><div class="closing-pieces" aria-hidden="true"><i></i><i></i><i></i></div></div></section>
+    <section class="closing-section">
+      <div class="container closing-inner">
+        <div>
+          <h2>The best part<br />is what you make.</h2>
+          <p>Make something worth gathering around.</p>
+        </div>
+        <a class="button button-yellow" href="/docs/getting-started/">
+          Make room for your game
+          <ArrowRight size={18} stroke-width={1.75} aria-hidden="true" />
+        </a>
+        <div class="closing-pieces" aria-hidden="true"><i></i><i></i><i></i></div>
+      </div>
+    </section>
   </main>
 </Base>

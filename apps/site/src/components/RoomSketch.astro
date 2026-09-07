@@ -1,25 +1,49 @@
-<figure class="room-sketch" data-room-sketch data-phase="lobby" aria-labelledby="sketch-caption">
-  <div class="sketch-art">
-    <div class="sketch-heading"><span class="sketch-title">A place for everyone.</span><span class="sketch-local">Room lifecycle</span></div>
-    <div class="game-table">
-      <div class="table-inlay" aria-hidden="true"></div>
-      <div class="table-content">
-        <span class="room-label" data-room-label>Meet you in</span>
-        <div class="room-tiles" aria-label="Example room code PLAY"><span>P</span><span>L</span><span>A</span><span>Y</span></div>
-        <span class="table-status" data-room-status>4 friends. No accounts.</span>
+---
+import { DoorOpen, LockKeyhole, RotateCcw, Dices, UsersRound, UserPlus } from "@lucide/astro";
+import BrandMark from "./BrandMark.astro";
+---
+<figure class="room-art" data-room-sketch data-phase="lobby" aria-labelledby="room-art-caption">
+  <div class="room-art-stage">
+    <div class="room-art-back room-art-back--people" aria-hidden="true">
+      <UsersRound size={48} stroke-width={1.4} />
+      <span>Good company.</span>
+      <div class="card-line"></div>
+      <div class="card-line card-line--short"></div>
+    </div>
+    <div class="room-art-back room-art-back--game" aria-hidden="true">
+      <Dices size={50} stroke-width={1.4} />
+      <span>Your game.</span>
+      <div class="card-line"></div>
+      <div class="card-line card-line--short"></div>
+    </div>
+    <div class="room-invite">
+      <div class="room-invite-header"><BrandMark size={25} /><span>Room invitation</span></div>
+      <h2 data-room-label>Come on in.</h2>
+      <div class="invite-code" aria-label="Room code PLAY"><span>P</span><span>L</span><span>A</span><span>Y</span></div>
+      <p data-room-status>Four friends. One room.</p>
+      <div class="invite-guests" aria-label="Example players: Alex, Jules, Sam, and you">
+        <span title="Alex">A</span>
+        <span title="Jules">J</span>
+        <span title="Sam">S</span>
+        <span title="You">Y</span>
+        <span class="invite-new-guest" data-new-guest hidden title="Jo">J</span>
+      </div>
+      <div class="invite-footer" aria-live="polite">
+        <span data-phase-icon="lobby"><DoorOpen size={17} stroke-width={1.75} aria-hidden="true" /></span>
+        <span data-phase-icon="match" hidden><LockKeyhole size={17} stroke-width={1.75} aria-hidden="true" /></span>
+        <span data-phase-icon="rematch" hidden><RotateCcw size={17} stroke-width={1.75} aria-hidden="true" /></span>
+        <span data-ticket>Everyone starts here</span>
       </div>
     </div>
-    <div class="player player-one"><span class="player-piece piece-yellow" aria-hidden="true"><i></i></span><span class="player-info"><strong>Alex</strong><small>Host</small></span></div>
-    <div class="player player-two"><span class="player-piece piece-mint" aria-hidden="true"><i></i></span><span class="player-info"><strong>Jules</strong><small>Ready to play</small></span></div>
-    <div class="player player-three"><span class="player-piece piece-lilac" aria-hidden="true"><i></i></span><span class="player-info"><strong>Sam</strong><small>Ready to play</small></span></div>
-    <div class="player player-four"><span class="player-piece piece-blue" aria-hidden="true"><i></i></span><span class="player-info"><strong>You</strong><small>Good company</small></span></div>
-    <div class="late-player" data-late-player hidden><span class="late-badge">+1</span><span data-late-copy>Jo is watching</span></div>
-    <div class="room-ticket"><svg width="15" height="15" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="m4 10 4 4 8-8" /></svg><span data-ticket>The room is ready</span></div>
+    <div class="late-player" data-late-player hidden>
+      <span class="late-badge"><UserPlus size={17} stroke-width={1.75} aria-hidden="true" /></span>
+      <span data-late-copy>Jo can watch this match</span>
+    </div>
   </div>
-  <div class="sketch-controls" role="group" aria-label="Explore the room lifecycle">
-    <button type="button" data-phase-button="lobby" aria-pressed="true"><span>1</span>Get together</button>
-    <button type="button" data-phase-button="match" aria-pressed="false"><span>2</span>Play a match</button>
-    <button type="button" data-phase-button="rematch" aria-pressed="false"><span>3</span>Play again</button>
+  <div class="sketch-controls" role="group" aria-label="Explore a room’s lifecycle">
+    <button type="button" data-phase-button="lobby" aria-pressed="true"><UsersRound size={16} stroke-width={1.75} aria-hidden="true" />Gather</button>
+    <button type="button" data-phase-button="match" aria-pressed="false"><Dices size={16} stroke-width={1.75} aria-hidden="true" />Play</button>
+    <button type="button" data-phase-button="rematch" aria-pressed="false"><RotateCcw size={16} stroke-width={1.75} aria-hidden="true" />Again</button>
   </div>
-  <figcaption id="sketch-caption"><p data-sketch-description aria-live="polite">One shared code. Everyone joins from their own phone.</p><small>Interactive illustration. No live connection.</small></figcaption>
+  <figcaption id="room-art-caption" class="sr-only">Explore how a room gathers guests, starts a match with a fixed lineup, and welcomes a new player for the next match.</figcaption>
 </figure>

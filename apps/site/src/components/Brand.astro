@@ -1,0 +1,45 @@
+---
+import BrandMark from "./BrandMark.astro";
+
+interface Props {
+  size?: "small" | "default" | "large";
+  class?: string;
+}
+
+const { size = "default", class: className } = Astro.props;
+const markSizes = { small: 24, default: 32, large: 56 } as const;
+---
+<span class:list={["brand", `brand--${size}`, className]}>
+  <BrandMark size={markSizes[size]} />
+  <span class="brand__wordmark">parlor</span>
+</span>
+
+<style>
+  .brand {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.12em;
+    color: inherit;
+    font-family: var(--display);
+    font-size: 1.875rem;
+    font-weight: 780;
+    line-height: 1;
+    letter-spacing: -0.055em;
+    white-space: nowrap;
+    vertical-align: middle;
+  }
+
+  .brand--small {
+    font-size: 1.375rem;
+  }
+
+  .brand--large {
+    font-size: 3.25rem;
+  }
+
+  .brand__wordmark {
+    display: block;
+    /* Balance Manrope's ascenders and the opening p's descender. */
+    transform: translateY(-0.035em);
+  }
+</style>
