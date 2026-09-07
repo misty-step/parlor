@@ -5,7 +5,7 @@ section: Start
 order: 16
 ---
 
-Parlor's skill is a portable Markdown guide to source installation, Convex and React contracts, guest continuity, frozen eligibility, and runtime verification. It supplies context to an agent; it does not install packages, provision a backend, configure credentials, or authorize deployment.
+Parlor's skill captures source pinning, guest continuity, server authorization, frozen eligibility, and changed-integration verification. It supplies context to an agent; it does not install packages, provision a backend, configure credentials, or authorize deployment.
 
 Start by [running First Tap](/docs/first-game/) or [integrating an existing app](/docs/installation/). Then give the agent a reviewed skill and the game rules you want it to implement.
 
@@ -35,7 +35,7 @@ node scripts/import-skill.mjs --target /path/to/app-without-parlor --guidance-on
 
 This imports the owner's working-tree guidance instead of claiming a framework installation. Provenance records the base commit, content hash, and whether that guidance differs from the commit. It does not select or authorize a migration.
 
-An identical import is a no-op. A differing existing package is preserved and the command fails; review and retain that copy before deliberately replacing it. Other repository skills are never removed or replaced. The importer rejects home-directory targets and symlinked destination directories.
+An identical import is a no-op. A differing existing package is preserved and the command fails; review and retain that copy before deliberately replacing the whole package. Keep all three imported files byte-for-byte and exclude `.agents/skills/parlor/**` from consumer formatters. Other repository skills are never removed or replaced. The importer rejects home-directory targets and symlinked destination directories.
 
 ## Inspect before use
 
@@ -52,6 +52,16 @@ A copied vendor tree may retain only libraries and root build configuration, omi
 When explicitly updating the framework, review the source pin, dependencies, lockfile, builds, and aligned skill together. The import command performs only the skill step; it cannot authorize or perform the rest. Maintain guidance in Parlor, not in derived consumer copies. A moving `master` branch, a website download, or an unrecorded local copy is not a version pin.
 
 Linear owns current work, prioritization, and selected unresolved opportunities. Older GitHub issue-intake directions in a pinned reference are historical, not active routing. Prepare a concise reproduction and ask for a work-item write only when the user requests that action; the skill must not create an automatic backlog intake. User requests remain authority.
+
+### Use historical examples safely
+
+A pinned reference preserves provenance; it is not a guarantee that every old example is correct. Inspect the installed implementation for the touched contract, and use current owner guides to understand the trust boundary without importing a newer API:
+
+- [React integration](/docs/react/): Parlor exports a credential hook, not a guest provider. Share one application-owned credential state; heartbeat senders await the mutation without returning its receipt.
+- [Matches](/docs/matches/): `requireActiveMatch` checks lifecycle, not caller authorization. Passing `actor` to `completeMatch` checks participation, not game-phase permission; omitting it is only for an already-authorized internal path.
+- [Rooms and presence](/docs/rooms-and-presence/): late joiners enter a rematch only if currently present and within player bounds. Host repair happens in heartbeat/leave mutations, not an immediate background transfer when all clients disconnect.
+
+The current task determines scope. For an existing integration, read and verify the changed path; do not turn an old complete-game recipe into a mandatory whole-app read or lifecycle replay. New integrations need complete-game evidence, and changed trust or lifecycle boundaries need their affected transitions and failure cases.
 
 ## Give the agent a concrete brief
 
@@ -90,7 +100,7 @@ Review the result against the game rules, rather than allowing library defaults 
 
 ## Keep human review at the trust boundaries
 
-A skill assists implementation; it is not a security audit. Before shipping, review:
+A skill assists implementation; it is not a security audit. Before shipping a new integration, review these boundaries. For an existing game, review the boundaries the change affects; the list is not a universal replay gate:
 
 - **Credentials:** server-only keys, verified same-player renewal, cookie expiry, deliberate guest reset, and rotation. See [authentication](/docs/authentication/).
 - **Authorization and privacy:** each command resolves the actor and checks lifecycle, frozen participation, and game permissions. Queries expose only viewer-safe state. `requireActiveMatch` is a lifecycle guard, not caller authorization. See [matches](/docs/matches/).
