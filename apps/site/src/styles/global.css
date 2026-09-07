@@ -190,6 +190,17 @@ h4 {
     opacity 0.15s ease,
     transform 0.15s ease;
 }
+.plain-ext-link {
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 0.25em;
+  text-decoration-color: color-mix(in srgb, currentColor 35%, transparent);
+}
+
+.plain-ext-link:hover {
+  color: var(--felt);
+  text-decoration-color: var(--felt);
+}
 
 .external-link:hover .external-link__icon {
   opacity: 1;

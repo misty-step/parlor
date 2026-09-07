@@ -52,8 +52,6 @@ const canonical = new URL(Astro.url.pathname, Astro.site);
         <a class="brand-link" href="/" aria-label="Parlor home"><Brand /></a>
         <nav class="desktop-nav" aria-label="Main navigation">
           <a href="/docs/getting-started/" aria-current={isDocs ? "true" : undefined}>Documentation</a>
-          <a href="/docs/first-game/">First Tap</a>
-          <a href="/design/">Design</a>
           <ExternalLink href="https://github.com/misty-step/parlor">GitHub</ExternalLink>
         </nav>
         <div class="header-actions">
@@ -98,13 +96,13 @@ const canonical = new URL(Astro.url.pathname, Astro.site);
           <a href="/license.txt">MIT license</a>
         </nav>
         <div class="footer-credit">
-          <strong>A <ExternalLink href="https://mistystep.io">Misty Step</ExternalLink> project</strong>
+          <strong>A <a href="https://mistystep.io" target="_blank" rel="noopener noreferrer" class="plain-ext-link">Misty Step</a> project</strong>
           <p>Tools for the things<br />we want to exist.</p>
           <ExternalLink href="https://mistystep.io">Meet Misty Step</ExternalLink>
         </div>
       </div>
       <div class="container footer-bottom">
-        <span>© {new Date().getFullYear()} <ExternalLink href="https://mistystep.io">Misty Step</ExternalLink></span>
+        <span>© {new Date().getFullYear()} <a href="https://mistystep.io" target="_blank" rel="noopener noreferrer" class="plain-ext-link">Misty Step</a></span>
         <a href="/llms.txt">Documentation for agents</a>
         <ExternalLink href="https://poppycock.mistystep.io">Prefer to play? Try Poppycock.</ExternalLink>
       </div>
