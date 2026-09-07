@@ -345,6 +345,29 @@ describe("match decisions", () => {
     ).toMatchObject({ ok: true, value: { status: "abandoned", reason: "hard-deadline" } });
   });
 
+  it("lets explicitly untimed matches complete after the default cap without opening a second cycle", () => {
+    const input = {
+      room: room("host"),
+      actorPlayerId: playerId("host"),
+      matchId: matchId("untimed"),
+      members: [member("host", 0), member("guest", 1)],
+      matches: [],
+      now: timestamp(100),
+      minPlayers: 2,
+      maxPlayers: 4,
+      hardDeadline: false,
+    } as const;
+    const begun = decideBeginMatch(input);
+    if (!begun.ok) throw new Error("Expected an untimed match");
+    const later = timestamp(100 + 2 * HARD_DEADLINE_MS);
+    expect(
+      decideBeginMatch({ ...input, matches: [begun.value.envelope], now: later }),
+    ).toMatchObject({ ok: false, error: { _tag: "ActiveMatch" } });
+    expect(
+      completeMatchEnvelope({ match: begun.value.envelope, completedAt: later }),
+    ).toMatchObject({ ok: true, value: { status: "completed", completedAt: later } });
+  });
+
   it("keeps avatar descriptors stable and distinct across twelve seats", () => {
     expect(AVATAR_DESCRIPTORS).toHaveLength(MAX_SEATS);
     expect(new Set(AVATAR_DESCRIPTORS.map((descriptor) => descriptor.key)).size).toBe(MAX_SEATS);

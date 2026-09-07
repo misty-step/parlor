@@ -1,6 +1,6 @@
 /// <reference types="vite/client" />
 
-import { HARD_DEADLINE_MS, classifyPresence } from "@parlor/core";
+import { ABANDON_AFTER_MS, HARD_DEADLINE_MS, classifyPresence } from "@parlor/core";
 import { defineSchema, defineTable, makeFunctionReference } from "convex/server";
 import type { GenericId } from "convex/values";
 import { v } from "convex/values";
@@ -762,6 +762,57 @@ describe("private Convex room and match reference integration", () => {
       });
       const next = await host.authT.mutation(startMatchRef, { roomId: host.room.roomId });
       expect(next.cycle).toBe(active.cycle + 1);
+    } finally {
+      clock.mockRestore();
+    }
+  });
+
+  it("keeps untimed matches playable past the default cap while still cleaning up empty tables", async () => {
+    const clock = vi.spyOn(Date, "now").mockReturnValue(2_000_000_000_000);
+    try {
+      const t = testContext();
+      const host = await createRoom(t, "host");
+      const player = await joinRoom(t, host.room.code, "player");
+      const active = await host.authT.mutation(async (ctx) =>
+        beginMatch(ctx, {
+          roomId: host.room.roomId,
+          actor: await resolvePlayer(ctx),
+          hardDeadline: false,
+        }),
+      );
+      clock.mockReturnValue(active.startedAt + 2 * HARD_DEADLINE_MS);
+      for (const client of [host.authT, player.authT])
+        await client.mutation(heartbeatRef, { roomId: host.room.roomId });
+      expect(await t.mutation((ctx) => sweepAbandonedMatches(ctx))).toMatchObject({
+        abandoned: 0,
+      });
+      await expect(t.run((ctx) => requireActiveMatch(ctx, active.id))).resolves.toMatchObject({
+        id: active.id,
+        status: "active",
+      });
+      await expect(
+        host.authT.mutation(startMatchRef, { roomId: host.room.roomId }),
+      ).rejects.toThrow("MATCH_ALREADY_ACTIVE");
+      const state = await host.authT.query(roomStateRef, { roomId: host.room.roomId });
+      expect(state.activeMatch).toMatchObject({ id: active.id, hardDeadline: false });
+      await expect(
+        host.authT.mutation(async (ctx) =>
+          completeMatch(ctx, { matchId: active.id, actor: await resolvePlayer(ctx) }),
+        ),
+      ).resolves.toMatchObject({ status: "completed", completedAt: Date.now() });
+      const next = await host.authT.mutation(async (ctx) =>
+        beginMatch(ctx, {
+          roomId: host.room.roomId,
+          actor: await resolvePlayer(ctx),
+          hardDeadline: false,
+        }),
+      );
+      clock.mockReturnValue(Date.now() + ABANDON_AFTER_MS + 1);
+      await t.mutation((ctx) => sweepAbandonedMatches(ctx));
+      expect(await t.run((ctx) => ctx.db.get(next.id))).toMatchObject({
+        status: "abandoned",
+        reason: "everyone-away",
+      });
     } finally {
       clock.mockRestore();
     }

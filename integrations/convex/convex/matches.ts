@@ -34,6 +34,7 @@ const activeEnvelopeValidator = v.object({
   cycle: v.number(),
   status: v.literal("active"),
   startedAt: v.number(),
+  hardDeadline: v.optional(v.boolean()),
 });
 
 const matchEnvelopeValidator = v.union(
@@ -44,6 +45,7 @@ const matchEnvelopeValidator = v.union(
     cycle: v.number(),
     status: v.literal("completed"),
     startedAt: v.number(),
+    hardDeadline: v.optional(v.boolean()),
     completedAt: v.number(),
   }),
   v.object({
@@ -52,6 +54,7 @@ const matchEnvelopeValidator = v.union(
     cycle: v.number(),
     status: v.literal("abandoned"),
     startedAt: v.number(),
+    hardDeadline: v.optional(v.boolean()),
     abandonedAt: v.number(),
     reason: v.union(
       v.literal("everyone-away"),
@@ -75,6 +78,7 @@ const activeEnvelope = (
     cycle: match.cycle,
     status: "active",
     startedAt: match.startedAt,
+    ...(match.hardDeadline === false ? { hardDeadline: false } : {}),
   };
 };
 
@@ -92,6 +96,8 @@ export const beginMatch = async (
     readonly minPlayers?: number;
     readonly maxPlayers?: number;
     readonly nowMs?: number;
+    /** Opt out of the default 30-minute cap; idle-room cleanup still applies. */
+    readonly hardDeadline?: boolean;
   },
 ): Promise<Extract<MatchEnvelope, { status: "active" }>> => {
   const room = (await findRoom(ctx, input.roomId)) ?? parlorError("ROOM_NOT_OPEN");
@@ -129,6 +135,7 @@ export const beginMatch = async (
     cycle,
     status: "active",
     startedAt: now,
+    ...(input.hardDeadline === false ? { hardDeadline: false } : {}),
   });
   for (const member of selection.value) {
     await ctx.db.insert("matchParticipants", {
@@ -137,7 +144,14 @@ export const beginMatch = async (
       seatIndex: member.seatIndex,
     });
   }
-  return { id: matchId, roomId: input.roomId, cycle, status: "active", startedAt: now };
+  return {
+    id: matchId,
+    roomId: input.roomId,
+    cycle,
+    status: "active",
+    startedAt: now,
+    ...(input.hardDeadline === false ? { hardDeadline: false } : {}),
+  };
 };
 
 /** Registered reference mutation for starting a match from an app client. */
@@ -198,6 +212,7 @@ export const completeMatch = async (
     cycle: match.cycle,
     status: "completed",
     startedAt: match.startedAt,
+    ...(match.hardDeadline === false ? { hardDeadline: false } : {}),
     completedAt,
   });
   return toMatchEnvelope({ ...match, status: "completed", completedAt });
@@ -229,6 +244,7 @@ export const abandonMatch = async (
     cycle: match.cycle,
     status: "abandoned",
     startedAt: match.startedAt,
+    ...(match.hardDeadline === false ? { hardDeadline: false } : {}),
     abandonedAt,
     reason: input.reason,
   });

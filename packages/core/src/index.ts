@@ -249,6 +249,8 @@ export interface ActiveMatchEnvelope {
   readonly roomId: RoomId;
   readonly cycle: Cycle;
   readonly startedAt: TimestampMs;
+  /** Defaults to the standard cap; false opts this match into untimed play. */
+  readonly hardDeadline?: boolean;
 }
 
 export interface CompletedMatchEnvelope {
@@ -257,6 +259,7 @@ export interface CompletedMatchEnvelope {
   readonly roomId: RoomId;
   readonly cycle: Cycle;
   readonly startedAt: TimestampMs;
+  readonly hardDeadline?: boolean;
   readonly completedAt: TimestampMs;
 }
 
@@ -268,6 +271,7 @@ export interface AbandonedMatchEnvelope {
   readonly roomId: RoomId;
   readonly cycle: Cycle;
   readonly startedAt: TimestampMs;
+  readonly hardDeadline?: boolean;
   readonly abandonedAt: TimestampMs;
   readonly reason: AbandonmentReason;
 }
@@ -566,12 +570,12 @@ export function isHostStale(
   return presenceAge(member, now) > presenceThreshold(policy?.hostStaleMs, HOST_STALE_AFTER_MS);
 }
 
-/** The hard deadline is authoritative even before a persisted terminal transition. */
+/** The default cap is authoritative unless this match explicitly opts out. */
 export function hasMatchDeadlineElapsed(
-  match: { readonly startedAt: number },
+  match: { readonly startedAt: number; readonly hardDeadline?: boolean },
   now: number,
 ): boolean {
-  return now - match.startedAt >= HARD_DEADLINE_MS;
+  return match.hardDeadline !== false && now - match.startedAt >= HARD_DEADLINE_MS;
 }
 
 export function validateMatchEndTime(
@@ -769,6 +773,7 @@ export interface BeginMatchInput {
   readonly minPlayers: number;
   readonly maxPlayers: number;
   readonly policy?: Partial<PresencePolicy>;
+  readonly hardDeadline?: boolean;
 }
 
 export interface BeginMatchDecision {
@@ -829,6 +834,7 @@ export function decideBeginMatch(
       roomId: input.room.id,
       cycle,
       startedAt: input.now,
+      ...(input.hardDeadline === false ? { hardDeadline: false } : {}),
     },
     participants: participantResult.value,
   });
@@ -866,6 +872,7 @@ function completeMatch(
     roomId: match.roomId,
     cycle: match.cycle,
     startedAt: match.startedAt,
+    ...(match.hardDeadline === false ? { hardDeadline: false } : {}),
     completedAt,
   });
 }
@@ -911,6 +918,7 @@ function abandonMatch(
     roomId: match.roomId,
     cycle: match.cycle,
     startedAt: match.startedAt,
+    ...(match.hardDeadline === false ? { hardDeadline: false } : {}),
     abandonedAt,
     reason,
   });

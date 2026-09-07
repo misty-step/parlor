@@ -142,6 +142,7 @@ const activeMatchValidator = v.object({
   cycle: v.number(),
   status: v.literal("active"),
   startedAt: v.number(),
+  hardDeadline: v.optional(v.boolean()),
   participantIds: v.array(v.id("players")),
 });
 
@@ -190,6 +191,7 @@ interface ActiveMatchProjection {
   readonly cycle: number;
   readonly status: "active";
   readonly startedAt: number;
+  readonly hardDeadline?: boolean;
   readonly participantIds: PlayerId[];
 }
 
@@ -206,6 +208,7 @@ const activeMatchProjection = async (
     cycle: active.cycle,
     status: "active",
     startedAt: active.startedAt,
+    ...(active.hardDeadline === false ? { hardDeadline: false } : {}),
     participantIds: participants.map((participant) => participant.playerId),
   };
 };

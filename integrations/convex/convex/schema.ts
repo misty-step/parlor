@@ -13,12 +13,14 @@ const activeMatch = v.object({
   cycle: v.number(),
   status: v.literal("active"),
   startedAt: v.number(),
+  hardDeadline: v.optional(v.boolean()),
 });
 const completedMatch = v.object({
   roomId: v.id("rooms"),
   cycle: v.number(),
   status: v.literal("completed"),
   startedAt: v.number(),
+  hardDeadline: v.optional(v.boolean()),
   completedAt: v.number(),
 });
 const abandonedMatch = v.object({
@@ -26,6 +28,7 @@ const abandonedMatch = v.object({
   cycle: v.number(),
   status: v.literal("abandoned"),
   startedAt: v.number(),
+  hardDeadline: v.optional(v.boolean()),
   abandonedAt: v.number(),
   reason: abandonmentReason,
 });

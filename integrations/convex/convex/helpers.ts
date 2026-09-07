@@ -32,6 +32,7 @@ export const toMatchEnvelope = (match: MatchDoc): MatchEnvelope => {
       cycle: match.cycle,
       status: "active",
       startedAt: match.startedAt,
+      ...(match.hardDeadline === false ? { hardDeadline: false } : {}),
     };
   }
   if (match.status === "completed") {
@@ -44,6 +45,7 @@ export const toMatchEnvelope = (match: MatchDoc): MatchEnvelope => {
       cycle: match.cycle,
       status: "completed",
       startedAt: match.startedAt,
+      ...(match.hardDeadline === false ? { hardDeadline: false } : {}),
       completedAt: match.completedAt,
     };
   }
@@ -56,6 +58,7 @@ export const toMatchEnvelope = (match: MatchDoc): MatchEnvelope => {
     cycle: match.cycle,
     status: "abandoned",
     startedAt: match.startedAt,
+    ...(match.hardDeadline === false ? { hardDeadline: false } : {}),
     abandonedAt: match.abandonedAt,
     reason: match.reason,
   };
