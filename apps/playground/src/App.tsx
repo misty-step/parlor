@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import { avatarForSeat, type AvatarDescriptor, type SeatIndex } from "@parlor/core";
+import { useAudio } from "@parlor/react";
 import {
   ACTION_HINTS,
   ACTION_LABELS,
@@ -66,6 +67,7 @@ const STAGE_DESCRIPTIONS: Record<LifecycleStage, string> = {
 };
 
 export function App() {
+  const audio = useAudio();
   const [state, setState] = useState<LifecycleState>(() => createInitialLifecycle());
   const [liveMessage, setLiveMessage] = useState("The room is waiting for its first move.");
   const stage = getStage(state);
@@ -87,8 +89,32 @@ export function App() {
     if (result.ok) {
       const latestEvent = result.state.events[result.state.events.length - 1];
       setLiveMessage(latestEvent?.detail ?? `${ACTION_LABELS[action]} complete.`);
+      switch (action) {
+        case "create-room":
+        case "add-second-player":
+        case "add-late-spectator":
+          audio.play("join");
+          break;
+        case "start-cycle-one":
+        case "begin-cycle-two":
+          audio.play("start");
+          break;
+        case "make-host-stale":
+          audio.play("stale");
+          break;
+        case "migrate-host":
+          audio.play("migrate");
+          break;
+        case "complete-match":
+          audio.play("win");
+          break;
+        default:
+          audio.play("tap");
+          break;
+      }
     } else {
       setLiveMessage(result.error.message);
+      audio.play("error");
     }
   }
 
@@ -103,9 +129,22 @@ export function App() {
             deliberate action at a time.
           </p>
         </div>
-        <div className="rehearsal-stamp" aria-label="Local lifecycle rehearsal">
-          <span className="stamp-dot" aria-hidden="true" />
-          <span>Local rehearsal</span>
+        <div className="header-controls">
+          <button
+            type="button"
+            className={`sound-toggle${audio.enabled ? " sound-toggle--active" : ""}`}
+            data-testid="sound-toggle"
+            onClick={audio.toggleMuted}
+            aria-label={audio.enabled ? "Mute sounds" : "Unmute sounds"}
+            title={audio.enabled ? "Sound on (click to mute)" : "Muted (click to unmute)"}
+          >
+            <span aria-hidden="true">{audio.enabled ? "🔊" : "🔇"}</span>
+            <span>{audio.enabled ? "Sound on" : "Muted"}</span>
+          </button>
+          <div className="rehearsal-stamp" aria-label="Local lifecycle rehearsal">
+            <span className="stamp-dot" aria-hidden="true" />
+            <span>Local rehearsal</span>
+          </div>
         </div>
       </header>
 
@@ -284,6 +323,8 @@ export function App() {
                   <button
                     className={`action-button${isNext ? " action-button--next" : ""}`}
                     data-testid={action}
+                    data-cuelume-press
+                    data-cuelume-release
                     onClick={() => handleAction(action)}
                     type="button"
                     aria-label={`${ACTION_LABELS[action]}: ${ACTION_HINTS[action]}`}

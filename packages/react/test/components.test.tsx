@@ -5,7 +5,14 @@ import userEvent from "@testing-library/user-event";
 import { useState } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { AvatarBadge, ConnectionStatus, QRCodeDisplay, RoomCodeInput } from "../src/index.js";
+import {
+  AudioProvider,
+  AvatarBadge,
+  ConnectionStatus,
+  QRCodeDisplay,
+  RoomCodeInput,
+  createAudioController,
+} from "../src/index.js";
 
 afterEach(cleanup);
 
@@ -66,6 +73,59 @@ describe("RoomCodeInput", () => {
 
     expect(onComplete).toHaveBeenCalledTimes(2);
     expect(onComplete).toHaveBeenLastCalledWith("ABCD");
+  });
+
+  it("plays audio cues for typing, completion, and backspace when sound is enabled", () => {
+    const played: string[] = [];
+    const controller = createAudioController({
+      storage: null,
+      engine: {
+        play: (name) => {
+          played.push(name ?? "default");
+        },
+        setEnabled: () => {},
+        setVolume: () => {},
+        bind: () => {},
+      },
+    });
+
+    function SoundControlledInput({ sound = true }: { sound?: boolean }) {
+      const [val, setVal] = useState("");
+      return (
+        <AudioProvider controller={controller} autoBind={false}>
+          <RoomCodeInput value={val} onChange={setVal} sound={sound} />
+        </AudioProvider>
+      );
+    }
+
+    const { unmount } = render(<SoundControlledInput />);
+    const input = screen.getByRole("textbox", { name: "Room code" });
+
+    // Type first character -> digit cue ("tick")
+    fireEvent.change(input, { target: { value: "A" } });
+    expect(played).toEqual(["tick"]);
+
+    // Type next character -> digit cue ("tick")
+    fireEvent.change(input, { target: { value: "AB" } });
+    expect(played).toEqual(["tick", "tick"]);
+
+    // Backspace -> backspace cue ("droplet")
+    fireEvent.change(input, { target: { value: "A" } });
+    expect(played).toEqual(["tick", "tick", "droplet"]);
+
+    // Complete 4 chars -> success cue ("success")
+    fireEvent.change(input, { target: { value: "ABCD" } });
+    expect(played).toEqual(["tick", "tick", "droplet", "success"]);
+
+    unmount();
+    played.length = 0;
+
+    // With sound={false}, no sounds play
+    render(<SoundControlledInput sound={false} />);
+    const silentInput = screen.getByRole("textbox", { name: "Room code" });
+    fireEvent.change(silentInput, { target: { value: "A" } });
+    fireEvent.change(silentInput, { target: { value: "ABCD" } });
+    expect(played).toHaveLength(0);
   });
 });
 

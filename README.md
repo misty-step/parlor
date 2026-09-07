@@ -8,13 +8,13 @@ Parlor handles the repetitive plumbing of in-person party games—room codes, gu
 
 ## Packages
 
-| Package              | Path                  | Description                                                            |
-| -------------------- | --------------------- | ---------------------------------------------------------------------- |
-| **`@parlor/core`**   | `packages/core`       | Pure domain types, presence classification, room bounds                |
-| **`@parlor/auth`**   | `packages/auth`       | HMAC-SHA256 guest credentials (`@parlor/auth/server`)                  |
-| **`@parlor/convex`** | `integrations/convex` | Convex schema (`parlorTables`), room/match queries, mutations, sweeper |
-| **`@parlor/react`**  | `packages/react`      | RoomCodeInput, QRCodeDisplay, ConnectionStatus, AvatarBadge, hooks     |
-| **`@parlor/web`**    | `packages/web`        | Screen wake lock, audio cues, clipboard utilities                      |
+| Package              | Path                  | Description                                                                       |
+| -------------------- | --------------------- | --------------------------------------------------------------------------------- |
+| **`@parlor/core`**   | `packages/core`       | Pure domain types, presence classification, room bounds                           |
+| **`@parlor/auth`**   | `packages/auth`       | HMAC-SHA256 guest credentials (`@parlor/auth/server`)                             |
+| **`@parlor/convex`** | `integrations/convex` | Convex schema (`parlorTables`), room/match queries, mutations, sweeper            |
+| **`@parlor/react`**  | `packages/react`      | RoomCodeInput, QRCodeDisplay, ConnectionStatus, AvatarBadge, AudioProvider, hooks |
+| **`@parlor/web`**    | `packages/web`        | Screen wake lock, audio cues & controller, clipboard utilities                    |
 
 ---
 
@@ -40,7 +40,7 @@ Requirements: Node.js 22.12+, pnpm 11.25.0.
 
 ```sh
 pnpm install
-pnpm check      # format, typecheck, lint, test (90 tests across 7 suites)
+pnpm check      # format, typecheck, lint, test (103 tests across 8 suites)
 pnpm check:all  # check + package builds + Playwright mobile E2E + Convex smoke
 pnpm dev        # launch the playground app on http://localhost:5173
 ```

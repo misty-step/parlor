@@ -10,6 +10,8 @@
   },
   "dependencies": {
     "@parlor/core": "workspace:*",
+    "@parlor/react": "workspace:*",
+    "@parlor/web": "workspace:*",
     "react": "19.2.8",
     "react-dom": "19.2.8"
   },

@@ -11,13 +11,13 @@ Parlor is an accountless, phone-first multiplayer game substrate built on Convex
 
 ## 1. Architecture & Packages
 
-| Package          | Purpose                                            | Key Exports                                                                                                                              |
-| ---------------- | -------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
-| `@parlor/core`   | Pure domain types and invariants                   | `Result<T, E>`, presence classification, room bounds                                                                                     |
-| `@parlor/auth`   | HMAC-SHA256 guest credentials                      | `issueGuestToken`, `verifyGuestToken` (under `@parlor/auth/server`)                                                                      |
-| `@parlor/convex` | Backend room, match, and presence tables & queries | `parlorTables`, `beginMatch`, `completeMatch`, `requireActiveMatch`, `resolvePlayer`, `sweepAbandonedMatches`                            |
-| `@parlor/react`  | Pre-styled game UI components & hooks              | `<RoomCodeInput />`, `<QRCodeDisplay />`, `<ConnectionStatus />`, `<AvatarBadge />`, `useHeartbeat`, `useGuestCredential`, `useWakeLock` |
-| `@parlor/web`    | Browser-side capabilities                          | Wake lock controller, audio cues, clipboard helper                                                                                       |
+| Package          | Purpose                                            | Key Exports                                                                                                                                                               |
+| ---------------- | -------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `@parlor/core`   | Pure domain types and invariants                   | `Result<T, E>`, presence classification, room bounds                                                                                                                      |
+| `@parlor/auth`   | HMAC-SHA256 guest credentials                      | `issueGuestToken`, `verifyGuestToken` (under `@parlor/auth/server`)                                                                                                       |
+| `@parlor/convex` | Backend room, match, and presence tables & queries | `parlorTables`, `beginMatch`, `completeMatch`, `requireActiveMatch`, `resolvePlayer`, `sweepAbandonedMatches`                                                             |
+| `@parlor/react`  | Pre-styled game UI components & hooks              | `<RoomCodeInput />`, `<QRCodeDisplay />`, `<ConnectionStatus />`, `<AvatarBadge />`, `<AudioProvider />`, `useAudio`, `useHeartbeat`, `useGuestCredential`, `useWakeLock` |
+| `@parlor/web`    | Browser-side capabilities                          | `AudioController`, `WakeLockController`, `DEFAULT_PARLOR_SOUNDS`, audio cues, clipboard helper                                                                            |
 
 ---
 
@@ -146,6 +146,7 @@ Party games should require no accounts:
 - Use `<ConnectionStatus />` to show live socket state and reconnect notices.
 - Use `useHeartbeat({ send: () => mutate(api.rooms.heartbeat, { roomId, guestToken }) })` for visibility-aware presence pings.
 - Use `useWakeLock()` during active gameplay to prevent phones from sleeping.
+- Use `useAudio()` (or `<AudioProvider />`) to play party-game sound cues (`play("join")`, `play("start")`, `play("win")`, etc.) or add `data-cuelume-press` / `data-cuelume-release` attributes to buttons for tactile interaction feedback. `<RoomCodeInput />` plays digit and completion sounds out of the box.
 
 ---
 

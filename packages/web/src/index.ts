@@ -36,3 +36,23 @@ export type {
   WakeLockSnapshot,
   WakeLockStatus,
 } from "./browser.js";
+
+export {
+  AUDIO_ENABLED_STORAGE_KEY,
+  AUDIO_VOLUME_STORAGE_KEY,
+  AudioController,
+  DEFAULT_PARLOR_SOUNDS,
+  bindAudioCues,
+  createAudioController,
+  playRawSound,
+  sounds,
+} from "./audio.js";
+
+export type {
+  AudioControllerOptions,
+  AudioEngineLike,
+  AudioPlayOptions,
+  AudioSnapshot,
+  ParlorSoundCue,
+  SoundName,
+} from "./audio.js";

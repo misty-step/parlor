@@ -117,6 +117,40 @@ h1 {
   white-space: nowrap;
 }
 
+.header-controls {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex: 0 0 auto;
+}
+
+.sound-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.55rem 0.75rem;
+  border: 1px solid rgba(242, 247, 244, 0.35);
+  background: transparent;
+  color: var(--paper);
+  font-family: inherit;
+  font-size: 0.74rem;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  white-space: nowrap;
+  transition:
+    background 0.15s ease,
+    border-color 0.15s ease;
+}
+
+.sound-toggle:hover {
+  border-color: var(--brass);
+  background: rgba(242, 247, 244, 0.08);
+}
+
+.sound-toggle:active {
+  transform: translateY(1px);
+}
+
 .stamp-dot,
 .status-dot {
   display: inline-block;

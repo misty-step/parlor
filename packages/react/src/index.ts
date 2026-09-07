@@ -32,3 +32,26 @@ export {
   type UseWakeLockOptions,
   type UseWakeLockResult,
 } from "./hooks.js";
+export {
+  AudioProvider,
+  useAudio,
+  type AudioProviderProps,
+  type UseAudioOptions,
+  type UseAudioResult,
+} from "./audio.js";
+export {
+  AUDIO_ENABLED_STORAGE_KEY,
+  AUDIO_VOLUME_STORAGE_KEY,
+  AudioController,
+  DEFAULT_PARLOR_SOUNDS,
+  bindAudioCues,
+  createAudioController,
+  playRawSound,
+  sounds,
+  type AudioControllerOptions,
+  type AudioEngineLike,
+  type AudioPlayOptions,
+  type AudioSnapshot,
+  type ParlorSoundCue,
+  type SoundName,
+} from "@parlor/web";

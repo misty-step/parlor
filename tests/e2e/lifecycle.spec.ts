@@ -10,6 +10,17 @@ test("rehearses the locked party-room lifecycle", async ({ page }) => {
   await expect(page.getByTestId("playground")).toBeVisible();
   await expect(page.getByTestId("room-code")).toHaveText("----");
 
+  const soundToggle = page.getByTestId("sound-toggle");
+  await expect(soundToggle).toBeVisible();
+  await expect(soundToggle).toContainText("Sound on");
+  await soundToggle.click();
+  await expect(soundToggle).toContainText("Muted");
+  await soundToggle.click();
+  await expect(soundToggle).toContainText("Sound on");
+
+  const createRoomButton = page.getByTestId("create-room");
+  await expect(createRoomButton).toHaveAttribute("data-cuelume-press");
+  await expect(createRoomButton).toHaveAttribute("data-cuelume-release");
   await runAction(page, "create-room");
   await expect(page.getByTestId("room-code")).toHaveText("B7Q2");
   await expect(page.getByTestId("current-host")).toHaveText("Ari");

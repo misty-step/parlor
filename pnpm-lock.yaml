@@ -38,6 +38,12 @@ importers:
       '@parlor/core':
         specifier: workspace:*
         version: link:../../packages/core
+      '@parlor/react':
+        specifier: workspace:*
+        version: link:../../packages/react
+      '@parlor/web':
+        specifier: workspace:*
+        version: link:../../packages/web
       react:
         specifier: 19.2.8
         version: 19.2.8
@@ -132,7 +138,11 @@ importers:
         specifier: 19.2.8
         version: 19.2.8(react@19.2.8)
 
-  packages/web: {}
+  packages/web:
+    dependencies:
+      cuelume:
+        specifier: ^0.2.2
+        version: 0.2.2
 
 packages:
 
@@ -959,6 +969,9 @@ packages:
 
   csstype@3.2.3:
     resolution: {integrity: sha512-z1HGKcYy2xA8AGQfwrn0PAy+PB7X/GSj3UVJW9qKyn43xWa+gl5nXmU4qqLMRzWVLFC8KusUX8T/0kCiOYpAIQ==}
+
+  cuelume@0.2.2:
+    resolution: {integrity: sha512-TiNzJRjhddjC4jy4M7sv63V/86VaFhdIs6iHUCrc4CKhqypaxRBv1aedCBGebrz/cO7nroPkEfqHe/P7fOE2GQ==}
 
   dequal@2.0.3:
     resolution: {integrity: sha512-0je+qPKHEMohvfRTCEo3CrPG6cAzAYgmzKyxRiYSSDkS6eGJdyVJm7WaYA5ECaAD9wLB2T4EEeymA5aFVcYXCA==}
@@ -1809,6 +1822,8 @@ snapshots:
       - utf-8-validate
 
   csstype@3.2.3: {}
+
+  cuelume@0.2.2: {}
 
   dequal@2.0.3: {}
 

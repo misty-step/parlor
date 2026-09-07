@@ -4,7 +4,14 @@ import { act, cleanup, renderHook } from "@testing-library/react";
 import { StrictMode } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { useGuestCredential, useHeartbeat, useWakeLock } from "../src/index.js";
+import {
+  AudioProvider,
+  createAudioController,
+  useAudio,
+  useGuestCredential,
+  useHeartbeat,
+  useWakeLock,
+} from "../src/index.js";
 
 const testClock = () => 1_000;
 
@@ -434,5 +441,71 @@ describe("useGuestCredential store identity", () => {
     replacement.resolve({ token: "unmounted-owner", expiresAt: 10_000 });
     await expect(secondAcquisition).rejects.toMatchObject({ code: "cancelled" });
     expect(secondStored).toBeNull();
+  });
+});
+
+describe("useAudio", () => {
+  it("reads audio snapshot and responds to mute and volume updates", () => {
+    const played: string[] = [];
+    const controller = createAudioController({
+      storage: null,
+      engine: {
+        play: (name) => {
+          played.push(name ?? "default");
+        },
+        setEnabled: () => {},
+        setVolume: () => {},
+        bind: () => {},
+      },
+    });
+
+    const { result } = renderHook(() => useAudio({ controller, autoBind: false }));
+
+    expect(result.current.enabled).toBe(true);
+    expect(result.current.volume).toBe(1);
+
+    act(() => {
+      result.current.play("join");
+    });
+    expect(played).toEqual(["sparkle"]);
+
+    act(() => {
+      result.current.toggleMuted();
+    });
+    expect(result.current.enabled).toBe(false);
+
+    act(() => {
+      result.current.setVolume(0.5);
+    });
+    expect(result.current.volume).toBe(0.5);
+  });
+
+  it("inherits controller provided by AudioProvider context", () => {
+    const played: string[] = [];
+    const controller = createAudioController({
+      storage: null,
+      engine: {
+        play: (name) => {
+          played.push(name ?? "default");
+        },
+        setEnabled: () => {},
+        setVolume: () => {},
+        bind: () => {},
+      },
+    });
+
+    const wrapper = ({ children }: { children?: React.ReactNode }) => (
+      <AudioProvider controller={controller} autoBind={false}>
+        {children}
+      </AudioProvider>
+    );
+
+    const { result } = renderHook(() => useAudio({ autoBind: false }), { wrapper });
+
+    expect(result.current.controller).toBe(controller);
+    act(() => {
+      result.current.play("win");
+    });
+    expect(played).toEqual(["success"]);
   });
 });

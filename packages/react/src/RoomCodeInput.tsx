@@ -9,6 +9,7 @@ import {
   useId,
   useRef,
 } from "react";
+import { useAudio } from "./audio.js";
 
 export const ROOM_CODE_LENGTH = 4;
 export const ROOM_CODE_ALPHABET = "23456789ABCDEFGHJKLMNPQRSTUVWXYZ";
@@ -50,6 +51,8 @@ export interface RoomCodeInputProps {
   "aria-invalid"?: boolean | "false" | "true" | "grammar" | "spelling";
   onBlur?: (event: FocusEvent<HTMLInputElement>) => void;
   onFocus?: (event: FocusEvent<HTMLInputElement>) => void;
+  /** Whether typing, deleting, and completion play sound cues. Defaults to true. */
+  sound?: boolean;
 }
 
 function joinClassNames(...classNames: Array<string | undefined>): string | undefined {
@@ -86,7 +89,9 @@ export function RoomCodeInput({
   "aria-invalid": ariaInvalid,
   onBlur,
   onFocus,
+  sound = true,
 }: RoomCodeInputProps) {
+  const audio = useAudio({ autoBind: false });
   const generatedId = useId();
   const inputId = id ?? `parlor-room-code-${generatedId.replaceAll(":", "")}`;
   const descriptionId = `${inputId}-description`;
@@ -109,9 +114,22 @@ export function RoomCodeInput({
     .join(" ");
 
   const commit = (nextValue: string) => {
+    const prevLength = committedValue.current.length;
     const next = normalizeRoomCode(nextValue);
     committedValue.current = next;
     onChange(next);
+
+    if (sound) {
+      if (next.length === ROOM_CODE_LENGTH) {
+        if (completeValue.current !== next) {
+          audio.play("success");
+        }
+      } else if (next.length > prevLength) {
+        audio.play("digit");
+      } else if (next.length < prevLength) {
+        audio.play("backspace");
+      }
+    }
 
     if (next.length === ROOM_CODE_LENGTH) {
       if (completeValue.current !== next) {

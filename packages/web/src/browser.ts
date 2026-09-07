@@ -107,7 +107,7 @@ function runtimeValue(name: string): unknown {
   }
 }
 
-function defaultStorage(): StorageLike | null {
+export function defaultStorage(): StorageLike | null {
   return (runtimeValue("localStorage") as StorageLike | undefined) ?? null;
 }
 
