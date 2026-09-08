@@ -6,11 +6,12 @@ interface Props {
   title?: string;
   label?: string;
   tooltip?: string;
+  indicator?: boolean;
 }
-const { href, class: className, title, label, tooltip } = Astro.props;
+const { href, class: className, title, label, tooltip, indicator = true } = Astro.props;
 ---
 <a href={href} class:list={["external-link", className]} target="_blank" rel="noopener noreferrer" title={title} aria-label={label ? `${label} (opens in a new tab)` : undefined} data-tooltip={tooltip}>
   <slot />
-  <ArrowUpRight size={16} stroke-width={1.75} aria-hidden="true" class="external-link__icon" />
+  {indicator && <ArrowUpRight size={16} stroke-width={1.75} aria-hidden="true" class="external-link__icon" />}
   <span class="sr-only"> (opens in a new tab)</span>
 </a>

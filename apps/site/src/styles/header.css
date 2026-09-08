@@ -1,11 +1,6 @@
 .site-frame {
-  width: min(var(--frame-width), calc(100% - 2 * var(--frame-gutter)));
+  width: min(var(--content-width), calc(100% - 2 * var(--frame-gutter)));
   margin-inline: auto;
-}
-
-.docs-page {
-  --frame-width: var(--docs-width);
-  --frame-gutter: 2rem;
 }
 
 .site-header {
@@ -19,15 +14,10 @@
 
 .header-inner {
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
+  grid-template-columns: var(--sidebar-width) minmax(0, 1fr) auto;
   align-items: center;
-  column-gap: 2.5rem;
-  min-height: var(--header-height);
-}
-
-.docs-page .header-inner {
-  grid-template-columns: var(--docs-columns);
   column-gap: var(--column-gap);
+  min-height: var(--header-height);
 }
 
 .header-brand {
@@ -60,21 +50,19 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 6px;
-  min-width: 36px;
-  min-height: 34px;
-  padding: 6px 8px;
+  flex: 0 0 36px;
+  width: 36px;
+  height: 36px;
+  padding: 0;
   border-radius: 0.5rem;
   color: var(--muted);
   text-decoration: none;
-  font: 650 0.8125rem/1 var(--body);
   transition:
     background-color 120ms ease,
     color 120ms ease;
 }
 
 .header-nav-item.is-current {
-  padding-inline: 10px;
   color: var(--felt-deep);
   background: var(--cream);
   box-shadow: 0 1px 3px #20304a14;
@@ -115,16 +103,6 @@
 .nav-tool:hover {
   background: var(--soft);
   color: var(--felt);
-}
-
-.header-source .external-link__icon {
-  position: absolute;
-  width: 10px;
-  height: 10px;
-  top: 2px;
-  right: 1px;
-  opacity: 0.75;
-  background: var(--cream);
 }
 
 .header-divider {
@@ -269,18 +247,13 @@
   .docs-page {
     --docs-columns: var(--sidebar-width) minmax(0, 1fr);
   }
-  .docs-page .header-inner {
-    grid-template-columns: var(--sidebar-width) minmax(0, 1fr) auto;
-  }
 }
 
 @media (max-width: 900px) {
   .docs-page {
     --docs-columns: minmax(0, 1fr);
-    --frame-gutter: 1.5rem;
   }
-  .header-inner,
-  .docs-page .header-inner {
+  .header-inner {
     grid-template-columns: auto minmax(0, 1fr) auto;
     column-gap: 1.25rem;
   }
@@ -290,14 +263,15 @@
 }
 
 @media (max-width: 540px) {
-  :root,
-  .docs-page {
+  :root {
     --frame-gutter: 16px;
   }
-  .header-inner,
-  .docs-page .header-inner {
+  .header-inner {
     grid-template-columns: auto 1fr;
-    column-gap: 12px;
+    column-gap: 8px;
+  }
+  .header-actions {
+    gap: 4px;
   }
   .header-nav,
   .header-source {
