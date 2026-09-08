@@ -210,9 +210,27 @@ for (const menu of document.querySelectorAll<HTMLDetailsElement>(".mobile-menu")
     if (event.target instanceof Element && event.target.closest("a")) menu.open = false;
   });
   document.addEventListener("keydown", (event) => {
-    if (event.key === "Escape") menu.open = false;
+    if (event.key === "Escape" && menu.open) {
+      menu.open = false;
+      menu.querySelector("summary")?.focus();
+    }
+  });
+  document.addEventListener("click", (event) => {
+    if (event.target instanceof Node && !menu.contains(event.target)) menu.open = false;
   });
 }
+
+const headerTooltips = document.querySelectorAll<HTMLElement>(".site-header [data-tooltip]");
+for (const control of headerTooltips) {
+  const resetTooltip = () => control.classList.remove("tooltip-dismissed");
+  control.addEventListener("pointerleave", resetTooltip);
+  control.addEventListener("blur", resetTooltip);
+}
+document.addEventListener("keydown", (event) => {
+  if (event.key === "Escape") {
+    for (const control of headerTooltips) control.classList.add("tooltip-dismissed");
+  }
+});
 const externalLinkTemplate = document.querySelector<HTMLTemplateElement>("#external-link-icon");
 if (externalLinkTemplate) {
   for (const link of document.querySelectorAll<HTMLAnchorElement>(

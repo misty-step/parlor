@@ -4,12 +4,10 @@
 
 .docs-shell {
   display: grid;
-  grid-template-columns: 14.5rem minmax(0, 1fr) 14rem;
+  grid-template-columns: var(--docs-columns);
   align-items: start;
-  gap: 2.5rem;
-  width: min(1400px, calc(100% - 4rem));
-  margin-inline: auto;
-  padding-block: 2.5rem 5rem;
+  gap: var(--column-gap);
+  padding-block: 2rem 4rem;
 }
 
 .docs-main,
@@ -22,9 +20,9 @@
 .docs-sidebar,
 .docs-rail {
   position: sticky;
-  top: 6.5rem;
-  max-height: calc(100dvh - 8rem);
-  padding: 0.25rem;
+  top: calc(var(--header-height) + 2rem);
+  max-height: calc(100dvh - var(--header-height) - 3rem);
+  padding: 0;
   overflow-y: auto;
   scrollbar-width: thin;
 }
@@ -32,9 +30,10 @@
 .docs-home {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   justify-content: space-between;
   gap: 0.5rem;
-  margin-bottom: 1.75rem;
+  margin-bottom: 1.35rem;
 }
 
 .docs-home a {
@@ -42,7 +41,7 @@
   align-items: center;
   gap: 0.5rem;
   color: var(--ink);
-  font: 750 1rem/1.4 var(--display);
+  font: 700 0.9375rem/1.4 var(--display);
   text-decoration: none;
 }
 
@@ -64,7 +63,7 @@
 
 .docs-navigation > nav {
   display: grid;
-  gap: 1.5rem;
+  gap: 1.2rem;
 }
 
 .docs-nav-group {
@@ -73,16 +72,16 @@
 }
 
 .docs-nav-title {
-  padding: 0 0.75rem 0.45rem;
+  padding: 0 0.625rem 0.4rem;
   color: var(--ink);
   font-size: 0.8125rem;
-  font-weight: 750;
+  font-weight: 650;
   line-height: 1.4;
 }
 
 .docs-nav-link {
   display: block;
-  padding: 0.5rem 0.85rem;
+  padding: 0.475rem 0.625rem;
   border: none;
   border-radius: var(--radius-control);
   color: var(--muted);
@@ -107,14 +106,15 @@
 }
 
 .sidebar-agent {
-  margin-top: 1.75rem;
+  margin-top: 1.5rem;
 }
 
 .doc-callout {
   display: grid;
-  gap: 1rem;
+  grid-template-columns: 1.75rem minmax(0, 1fr);
+  gap: 0.7rem 0.65rem;
   min-width: 0;
-  padding: 1.25rem;
+  padding: 1rem;
   border: 1px solid var(--line);
   border-radius: var(--radius-panel);
   background: var(--paper);
@@ -123,6 +123,11 @@
 .doc-callout-icon {
   display: flex;
   align-items: center;
+  justify-content: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  border-radius: 0.5rem;
+  background: var(--soft);
   color: var(--felt);
 }
 
@@ -133,29 +138,30 @@
 .doc-callout-copy h2 {
   margin: 0;
   color: var(--ink);
-  font: 750 1rem/1.4 var(--display);
+  font: 700 0.875rem/1.45 var(--display);
   letter-spacing: -0.02em;
   text-wrap: balance;
 }
 
 .doc-callout-copy p {
   max-width: 34ch;
-  margin: 0.5rem 0 0;
+  margin: 0.4rem 0 0;
   color: var(--muted);
-  font-size: 0.875rem;
-  line-height: 1.6;
+  font-size: 0.8125rem;
+  line-height: 1.55;
   text-wrap: pretty;
 }
 
 .doc-callout-action {
+  grid-column: 2;
   display: inline-flex;
   align-items: center;
   justify-self: start;
-  gap: 0.5rem;
-  min-height: 2rem;
+  gap: 0.35rem;
+  min-height: 1.75rem;
   color: var(--felt);
-  font-size: 0.8125rem;
-  font-weight: 750;
+  font-size: 0.75rem;
+  font-weight: 650;
   line-height: 1.5;
   text-decoration: none;
 }
@@ -169,8 +175,8 @@
 }
 
 .doc-heading {
-  margin-bottom: 2rem;
-  padding-bottom: 1.75rem;
+  margin-bottom: 1.75rem;
+  padding-bottom: 1.5rem;
   border-bottom: 1px solid var(--line);
 }
 
@@ -198,7 +204,7 @@
 .doc-heading h1 {
   margin: 0;
   color: var(--ink);
-  font: 750 clamp(2rem, 3.5vw, 2.875rem)/1.15 var(--display);
+  font: 750 clamp(2rem, 3.25vw, 2.625rem)/1.15 var(--display);
   letter-spacing: -0.045em;
   overflow-wrap: anywhere;
   text-wrap: balance;
@@ -206,9 +212,9 @@
 
 .doc-description {
   max-width: 60ch;
-  margin: 1rem 0 0;
+  margin: 0.8rem 0 0;
   color: var(--muted);
-  font-size: 1.0625rem;
+  font-size: 1rem;
   line-height: 1.65;
   text-wrap: pretty;
 }
@@ -217,8 +223,8 @@
   display: flex;
   align-items: center;
   flex-wrap: wrap;
-  gap: 0.75rem 1rem;
-  margin-top: 1.5rem;
+  gap: 0.5rem;
+  margin-top: 1.15rem;
 }
 
 .copy-page-button,
@@ -227,7 +233,7 @@
   align-items: center;
   justify-content: center;
   gap: 0.5rem;
-  min-height: 2.5rem;
+  min-height: 2.25rem;
   max-width: 100%;
   color: var(--muted);
   font: 600 0.8125rem/1.4 var(--body);
@@ -391,9 +397,7 @@
 }
 
 .prose a.external-link {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.2rem;
+  display: inline;
 }
 
 .prose td a.external-link,
@@ -417,6 +421,10 @@
 }
 
 .prose pre {
+  position: relative;
+  padding: 1rem 1.1rem 3rem;
+  border: 1px solid var(--line);
+  border-radius: 0.75rem;
   min-width: 0;
   max-width: 100%;
   margin-block: 1.5rem;
@@ -550,7 +558,7 @@
 
 .docs-rail {
   display: grid;
-  gap: 2rem;
+  gap: 1.5rem;
 }
 
 .docs-toc-title {
@@ -569,8 +577,9 @@
 .toc-link {
   display: block;
   min-width: 0;
-  padding: 0.45rem 0.85rem;
-  border-left: 2px solid var(--line);
+  padding: 0.425rem 0.6rem;
+  border: 0;
+  border-radius: 0.4rem;
   color: var(--muted);
   font-size: 0.8125rem;
   line-height: 1.5;
@@ -579,7 +588,7 @@
 }
 
 .toc-link.toc-nested {
-  padding-left: 1.4rem;
+  padding-left: 1.15rem;
 }
 
 .toc-link:hover {
@@ -587,7 +596,6 @@
 }
 
 .toc-link[aria-current="true"] {
-  border-left-color: var(--felt);
   background: var(--soft);
   color: var(--felt);
   font-weight: 700;
@@ -601,10 +609,6 @@
 }
 
 @media (max-width: 1180px) {
-  .docs-shell {
-    grid-template-columns: 14.5rem minmax(0, 1fr);
-  }
-
   .docs-sidebar {
     grid-row: 1 / span 2;
   }
@@ -626,29 +630,14 @@
   }
 
   .toc-help {
-    grid-template-columns: 24px minmax(0, 1fr);
-    column-gap: 1rem;
-  }
-
-  .toc-help .doc-callout-copy,
-  .toc-help .doc-callout-action {
-    grid-column: 2;
-  }
-
-  .toc-help .doc-callout-icon {
-    align-self: start;
-  }
-
-  .toc-help .doc-callout-copy p {
-    max-width: 48ch;
+    max-width: 25rem;
   }
 }
 
 @media (max-width: 900px) {
   .docs-shell {
-    grid-template-columns: minmax(0, 1fr);
-    gap: 2rem;
-    width: min(48rem, calc(100% - 2rem));
+    grid-template-columns: var(--docs-columns);
+    gap: 1.5rem;
     padding-block: 1.25rem 3rem;
   }
 
@@ -679,22 +668,8 @@
   }
 
   .sidebar-agent {
-    grid-template-columns: 24px minmax(0, 1fr);
-    column-gap: 1rem;
-    margin-block: 1.5rem 0.5rem;
-  }
-
-  .sidebar-agent .doc-callout-copy,
-  .sidebar-agent .doc-callout-action {
-    grid-column: 2;
-  }
-
-  .sidebar-agent .doc-callout-icon {
-    align-self: start;
-  }
-
-  .sidebar-agent .doc-callout-copy p {
-    max-width: 48ch;
+    max-width: 25rem;
+    margin-block: 1.25rem 0.25rem;
   }
 
   .docs-rail {

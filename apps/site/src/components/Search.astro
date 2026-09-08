@@ -1,8 +1,8 @@
 ---
 import { ArrowDown, ArrowUp, Search as SearchIcon, X } from "@lucide/astro";
 ---
-<button class="search-trigger" type="button" data-search-open hidden aria-label="Search documentation" aria-haspopup="dialog" aria-controls="doc-search">
-  <SearchIcon size={18} stroke-width={1.75} aria-hidden="true" /><span>Search</span><kbd>/</kbd>
+<button class="search-trigger nav-tool" type="button" data-search-open hidden aria-label="Search documentation" aria-haspopup="dialog" aria-controls="doc-search" data-tooltip="Search docs (/)">
+  <SearchIcon size={19} stroke-width={1.75} aria-hidden="true" />
 </button>
 <dialog id="doc-search" aria-labelledby="search-title">
   <div class="search-panel">

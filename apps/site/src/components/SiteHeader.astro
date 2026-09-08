@@ -1,0 +1,55 @@
+---
+import { ArrowRight, BookOpen, Bot, CodeXml, House, Menu, Palette, Play, X } from "@lucide/astro";
+import Brand from "./Brand.astro";
+import ExternalLink from "./ExternalLink.astro";
+import Search from "./Search.astro";
+import "../styles/header.css";
+
+const path = Astro.url.pathname;
+const items = [
+  { href: "/", label: "Overview", short: "Home", Icon: House, current: path === "/" },
+  { href: "/docs/getting-started/", label: "Documentation", short: "Docs", Icon: BookOpen, current: path.startsWith("/docs/") && path !== "/docs/agents/" },
+  { href: "/docs/agents/", label: "Build with an agent", short: "Agents", Icon: Bot, current: path === "/docs/agents/" },
+];
+---
+<header class="site-header">
+  <div class="header-inner site-frame">
+    <a class="brand-link header-brand" href="/" aria-label="Parlor home"><Brand /></a>
+    <nav class="header-nav" aria-label="Main navigation">
+      {items.map(({ href, label, short, Icon, current }) => (
+        <a
+          href={href}
+          class:list={["header-nav-item", { "is-current": current }]}
+          aria-label={current ? `${short} — ${label}` : label}
+          aria-current={current ? "true" : undefined}
+          data-tooltip={current ? undefined : label}
+        >
+          <Icon size={18} stroke-width={1.75} aria-hidden="true" />
+          {current && <span>{short}</span>}
+        </a>
+      ))}
+    </nav>
+    <div class="header-actions">
+      <ExternalLink class="nav-tool header-source" href="https://github.com/misty-step/parlor" label="GitHub source" tooltip="GitHub (new tab)">
+        <CodeXml size={19} stroke-width={1.75} aria-hidden="true" />
+      </ExternalLink>
+      <Search />
+      <span class="header-divider" aria-hidden="true"></span>
+      <a class="header-start" href="/docs/first-game/">Start building <ArrowRight size={15} stroke-width={1.75} aria-hidden="true" /></a>
+      <details class="mobile-menu">
+        <summary class="nav-tool" aria-label="Navigation menu">
+          <Menu class="menu-open-icon" size={20} stroke-width={1.75} aria-hidden="true" />
+          <X class="menu-close-icon" size={20} stroke-width={1.75} aria-hidden="true" />
+        </summary>
+        <nav aria-label="Mobile navigation">
+          {items.map(({ href, label, Icon, current }) => (
+            <a href={href} aria-current={current ? "page" : undefined}><Icon size={18} stroke-width={1.75} aria-hidden="true" /><span>{label}</span></a>
+          ))}
+          <a href="/docs/first-game/"><Play size={18} stroke-width={1.75} aria-hidden="true" /><span>Run First Tap</span></a>
+          <a href="/design/"><Palette size={18} stroke-width={1.75} aria-hidden="true" /><span>Design kit</span></a>
+          <ExternalLink href="https://github.com/misty-step/parlor"><CodeXml size={18} stroke-width={1.75} aria-hidden="true" />GitHub</ExternalLink>
+        </nav>
+      </details>
+    </div>
+  </div>
+</header>

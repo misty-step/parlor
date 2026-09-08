@@ -1,11 +1,11 @@
 ---
 import "@fontsource-variable/dm-sans/wght.css";
 import "@fontsource-variable/manrope/wght.css";
-import { ArrowUpRight, Copy, Menu } from "@lucide/astro";
+import { ArrowUpRight, Copy } from "@lucide/astro";
 import "../styles/global.css";
 import Brand from "../components/Brand.astro";
 import ExternalLink from "../components/ExternalLink.astro";
-import Search from "../components/Search.astro";
+import SiteHeader from "../components/SiteHeader.astro";
 import project from "../../../../package.json";
 
 interface Props {
@@ -47,32 +47,10 @@ const canonical = new URL(Astro.url.pathname, Astro.site);
   </head>
   <body class:list={[{ "docs-page": isDocs }]}>
     <a class="skip-link" href="#main">Skip to content</a>
-    <header class="site-header">
-      <div class="header-inner">
-        <a class="brand-link" href="/" aria-label="Parlor home"><Brand /></a>
-        <nav class="desktop-nav" aria-label="Main navigation">
-          <a href="/docs/getting-started/" aria-current={isDocs ? "true" : undefined}>Documentation</a>
-          <ExternalLink href="https://github.com/misty-step/parlor">GitHub</ExternalLink>
-        </nav>
-        <div class="header-actions">
-          <Search />
-          <a class="button button-small header-cta" href="/docs/first-game/">Get started</a>
-          <details class="mobile-menu">
-            <summary>Menu <Menu size={18} stroke-width={1.75} aria-hidden="true" /></summary>
-            <nav aria-label="Mobile navigation">
-              <a href="/docs/getting-started/">Documentation</a>
-              <a href="/docs/first-game/">First Tap</a>
-              <a href="/docs/agents/">For agents</a>
-              <a href="/design/">Design kit</a>
-              <ExternalLink href="https://github.com/misty-step/parlor">GitHub</ExternalLink>
-            </nav>
-          </details>
-        </div>
-      </div>
-    </header>
+    <SiteHeader />
     <slot />
     <footer class="site-footer">
-      <div class="container footer-inner">
+      <div class="container footer-inner site-frame">
         <div class="footer-brand">
           <a class="brand-link" href="/" aria-label="Parlor home"><Brand /></a>
           <p>For games that bring<br />people together.</p>
@@ -101,7 +79,7 @@ const canonical = new URL(Astro.url.pathname, Astro.site);
           <ExternalLink href="https://mistystep.io">Meet Misty Step</ExternalLink>
         </div>
       </div>
-      <div class="container footer-bottom">
+      <div class="container footer-bottom site-frame">
         <span>© {new Date().getFullYear()} <a href="https://mistystep.io" target="_blank" rel="noopener noreferrer" class="plain-ext-link">Misty Step</a></span>
         <a href="/llms.txt">Documentation for agents</a>
         <ExternalLink href="https://poppycock.mistystep.io">Prefer to play? Try Poppycock.</ExternalLink>

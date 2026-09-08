@@ -33,12 +33,12 @@ const next = docs[current + 1];
 const toc = headings.filter((heading) => heading.depth === 2 || heading.depth === 3);
 ---
 <Base title={`${entry.data.title} — Parlor docs`} description={entry.data.description} isDocs>
-  <div class="docs-shell">
+  <div class="docs-shell site-frame">
     <aside class="docs-sidebar" aria-label="Documentation navigation">
       <div class="docs-home">
         <a href="/docs/getting-started/">
           <BookOpen size={20} stroke-width={1.75} aria-hidden="true" />
-          The handbook
+          Handbook
         </a>
         <span class="docs-version">v{project.version}</span>
       </div>
@@ -66,12 +66,12 @@ const toc = headings.filter((heading) => heading.depth === 2 || heading.depth ==
         <DocCallout
           class="sidebar-agent"
           id="agent-guide-title"
-          title="Build with an agent"
-          description="Give your coding agent the right Parlor context."
+          title="Agent guide"
+          description="Parlor conventions for your coding agent."
           href="/docs/agents/"
-          action="Read the agent guide"
+          action="Read the guide"
         >
-          <CodeXml slot="icon" size={24} stroke-width={1.75} aria-hidden="true" />
+          <CodeXml slot="icon" size={19} stroke-width={1.75} aria-hidden="true" />
         </DocCallout>
       </details>
     </aside>
@@ -90,10 +90,11 @@ const toc = headings.filter((heading) => heading.depth === 2 || heading.depth ==
             type="button"
             class="copy-page-button"
             data-copy-page={`/docs/${entry.id}.md`}
+            aria-label="Copy page as Markdown"
             hidden
           >
             <Copy size={16} stroke-width={1.75} aria-hidden="true" />
-            <span data-copy-label>Copy page for your agent</span>
+            <span data-copy-label>Copy page</span>
           </button>
           <a class="doc-markdown-link" href={`/docs/${entry.id}.md`}>
             <FileCode size={16} stroke-width={1.75} aria-hidden="true" />
@@ -179,12 +180,12 @@ const toc = headings.filter((heading) => heading.depth === 2 || heading.depth ==
         class="toc-help"
         id="docs-help-title"
         title="Need a hand?"
-        description="Ask a question or tell us what’s not working."
+        description="Questions and ideas are welcome."
         href="https://github.com/misty-step/parlor/issues"
         action="Ask on GitHub"
         external
       >
-        <CircleQuestionMark slot="icon" size={24} stroke-width={1.75} aria-hidden="true" />
+        <CircleQuestionMark slot="icon" size={19} stroke-width={1.75} aria-hidden="true" />
       </DocCallout>
     </aside>
   </div>

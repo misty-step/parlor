@@ -1,0 +1,321 @@
+.site-frame {
+  width: min(var(--frame-width), calc(100% - 2 * var(--frame-gutter)));
+  margin-inline: auto;
+}
+
+.docs-page {
+  --frame-width: var(--docs-width);
+  --frame-gutter: 2rem;
+}
+
+.site-header {
+  position: sticky;
+  top: 0;
+  z-index: 30;
+  border-bottom: 1px solid var(--line);
+  background: color-mix(in srgb, var(--cream) 96%, transparent);
+  backdrop-filter: blur(12px);
+}
+
+.header-inner {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  column-gap: 2.5rem;
+  min-height: var(--header-height);
+}
+
+.docs-page .header-inner {
+  grid-template-columns: var(--docs-columns);
+  column-gap: var(--column-gap);
+}
+
+.header-brand {
+  justify-self: start;
+  min-height: 2.5rem;
+}
+
+.header-brand .brand {
+  font-size: 1.625rem;
+}
+
+.header-brand .brand-mark {
+  width: 28px;
+  height: 28px;
+}
+
+.header-nav {
+  display: inline-flex;
+  justify-self: start;
+  align-items: center;
+  gap: 0.125rem;
+  padding: 0.1875rem;
+  border: 1px solid #e6eaf2;
+  border-radius: 0.75rem;
+  background: #f3f5fa;
+}
+
+.header-nav-item {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-width: 36px;
+  min-height: 34px;
+  padding: 6px 8px;
+  border-radius: 0.5rem;
+  color: var(--muted);
+  text-decoration: none;
+  font: 650 0.8125rem/1 var(--body);
+  transition:
+    background-color 120ms ease,
+    color 120ms ease;
+}
+
+.header-nav-item.is-current {
+  padding-inline: 10px;
+  color: var(--felt-deep);
+  background: var(--cream);
+  box-shadow: 0 1px 3px #20304a14;
+}
+
+.header-nav-item:hover {
+  color: var(--felt);
+  background: var(--cream);
+}
+
+.header-actions {
+  display: flex;
+  justify-self: end;
+  align-items: center;
+  gap: 0.375rem;
+}
+
+.nav-tool {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border: 0;
+  border-radius: 0.55rem;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  text-decoration: none;
+  transition:
+    background-color 120ms ease,
+    color 120ms ease;
+}
+
+.nav-tool:hover {
+  background: var(--soft);
+  color: var(--felt);
+}
+
+.header-source .external-link__icon {
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  top: 2px;
+  right: 1px;
+  opacity: 0.75;
+  background: var(--cream);
+}
+
+.header-divider {
+  height: 1.25rem;
+  width: 1px;
+  margin-inline: 0.125rem;
+  background: var(--line);
+}
+
+.header-start {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  min-height: 2.25rem;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--felt);
+  border-radius: 0.55rem;
+  background: var(--felt);
+  color: var(--cream);
+  font: 650 0.8125rem/1 var(--body);
+  white-space: nowrap;
+  text-decoration: none;
+  transition:
+    background-color 120ms ease,
+    border-color 120ms ease;
+}
+
+.header-start:hover {
+  background: var(--felt-deep);
+  border-color: var(--felt-deep);
+  color: var(--cream);
+}
+
+.site-header [data-tooltip]::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  top: calc(100% + 0.6rem);
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 2;
+  width: max-content;
+  max-width: 14rem;
+  padding: 0.45rem 0.65rem;
+  border-radius: 0.4rem;
+  background: var(--ink);
+  color: var(--cream);
+  font: 500 0.75rem/1.4 var(--body);
+  box-shadow: 0 3px 12px #20304a18;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.header-actions [data-tooltip]::after {
+  left: auto;
+  right: 0;
+  transform: none;
+  max-width: min(14rem, calc(100vw - 2rem));
+}
+
+.site-header [data-tooltip]:is(:hover, :focus-visible)::after {
+  opacity: 1;
+  visibility: visible;
+}
+
+.site-header .tooltip-dismissed::after {
+  display: none;
+}
+
+.mobile-menu {
+  position: relative;
+  display: none;
+}
+
+.mobile-menu > summary {
+  list-style: none;
+}
+
+.mobile-menu > summary::-webkit-details-marker {
+  display: none;
+}
+
+.menu-close-icon,
+.mobile-menu[open] .menu-open-icon {
+  display: none;
+}
+
+.mobile-menu[open] .menu-close-icon {
+  display: block;
+}
+
+.mobile-menu > nav {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 0.65rem);
+  display: grid;
+  gap: 0.2rem;
+  width: min(17rem, calc(100vw - 32px));
+  padding: 0.5rem;
+  border: 1px solid var(--line);
+  border-radius: 0.9rem;
+  background: var(--cream);
+  box-shadow: 0 12px 30px #20304a14;
+}
+
+.mobile-menu nav a {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  min-height: 2.75rem;
+  padding: 0.65rem 0.75rem;
+  border-radius: 0.5rem;
+  color: var(--muted);
+  font-size: 0.9rem;
+  text-decoration: none;
+}
+
+.mobile-menu nav a:is(:hover, [aria-current]) {
+  background: var(--soft);
+  color: var(--felt-deep);
+}
+
+.mobile-menu nav .external-link__icon {
+  margin-left: auto;
+}
+
+.site-header svg {
+  flex: 0 0 auto;
+}
+
+@media (max-width: 1280px) {
+  .header-start,
+  .header-divider {
+    display: none;
+  }
+}
+
+@media (max-width: 1180px) {
+  .docs-page {
+    --docs-columns: var(--sidebar-width) minmax(0, 1fr);
+  }
+  .docs-page .header-inner {
+    grid-template-columns: var(--sidebar-width) minmax(0, 1fr) auto;
+  }
+}
+
+@media (max-width: 900px) {
+  .docs-page {
+    --docs-columns: minmax(0, 1fr);
+    --frame-gutter: 1.5rem;
+  }
+  .header-inner,
+  .docs-page .header-inner {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    column-gap: 1.25rem;
+  }
+  .header-nav {
+    justify-self: center;
+  }
+}
+
+@media (max-width: 540px) {
+  :root,
+  .docs-page {
+    --frame-gutter: 16px;
+  }
+  .header-inner,
+  .docs-page .header-inner {
+    grid-template-columns: auto 1fr;
+    column-gap: 12px;
+  }
+  .header-nav,
+  .header-source {
+    display: none;
+  }
+  .mobile-menu {
+    display: block;
+  }
+  .nav-tool {
+    width: 44px;
+    height: 44px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .header-nav-item,
+  .nav-tool,
+  .header-start {
+    transition: none;
+  }
+}

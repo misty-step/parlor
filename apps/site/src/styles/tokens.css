@@ -19,4 +19,12 @@
   --shadow: 0 12px 35px #2436650c;
   --content-width: 1200px;
   --icon-stroke: 1.75;
+  --header-height: 4rem;
+  --frame-width: var(--content-width);
+  --frame-gutter: 1.5rem;
+  --docs-width: 1400px;
+  --sidebar-width: 14rem;
+  --rail-width: 13rem;
+  --column-gap: 32px;
+  --docs-columns: var(--sidebar-width) minmax(0, 1fr) var(--rail-width);
 }
