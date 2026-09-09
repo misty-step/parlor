@@ -87,6 +87,7 @@ export const parlorTables = {
     seatIndex: v.number(),
   })
     .index("by_match", ["matchId"])
+    .index("by_player", ["playerId"])
     .index("by_match_player", ["matchId", "playerId"])
     .index("by_match_seat", ["matchId", "seatIndex"]),
 } as const;

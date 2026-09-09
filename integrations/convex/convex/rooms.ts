@@ -19,6 +19,7 @@ import {
   parlorError,
   type ConvexCtx,
   type ConvexMutationCtx,
+  type MatchEnvelope,
   type PlayerActor,
   type PlayerId,
   type RoomDoc,
@@ -244,9 +245,10 @@ const recordJoinAttempt = async (
   return true;
 };
 
-const closeRoomAt = async (
+/** Trusted canonical closure for already-authorized abandonment callbacks. */
+export const closeRoomAt = async (
   ctx: ConvexMutationCtx,
-  room: RoomDoc,
+  room: Pick<RoomDoc, "_id">,
   closedAt: number,
 ): Promise<void> => {
   const members = await listRoomMembers(ctx, room._id);
@@ -258,6 +260,55 @@ const closeRoomAt = async (
 };
 
 /** Create an open room and its host membership in one transaction. */
+export const createRoomForPlayer = async (
+  ctx: ConvexMutationCtx,
+  input: {
+    readonly actor: PlayerActor;
+    readonly displayName: string;
+    readonly normalizeName?: (value: string) => string | null;
+    readonly isCodeAvailable?: (code: string) => boolean | PromiseLike<boolean>;
+  },
+): Promise<Omit<JoinRoomSuccess, "ok">> => {
+  const displayName =
+    (input.normalizeName ?? normalizeDisplayName)(input.displayName) ??
+    parlorError("INVALID_DISPLAY_NAME");
+  const { actor } = input;
+  const openRooms = await listOpenRoomsForHost(ctx, actor.playerId, MAX_OPEN_ROOMS_PER_PLAYER + 1);
+  if (openRooms.length >= MAX_OPEN_ROOMS_PER_PLAYER) {
+    parlorError("ROOM_CREATION_RATE_LIMIT");
+  }
+  const memberships = await listOpenMembershipsForPlayer(
+    ctx,
+    actor.playerId,
+    MAX_OPEN_MEMBERSHIPS_PER_PLAYER,
+  );
+  if (memberships.length >= MAX_OPEN_MEMBERSHIPS_PER_PLAYER) {
+    parlorError("ROOM_CREATION_RATE_LIMIT");
+  }
+  const now = safeNow();
+  for (let attempt = 0; attempt < MAX_ROOM_CODE_ATTEMPTS; attempt += 1) {
+    const code = generateRoomCode();
+    const existing = await findOpenRoomByCode(ctx, code);
+    if (existing || (input.isCodeAvailable && !(await input.isCodeAvailable(code)))) continue;
+    const roomId = await ctx.db.insert("rooms", {
+      code,
+      hostPlayerId: actor.playerId,
+      createdAt: now,
+    });
+    await ctx.db.insert("roomMembers", {
+      roomId,
+      playerId: actor.playerId,
+      displayName,
+      seatIndex: 0,
+      joinedAt: now,
+      eligibleFromCycle: 1,
+    });
+    return roomResult(roomId, actor, code, 0, 1);
+  }
+  return parlorError("ROOM_CODE_EXHAUSTED");
+};
+
+/** Registered room creation with server-resolved identity. */
 export const createRoom = mutationGeneric({
   args: {
     displayName: v.string(),
@@ -268,47 +319,81 @@ export const createRoom = mutationGeneric({
     const displayName =
       normalizeDisplayName(args.displayName) ?? parlorError("INVALID_DISPLAY_NAME");
     const actor = await ensurePlayer(ctx, args.guestToken);
-    const openRooms = await listOpenRoomsForHost(
-      ctx,
-      actor.playerId,
-      MAX_OPEN_ROOMS_PER_PLAYER + 1,
-    );
-    if (openRooms.length >= MAX_OPEN_ROOMS_PER_PLAYER) {
-      parlorError("ROOM_CREATION_RATE_LIMIT");
-    }
-    const memberships = await listOpenMembershipsForPlayer(
-      ctx,
-      actor.playerId,
-      MAX_OPEN_MEMBERSHIPS_PER_PLAYER,
-    );
-    if (memberships.length >= MAX_OPEN_MEMBERSHIPS_PER_PLAYER) {
-      parlorError("ROOM_CREATION_RATE_LIMIT");
-    }
-    const now = safeNow();
-    for (let attempt = 0; attempt < MAX_ROOM_CODE_ATTEMPTS; attempt += 1) {
-      const code = generateRoomCode();
-      const existing = await findOpenRoomByCode(ctx, code);
-      if (existing) continue;
-      const roomId = await ctx.db.insert("rooms", {
-        code,
-        hostPlayerId: actor.playerId,
-        createdAt: now,
-      });
-      await ctx.db.insert("roomMembers", {
-        roomId,
-        playerId: actor.playerId,
-        displayName,
-        seatIndex: 0,
-        joinedAt: now,
-        eligibleFromCycle: 1,
-      });
-      return roomResult(roomId, actor, code, 0, 1);
-    }
-    return parlorError("ROOM_CODE_EXHAUSTED");
+    return createRoomForPlayer(ctx, { actor, displayName });
   },
 });
 
 /** Join a room, preserving an existing membership and seat on retries. */
+export const joinRoomForPlayer = async (
+  ctx: ConvexMutationCtx,
+  input: {
+    readonly actor: PlayerActor;
+    readonly code: string;
+    readonly displayName: string;
+    readonly normalizeName?: (value: string) => string | null;
+    readonly capacity?: number;
+  },
+): Promise<JoinRoomResult> => {
+  const displayName = (input.normalizeName ?? normalizeDisplayName)(input.displayName);
+  if (displayName === null) return joinRoomFailure("INVALID_DISPLAY_NAME");
+  const { actor } = input;
+  const code = normalizeRoomCode(input.code);
+  if (code === null) {
+    const allowed = await recordJoinAttempt(ctx, actor.playerId, safeNow());
+    return joinRoomFailure(allowed ? "INVALID_ROOM_CODE" : "ROOM_JOIN_RATE_LIMIT");
+  }
+  const room = await findOpenRoomByCode(ctx, code);
+  const existing = room ? await findMember(ctx, room._id, actor.playerId) : null;
+  if (existing && room) {
+    if (existing.displayName !== displayName) {
+      await ctx.db.patch(existing._id, { displayName });
+    }
+    return joinRoomSuccess(
+      room._id,
+      actor,
+      room.code,
+      existing.seatIndex,
+      existing.eligibleFromCycle,
+    );
+  }
+  const capacity = input.capacity ?? MAX_ROOM_MEMBERS;
+  if (!Number.isSafeInteger(capacity) || capacity < 1 || capacity > MAX_ROOM_MEMBERS) {
+    parlorError("ROOM_CAPACITY_INVALID");
+  }
+  const allowed = await recordJoinAttempt(ctx, actor.playerId, safeNow());
+  if (!allowed) return joinRoomFailure("ROOM_JOIN_RATE_LIMIT");
+  if (!room) return joinRoomFailure("ROOM_NOT_OPEN");
+  const memberships = await listOpenMembershipsForPlayer(
+    ctx,
+    actor.playerId,
+    MAX_OPEN_MEMBERSHIPS_PER_PLAYER,
+  );
+  if (memberships.length >= MAX_OPEN_MEMBERSHIPS_PER_PLAYER) {
+    return joinRoomFailure("ROOM_JOIN_RATE_LIMIT");
+  }
+  const members = await listRoomMembers(ctx, room._id);
+  if (members.length > MAX_ROOM_MEMBERS) return joinRoomFailure("ROOM_DATA_INVALID");
+  const allocation = allocateSeat(members.map((member) => member.seatIndex));
+  if (!allocation.ok) {
+    return joinRoomFailure(
+      allocation.error._tag === "RoomFull" ? "ROOM_FULL" : "ROOM_DATA_INVALID",
+    );
+  }
+  if (members.length >= capacity) return joinRoomFailure("ROOM_FULL");
+  const seatIndex = allocation.value;
+  const eligibleFromCycle = await nextCycleForRoom(ctx, room._id);
+  await ctx.db.insert("roomMembers", {
+    roomId: room._id,
+    playerId: actor.playerId,
+    displayName,
+    seatIndex,
+    joinedAt: safeNow(),
+    eligibleFromCycle,
+  });
+  return joinRoomSuccess(room._id, actor, room.code, seatIndex, eligibleFromCycle);
+};
+
+/** Registered room admission; failure receipts commit join-attempt accounting. */
 export const joinRoom = mutationGeneric({
   args: {
     code: v.string(),
@@ -320,59 +405,67 @@ export const joinRoom = mutationGeneric({
     const displayName = normalizeDisplayName(args.displayName);
     if (displayName === null) return joinRoomFailure("INVALID_DISPLAY_NAME");
     const actor = await ensurePlayer(ctx, args.guestToken);
-    const code = normalizeRoomCode(args.code);
-    if (code === null) {
-      const allowed = await recordJoinAttempt(ctx, actor.playerId, safeNow());
-      return joinRoomFailure(allowed ? "INVALID_ROOM_CODE" : "ROOM_JOIN_RATE_LIMIT");
-    }
-    const room = await findOpenRoomByCode(ctx, code);
-    const existing = room ? await findMember(ctx, room._id, actor.playerId) : null;
-    if (existing && room) {
-      if (existing.displayName !== displayName) {
-        await ctx.db.patch(existing._id, { displayName });
-      }
-      return joinRoomSuccess(
-        room._id,
-        actor,
-        room.code,
-        existing.seatIndex,
-        existing.eligibleFromCycle,
-      );
-    }
-    const allowed = await recordJoinAttempt(ctx, actor.playerId, safeNow());
-    if (!allowed) return joinRoomFailure("ROOM_JOIN_RATE_LIMIT");
-    if (!room) return joinRoomFailure("ROOM_NOT_OPEN");
-    const memberships = await listOpenMembershipsForPlayer(
-      ctx,
-      actor.playerId,
-      MAX_OPEN_MEMBERSHIPS_PER_PLAYER,
-    );
-    if (memberships.length >= MAX_OPEN_MEMBERSHIPS_PER_PLAYER) {
-      return joinRoomFailure("ROOM_JOIN_RATE_LIMIT");
-    }
-    const members = await listRoomMembers(ctx, room._id);
-    if (members.length > MAX_ROOM_MEMBERS) return joinRoomFailure("ROOM_DATA_INVALID");
-    const allocation = allocateSeat(members.map((member) => member.seatIndex));
-    if (!allocation.ok) {
-      return joinRoomFailure(
-        allocation.error._tag === "RoomFull" ? "ROOM_FULL" : "ROOM_DATA_INVALID",
-      );
-    }
-    const seatIndex = allocation.value;
-    const eligibleFromCycle = await nextCycleForRoom(ctx, room._id);
-    await ctx.db.insert("roomMembers", {
-      roomId: room._id,
-      playerId: actor.playerId,
-      displayName,
-      seatIndex,
-      joinedAt: safeNow(),
-      eligibleFromCycle,
-    });
-    return joinRoomSuccess(room._id, actor, room.code, seatIndex, eligibleFromCycle);
+    return joinRoomForPlayer(ctx, { actor, code: args.code, displayName });
   },
 });
 
 /** Leave a room and deterministically migrate a stale/departed host. */
+export const leaveRoomForPlayer = async (
+  ctx: ConvexMutationCtx,
+  input: {
+    readonly actor: PlayerActor;
+    readonly roomId: RoomId;
+    readonly onAbandoned?: (envelope: MatchEnvelope) => void | PromiseLike<void>;
+  },
+): Promise<null> => {
+  const { actor, roomId } = input;
+  const room = (await findRoom(ctx, roomId)) ?? parlorError("ROOM_NOT_FOUND");
+  const member =
+    (await findMember(ctx, roomId, actor.playerId)) ?? parlorError("NOT_A_ROOM_MEMBER");
+  await ctx.db.delete(member._id);
+  const members = await listRoomMembers(ctx, roomId);
+  if (room.closedAt !== undefined) return null;
+  const now = safeNow();
+  const active = await findActiveMatch(ctx, roomId);
+  const activeParticipants = active ? await listMatchParticipants(ctx, active._id) : undefined;
+  if (members.length === 0) {
+    if (active) {
+      const abandoned = await abandonMatch(ctx, {
+        matchId: active._id,
+        reason: "everyone-away",
+        nowMs: now,
+      });
+      await input.onAbandoned?.(abandoned);
+    }
+    await closeRoomAt(ctx, room, now);
+    return null;
+  }
+  if (
+    active &&
+    activeParticipants &&
+    !activeParticipants.some((participant) =>
+      members.some((candidate) => candidate.playerId === participant.playerId),
+    )
+  ) {
+    const abandoned = await abandonMatch(ctx, {
+      matchId: active._id,
+      reason: "everyone-away",
+      nowMs: now,
+    });
+    await input.onAbandoned?.(abandoned);
+    await selfHealHost(ctx, { room, members, now });
+    return null;
+  }
+  await selfHealHost(ctx, {
+    room,
+    members,
+    now,
+    ...(activeParticipants === undefined ? {} : { activeParticipants }),
+  });
+  return null;
+};
+
+/** Registered room departure with server-resolved identity. */
 export const leaveRoom = mutationGeneric({
   args: {
     roomId: v.id("rooms"),
@@ -381,52 +474,40 @@ export const leaveRoom = mutationGeneric({
   returns: v.null(),
   handler: async (ctx, args) => {
     const actor = await resolvePlayer(ctx, args.guestToken);
-    const room = (await findRoom(ctx, args.roomId)) ?? parlorError("ROOM_NOT_FOUND");
-    const member =
-      (await findMember(ctx, args.roomId, actor.playerId)) ?? parlorError("NOT_A_ROOM_MEMBER");
-    await ctx.db.delete(member._id);
-    const members = await listRoomMembers(ctx, args.roomId);
-    if (room.closedAt !== undefined) return null;
-    const now = safeNow();
-    const active = await findActiveMatch(ctx, args.roomId);
-    const activeParticipants = active ? await listMatchParticipants(ctx, active._id) : undefined;
-    if (members.length === 0) {
-      if (active) {
-        await abandonMatch(ctx, {
-          matchId: active._id,
-          reason: "everyone-away",
-          nowMs: now,
-        });
-      }
-      await closeRoomAt(ctx, room, now);
-      return null;
-    }
-    if (
-      active &&
-      activeParticipants &&
-      !activeParticipants.some((participant) =>
-        members.some((candidate) => candidate.playerId === participant.playerId),
-      )
-    ) {
-      await abandonMatch(ctx, {
-        matchId: active._id,
-        reason: "everyone-away",
-        nowMs: now,
-      });
-      await selfHealHost(ctx, { room, members, now });
-      return null;
-    }
-    await selfHealHost(ctx, {
-      room,
-      members,
-      now,
-      ...(activeParticipants === undefined ? {} : { activeParticipants }),
-    });
-    return null;
+    return leaveRoomForPlayer(ctx, { actor, roomId: args.roomId });
   },
 });
 
 /** Close a room; a host-ended active match is abandoned atomically first. */
+export const closeRoomForPlayer = async (
+  ctx: ConvexMutationCtx,
+  input: {
+    readonly actor: PlayerActor;
+    readonly roomId: RoomId;
+    readonly onAbandoned?: (envelope: MatchEnvelope) => void | PromiseLike<void>;
+  },
+): Promise<null> => {
+  const { actor, roomId } = input;
+  const room = (await findRoom(ctx, roomId)) ?? parlorError("ROOM_NOT_FOUND");
+  if (room.hostPlayerId !== actor.playerId) parlorError("HOST_REQUIRED");
+  if (!(await findMember(ctx, roomId, actor.playerId))) parlorError("NOT_A_ROOM_MEMBER");
+  if (room.closedAt !== undefined) parlorError("ROOM_CLOSED");
+  const now = safeNow();
+  const active = await findActiveMatch(ctx, room._id);
+  if (active) {
+    const abandoned = await abandonMatch(ctx, {
+      matchId: active._id,
+      actor,
+      reason: "host-ended",
+      nowMs: now,
+    });
+    await input.onAbandoned?.(abandoned);
+  }
+  await closeRoomAt(ctx, room, now);
+  return null;
+};
+
+/** Registered host-only closure with server-resolved identity. */
 export const closeRoom = mutationGeneric({
   args: {
     roomId: v.id("rooms"),
@@ -435,22 +516,7 @@ export const closeRoom = mutationGeneric({
   returns: v.null(),
   handler: async (ctx, args) => {
     const actor = await resolvePlayer(ctx, args.guestToken);
-    const room = (await findRoom(ctx, args.roomId)) ?? parlorError("ROOM_NOT_FOUND");
-    if (room.hostPlayerId !== actor.playerId) parlorError("HOST_REQUIRED");
-    if (!(await findMember(ctx, args.roomId, actor.playerId))) parlorError("NOT_A_ROOM_MEMBER");
-    if (room.closedAt !== undefined) parlorError("ROOM_CLOSED");
-    const now = safeNow();
-    const active = await findActiveMatch(ctx, room._id);
-    if (active) {
-      await abandonMatch(ctx, {
-        matchId: active._id,
-        actor,
-        reason: "host-ended",
-        nowMs: now,
-      });
-    }
-    await closeRoomAt(ctx, room, now);
-    return null;
+    return closeRoomForPlayer(ctx, { actor, roomId: args.roomId });
   },
 });
 

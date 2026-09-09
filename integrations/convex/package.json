@@ -13,7 +13,8 @@
     "./rooms": "./dist/convex/rooms.js",
     "./matches": "./dist/convex/matches.js",
     "./presence": "./dist/convex/presence.js",
-    "./abandonment": "./dist/convex/abandonment.js"
+    "./abandonment": "./dist/convex/abandonment.js",
+    "./helpers": "./dist/convex/helpers.js"
   },
   "scripts": {
     "build": "tsc -p tsconfig.json"
@@ -21,12 +22,14 @@
   "dependencies": {
     "@parlor/auth": "workspace:*",
     "@parlor/core": "workspace:*",
-    "convex": "1.45.0",
     "effect": "3.22.1"
   },
   "devDependencies": {
     "@edge-runtime/vm": "5.0.0",
     "convex-test": "0.0.56",
     "vitest": "5.0.0"
+  },
+  "peerDependencies": {
+    "convex": "^1.42.3"
   }
 }

@@ -21,10 +21,12 @@ node scripts/import-skill.mjs --target /path/to/game
 
 It reads the game's `vendor/parlor` Git revision or copied-source `vendor/parlor/UPSTREAM.json` commit and imports the skill from that exact revision. For a copied tree, that commit must be available in the importing Parlor checkout's local Git objects. A missing commit or skill is an error: obtain and review the pinned source separately, never substitute the website's latest skill. No network request, package installation, source-pin update, backend operation, or global write occurs.
 
+For an authorized but uncommitted copied source, `UPSTREAM.json` may explicitly use `origin: "working-tree"`. Its `commit` is then the base revision, not a released pin. Record every copied source file's SHA-256 in `files`, plus `reference: { path: "skills/parlor/SKILL.md", sha256 }` for the reviewed owner skill. The importer checks those installed files and accepts the owner's working-tree guidance only if its hash matches. Imported scope and `SOURCE.json` retain that distinction and fingerprint the provenance record. Do not fabricate a commit or create one without authorization.
+
 The local package contains:
 
 - `SKILL.md`: repository-local scope, current work ownership, and an explicit installed-versus-guidance-only boundary.
-- `reference.md`: the source skill, byte-for-byte from the selected revision.
+- `reference.md`: the source skill, byte-for-byte from the selected commit or explicitly recorded owner working tree.
 - `SOURCE.json`: source revision, reference hash, framework provenance, and importer base revision/hash.
 
 For an app that has no Parlor source or `@parlor/*` dependencies, use the explicit planning mode:
@@ -47,7 +49,7 @@ After importing, reload the tool if needed and ask it to identify the file it lo
 
 The website's `/skill.md` follows the site release. Your game's package version `0.1.0` does not identify a unique API contract: Parlor is a pre-1.0 source distribution. Inspect `.agents/skills/parlor/SOURCE.json`, compare its framework revision with `vendor/parlor` Git HEAD or `UPSTREAM.json`, then read the installed export maps and signatures. Local source modifications take precedence over an older example.
 
-A copied vendor tree may retain only libraries and root build configuration, omitting the skill or examples. The importer recovers the skill from the recorded commit without changing that tree. Inside Parlor itself, work from `skills/parlor/SKILL.md`; no self-import is needed.
+A copied vendor tree may retain only libraries and root build configuration, omitting the skill or examples. For a committed pin, the importer recovers the skill from that commit without changing the tree. An uncommitted snapshot instead requires the recorded hash-matched owner guidance described above. Inside Parlor itself, work from `skills/parlor/SKILL.md`; no self-import is needed.
 
 When explicitly updating the framework, review the source pin, dependencies, lockfile, builds, and aligned skill together. The import command performs only the skill step; it cannot authorize or perform the rest. Maintain guidance in Parlor, not in derived consumer copies. A moving `master` branch, a website download, or an unrecorded local copy is not a version pin.
 

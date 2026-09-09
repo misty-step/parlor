@@ -17,6 +17,7 @@ import {
   resolvePlayer,
   sweepAbandonedMatches,
 } from "../src/index.js";
+import { resolvePlayerForIdentity, type IdentityDescriptor } from "../convex/identity.js";
 import { recordHeartbeat } from "../convex/presence.js";
 import { sweepAbandonedRef } from "../convex/maintenance.js";
 import schema from "../convex/schema.js";
@@ -197,6 +198,12 @@ describe("private Convex room and match reference integration", () => {
         guestToken: "x".repeat(4097),
       }),
     ).rejects.toThrow();
+    await expect(
+      t.withIdentity(identity("authenticated")).mutation(createRoomRef, {
+        displayName: "Authenticated",
+        guestToken: "v1.unknown.payload.signature",
+      }),
+    ).rejects.toThrow("UNAUTHENTICATED");
   });
 
   it("keeps authenticated players distinct when issuers reuse a subject", async () => {
@@ -214,6 +221,88 @@ describe("private Convex room and match reference integration", () => {
     const firstRoom = await first.mutation(createRoomRef, { displayName: "First" });
     const secondRoom = await second.mutation(createRoomRef, { displayName: "Second" });
     expect(secondRoom.playerId).not.toBe(firstRoom.playerId);
+  });
+
+  it("resolves trusted application identities durably without implicit creation", async () => {
+    const t = testContext();
+    const descriptor: IdentityDescriptor = {
+      identityKey: "linejam:user:trusted",
+      kind: "authenticated",
+    };
+    await expect(t.query((ctx) => resolvePlayerForIdentity(ctx, descriptor))).rejects.toThrow(
+      "PLAYER_NOT_FOUND",
+    );
+    await expect(
+      t.query((ctx) => resolvePlayerForIdentity(ctx, descriptor, { create: true })),
+    ).rejects.toThrow("PLAYER_NOT_FOUND");
+    const actor = await t.mutation((ctx) =>
+      resolvePlayerForIdentity(ctx, descriptor, { create: true }),
+    );
+    const resolved = await t
+      .withIdentity(identity("unrelated-auth"))
+      .query((ctx) => resolvePlayerForIdentity(ctx, descriptor));
+    expect(resolved.playerId).toBe(actor.playerId);
+    const other = await t.mutation((ctx) =>
+      resolvePlayerForIdentity(
+        ctx,
+        { identityKey: "linejam:user:other", kind: "guest" },
+        { create: true },
+      ),
+    );
+    expect(other.playerId).not.toBe(actor.playerId);
+    const guestDescriptor: IdentityDescriptor = {
+      identityKey: "app:guest:trusted-guest",
+      kind: "guest",
+      guestId: "trusted-guest",
+    };
+    const guest = await t.mutation((ctx) =>
+      resolvePlayerForIdentity(ctx, guestDescriptor, { create: true }),
+    );
+    expect(guest).toMatchObject({
+      identityKey: guestDescriptor.identityKey,
+      guestId: "trusted-guest",
+    });
+    await expect(t.query((ctx) => resolvePlayer(ctx))).rejects.toThrow("UNAUTHENTICATED");
+  });
+
+  it("rejects malformed trusted descriptors and retains only valid identity rows", async () => {
+    const t = testContext();
+    for (const descriptor of [
+      null,
+      { identityKey: " ", kind: "guest" },
+      { identityKey: "app:user", kind: "unverified" },
+      { identityKey: "app:guest", kind: "guest", guestId: "" },
+    ]) {
+      await expect(
+        t.mutation((ctx) =>
+          resolvePlayerForIdentity(ctx, descriptor as IdentityDescriptor, { create: true }),
+        ),
+      ).rejects.toThrow("PLAYER_IDENTITY_INVALID");
+    }
+    await t.mutation((ctx) =>
+      resolvePlayerForIdentity(
+        ctx,
+        { identityKey: "linejam:user:trusted", kind: "authenticated" },
+        { create: true },
+      ),
+    );
+    await t.mutation((ctx) =>
+      resolvePlayerForIdentity(
+        ctx,
+        { identityKey: "linejam:user:other", kind: "guest" },
+        { create: true },
+      ),
+    );
+    await t.mutation((ctx) =>
+      resolvePlayerForIdentity(
+        ctx,
+        { identityKey: "app:guest:trusted-guest", kind: "guest", guestId: "trusted-guest" },
+        { create: true },
+      ),
+    );
+    expect(
+      (await t.run((ctx) => ctx.db.query("players").collect())).map((p) => p.identityKey),
+    ).toEqual(["linejam:user:trusted", "linejam:user:other", "app:guest:trusted-guest"]);
   });
 
   it("generates unique codes, keeps joins idempotent, and enforces twelve seats", async () => {
@@ -478,6 +567,122 @@ describe("private Convex room and match reference integration", () => {
     await expect(
       host.authT.mutation(startMatchRef, { roomId: host.room.roomId }),
     ).rejects.toThrow();
+  });
+
+  it("allows server-authorized member rematches without weakening membership or lifecycle guards", async () => {
+    const t = testContext();
+    const host = await createRoom(t, "host");
+    const member = await joinRoom(t, host.room.code, "member");
+    const outsider = await createRoom(t, "outsider");
+    const first = await host.authT.mutation(startMatchRef, { roomId: host.room.roomId });
+    await host.authT.mutation(async (ctx) =>
+      completeMatch(ctx, { matchId: first.id, actor: await resolvePlayer(ctx) }),
+    );
+    await expect(
+      member.authT.mutation(startMatchRef, { roomId: host.room.roomId }),
+    ).rejects.toThrow("HOST_REQUIRED");
+    await expect(
+      outsider.authT.mutation(async (ctx) =>
+        beginMatch(ctx, {
+          roomId: host.room.roomId,
+          actor: await resolvePlayer(ctx),
+          authorization: "member",
+        }),
+      ),
+    ).rejects.toThrow("NOT_A_ROOM_MEMBER");
+    const next = await member.authT.mutation(async (ctx) =>
+      beginMatch(ctx, {
+        roomId: host.room.roomId,
+        actor: await resolvePlayer(ctx),
+        authorization: "member",
+      }),
+    );
+    expect(next.cycle).toBe(first.cycle + 1);
+    expect(await member.authT.query(roomStateRef, { roomId: host.room.roomId })).toMatchObject({
+      activeMatch: { id: next.id },
+    });
+    await expect(
+      member.authT.mutation(async (ctx) =>
+        beginMatch(ctx, {
+          roomId: host.room.roomId,
+          actor: await resolvePlayer(ctx),
+          authorization: "member",
+        }),
+      ),
+    ).rejects.toThrow("MATCH_ALREADY_ACTIVE");
+    await host.authT.mutation(closeRoomRef, { roomId: host.room.roomId });
+    await expect(
+      member.authT.mutation(async (ctx) =>
+        beginMatch(ctx, {
+          roomId: host.room.roomId,
+          actor: await resolvePlayer(ctx),
+          authorization: "member",
+        }),
+      ),
+    ).rejects.toThrow("ROOM_NOT_OPEN");
+  });
+
+  it("freezes all eligible members only when the server opts out of presence filtering", async () => {
+    const t = testContext();
+    const host = await createRoom(t, "host");
+    const away = await joinRoom(t, host.room.code, "away");
+    const queued = await joinRoom(t, host.room.code, "queued");
+    const now = Date.now() + ABANDON_AFTER_MS + 1;
+    await t.mutation(async (ctx) => {
+      const members = await ctx.db
+        .query("roomMembers")
+        .withIndex("by_room", (q) => q.eq("roomId", host.room.roomId))
+        .collect();
+      for (const member of members) {
+        if (member.playerId === host.room.playerId) {
+          await ctx.db.patch(member._id, { lastSeenAt: now });
+        } else if (member.playerId === queued.playerId) {
+          await ctx.db.patch(member._id, { eligibleFromCycle: 2 });
+        }
+      }
+    });
+    await expect(
+      host.authT.mutation(async (ctx) =>
+        beginMatch(ctx, {
+          roomId: host.room.roomId,
+          actor: await resolvePlayer(ctx),
+          minPlayers: 2,
+          nowMs: now,
+        }),
+      ),
+    ).rejects.toThrow("NOT_ENOUGH_PRESENT_PLAYERS");
+    await expect(
+      host.authT.mutation(async (ctx) =>
+        beginMatch(ctx, {
+          roomId: host.room.roomId,
+          actor: await resolvePlayer(ctx),
+          minPlayers: 1,
+          maxPlayers: 1,
+          participation: "eligible",
+          nowMs: now,
+        }),
+      ),
+    ).rejects.toThrow("TOO_MANY_ELIGIBLE_PLAYERS");
+    const match = await host.authT.mutation(async (ctx) =>
+      beginMatch(ctx, {
+        roomId: host.room.roomId,
+        actor: await resolvePlayer(ctx),
+        minPlayers: 2,
+        maxPlayers: 2,
+        participation: "eligible",
+        nowMs: now,
+      }),
+    );
+    const participants = await t.query((ctx) =>
+      ctx.db
+        .query("matchParticipants")
+        .withIndex("by_match", (q) => q.eq("matchId", match.id))
+        .collect(),
+    );
+    expect(participants.map(({ playerId, seatIndex }) => ({ playerId, seatIndex }))).toEqual([
+      { playerId: host.room.playerId, seatIndex: host.room.seatIndex },
+      { playerId: away.playerId, seatIndex: away.seatIndex },
+    ]);
   });
 
   it("excludes a late joiner from the active snapshot and includes them next cycle", async () => {
@@ -916,6 +1121,92 @@ describe("private Convex room and match reference integration", () => {
     } finally {
       clock.mockRestore();
     }
+  });
+
+  it("rolls back the whole sweep page on cleanup failure and composes every continuation", async () => {
+    const gameSchema = defineSchema({
+      ...parlorTables,
+      gameOutcomes: defineTable({
+        matchId: v.id("matches"),
+        status: v.union(v.literal("active"), v.literal("abandoned")),
+        endedAt: v.optional(v.number()),
+      }).index("by_match", ["matchId"]),
+    });
+    const t = convexTest(gameSchema, modules);
+    const matches: ActiveMatch[] = [];
+    const startedAt = Date.now();
+    for (const [index, subject] of ["host-a", "host-b"].entries()) {
+      const host = t.withIdentity(identity(subject));
+      const room = await host.mutation(createRoomRef, { displayName: subject });
+      await t.withIdentity(identity(`${subject}-player`)).mutation(joinRoomRef, {
+        code: room.code,
+        displayName: "Player",
+      });
+      const match = await host.mutation(async (ctx) => {
+        const envelope = await beginMatch(ctx, {
+          roomId: room.roomId,
+          actor: await resolvePlayer(ctx),
+          nowMs: startedAt + index,
+        });
+        await ctx.db.insert("gameOutcomes", { matchId: envelope.id, status: "active" });
+        return envelope;
+      });
+      matches.push(match);
+    }
+    const now = startedAt + HARD_DEADLINE_MS + matches.length;
+    const sweep = (limit: number, cursor?: string, failOnMatch?: MatchId) =>
+      t.mutation((ctx) =>
+        sweepAbandonedMatches(ctx, {
+          limit,
+          ...(cursor === undefined ? {} : { cursor }),
+          nowMs: now,
+          onAbandoned: async (envelope) => {
+            if (envelope.status !== "abandoned") throw new Error("Expected terminal envelope");
+            const game = await ctx.db
+              .query("gameOutcomes")
+              .withIndex("by_match", (q) => q.eq("matchId", envelope.id))
+              .unique();
+            if (!game) throw new Error("Game outcome missing");
+            await ctx.db.patch(game._id, {
+              status: "abandoned",
+              endedAt: envelope.abandonedAt,
+            });
+            if (envelope.id === failOnMatch) throw new Error("Game cleanup rejected");
+          },
+        }),
+      );
+    const secondMatch = matches[1];
+    if (!secondMatch) throw new Error("Second match missing");
+    await expect(sweep(2, undefined, secondMatch.id)).rejects.toThrow("Game cleanup rejected");
+    expect(
+      await t.query(async (ctx) => (await ctx.db.query("matches").collect()).map((m) => m.status)),
+    ).toEqual(["active", "active"]);
+    expect(await t.query((ctx) => ctx.db.query("gameOutcomes").collect())).toEqual([
+      expect.objectContaining({ status: "active", matchId: matches[0]?.id }),
+      expect.objectContaining({ status: "active", matchId: secondMatch.id }),
+    ]);
+    const first = await sweep(1);
+    expect(first).toMatchObject({ scanned: 1, abandoned: 1, hasMore: true });
+    if (!first.continueCursor) throw new Error("Sweep cursor missing");
+    expect(
+      await t.query(async (ctx) =>
+        (await ctx.db.query("gameOutcomes").collect()).map((game) => game.status),
+      ),
+    ).toEqual(["abandoned", "active"]);
+    const last = await sweep(1, first.continueCursor);
+    expect(last).toEqual({
+      scanned: 1,
+      abandoned: 1,
+      hasMore: false,
+      continueCursor: null,
+    });
+    expect(
+      await t.query(async (ctx) => (await ctx.db.query("matches").collect()).map((m) => m.status)),
+    ).toEqual(["abandoned", "abandoned"]);
+    expect(await t.query((ctx) => ctx.db.query("gameOutcomes").collect())).toEqual([
+      expect.objectContaining({ status: "abandoned", endedAt: now, matchId: matches[0]?.id }),
+      expect.objectContaining({ status: "abandoned", endedAt: now, matchId: secondMatch.id }),
+    ]);
   });
 
   it("sweeps bounded pages and continues past present active envelopes", async () => {

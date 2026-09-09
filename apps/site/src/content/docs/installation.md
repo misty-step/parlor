@@ -16,7 +16,7 @@ Parlor's private `0.1.0` packages resolve from source through `workspace:*`. Reg
 | Node.js           | **22.12 or newer**                                                                  |
 | pnpm              | **11**, pinned to **11.25.0** in the repository                                     |
 | TypeScript        | **7.0.2**, compiling Parlor's ES2024 configuration                                  |
-| Convex            | **1.45.0**                                                                          |
+| Convex            | Consumer-owned peer **`^1.42.3`**; this workspace develops against **1.45.0**       |
 | React / React DOM | **19.2.8**; the React package's peer range is `>=19 <20`                            |
 | Effect            | **3.22.1**, required directly when your issuer executes auth Effects                |
 | Type declarations | `@types/node` **26.0.0**, `@types/react` **19.2.18**, `@types/react-dom` **19.2.7** |
@@ -74,6 +74,10 @@ pnpm -r --filter './vendor/parlor/packages/**' --filter './vendor/parlor/integra
 ```
 
 Declare only the Parlor packages your app directly imports; the command includes all five for a game using the full surface. These commands merge dependencies rather than replacing manifests. If your workspace already supplies compatible compiler or type packages, keep its existing ownership.
+
+`@parlor/convex` declares Convex only as a peer dependency. Keep one compatible SDK resolution for the app and Parlor; it owns runtime objects such as `ConvexError` as well as schema types. If the game is a nested workspace package, also declare the same Convex version at the workspace root so pnpm resolves the library peer from that root. Parlor's own root uses a development dependency for this purpose; copying its libraries must not bring a second pinned SDK. A consumer using Convex 1.42.3 need not upgrade to the owner's development version.
+
+Keep the consumer's existing package-manager pin and use root `pnpm-workspace.yaml` for pnpm settings, including dependency overrides. Preserve unrelated overrides rather than replacing the map to force a Convex version. Parlor's root pnpm version governs its own apps and tooling, not a replacement root manifest for a consuming workspace.
 
 Exports point to built `dist` files, so build before developing the consuming app and rebuild after changing Parlor source. Install development dependencies before this build: the Convex integration's TypeScript inputs include its integration tests and their declared development dependencies. A production-only install is not a source-build environment.
 

@@ -9,6 +9,15 @@ import type {
 import schema from "./schema.js";
 
 export type ParlorDataModel = DataModelFromSchemaDefinition<typeof schema>;
+
+/** A consumer may retain historical rooms that predate Parlor adoption. */
+export type StoredRoom = Omit<ParlorDataModel["rooms"]["document"], "hostPlayerId"> & {
+  readonly hostPlayerId?: ParlorDataModel["rooms"]["document"]["hostPlayerId"];
+};
+
+type ParlorStorageDataModel = Omit<ParlorDataModel, "rooms"> & {
+  rooms: Omit<ParlorDataModel["rooms"], "document"> & { document: StoredRoom };
+};
 export type ParlorDoc<TableName extends TableNamesInDataModel<ParlorDataModel>> = DocumentByName<
   ParlorDataModel,
   TableName
@@ -17,13 +26,13 @@ export type ParlorDoc<TableName extends TableNamesInDataModel<ParlorDataModel>> 
 // Select database operations, not whole database interfaces, so applications can
 // extend the schema without making game-owned tables part of Parlor's contract.
 export type ParlorQueryCtx = {
-  readonly auth: GenericQueryCtx<ParlorDataModel>["auth"];
-  readonly db: Pick<GenericQueryCtx<ParlorDataModel>["db"], "get" | "query">;
+  readonly auth: GenericQueryCtx<ParlorStorageDataModel>["auth"];
+  readonly db: Pick<GenericQueryCtx<ParlorStorageDataModel>["db"], "get" | "query">;
 };
 export type ParlorMutationCtx = {
-  readonly auth: GenericMutationCtx<ParlorDataModel>["auth"];
+  readonly auth: GenericMutationCtx<ParlorStorageDataModel>["auth"];
   readonly db: Pick<
-    GenericMutationCtx<ParlorDataModel>["db"],
+    GenericMutationCtx<ParlorStorageDataModel>["db"],
     "get" | "query" | "insert" | "patch" | "replace" | "delete"
   >;
 };
