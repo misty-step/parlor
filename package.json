@@ -10,7 +10,7 @@
     "dev": "pnpm --filter @parlor/playground dev",
     "dev:site": "pnpm --filter @parlor/site dev",
     "build:site": "pnpm --filter @parlor/site build",
-    "deploy:site": "pnpm --filter @parlor/site deploy",
+    "deploy:site": "pnpm --filter @parlor/site run deploy",
     "format": "oxfmt .",
     "format:check": "oxfmt --check .",
     "lint": "oxlint --type-aware --deny-warnings .",
