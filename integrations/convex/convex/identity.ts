@@ -9,7 +9,7 @@ import { MAX_GUEST_TOKEN_LENGTH, parlorError } from "./runtime.js";
 
 export type IdentityCtx = ConvexCtx;
 
-interface IdentityDescriptor {
+export interface IdentityDescriptor {
   readonly identityKey: string;
   readonly kind: "authenticated" | "guest";
   readonly guestId?: string;
@@ -167,13 +167,26 @@ const findPlayerByIdentity = async (
   return player;
 };
 
-/** Resolve the caller to a durable player record. */
-export const resolvePlayer = async (
+/**
+ * Resolve an identity already verified by the composing application.
+ * This server-only helper must never receive a client-supplied descriptor.
+ */
+export const resolvePlayerForIdentity = async (
   ctx: IdentityCtx,
-  guestToken?: string,
+  descriptor: IdentityDescriptor,
   options: { readonly create?: boolean } = {},
 ): Promise<PlayerActor> => {
-  const descriptor = await resolveDescriptor(ctx, guestToken);
+  if (
+    descriptor === null ||
+    typeof descriptor !== "object" ||
+    typeof descriptor.identityKey !== "string" ||
+    descriptor.identityKey.trim().length === 0 ||
+    (descriptor.kind !== "authenticated" && descriptor.kind !== "guest") ||
+    (descriptor.guestId !== undefined &&
+      (typeof descriptor.guestId !== "string" || descriptor.guestId.trim().length === 0))
+  ) {
+    return parlorError("PLAYER_IDENTITY_INVALID");
+  }
   const existing = await findPlayerByIdentity(ctx, descriptor.identityKey);
   if (existing) {
     return {
@@ -198,6 +211,14 @@ export const resolvePlayer = async (
     ...(descriptor.guestId === undefined ? {} : { guestId: descriptor.guestId }),
   };
 };
+
+/** Resolve the caller's verified credentials to a durable player record. */
+export const resolvePlayer = async (
+  ctx: IdentityCtx,
+  guestToken?: string,
+  options: { readonly create?: boolean } = {},
+): Promise<PlayerActor> =>
+  resolvePlayerForIdentity(ctx, await resolveDescriptor(ctx, guestToken), options);
 
 export const ensurePlayer = async (
   ctx: ConvexMutationCtx,

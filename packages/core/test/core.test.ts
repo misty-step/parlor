@@ -25,6 +25,7 @@ import {
   normalizeDisplayName,
   parseRoomCode,
   roomCodeFromBytes,
+  selectMatchParticipants,
   selectNextHost,
   snapshotParticipants,
   type ActiveMatchEnvelope,
@@ -193,6 +194,36 @@ describe("seating and cycles", () => {
         members: [{ ...member("one", 0), seatIndex: 0.5 as SeatIndex }],
       }),
     ).toMatchObject({ ok: false, error: { _tag: "InvalidInput", field: "members" } });
+  });
+
+  it("validates the whole roster and player bounds even when participation ignores presence", () => {
+    const base = {
+      cycle: 1,
+      now: DEFAULT_PRESENCE_POLICY.awayMs + 1,
+      participation: "eligible",
+    } as const;
+    expect(
+      selectMatchParticipants({
+        ...base,
+        members: [member("one", 0), member("one", 1, 0, 2)],
+      }),
+    ).toMatchObject({ ok: false, error: { _tag: "InvalidInput", field: "members" } });
+    expect(
+      selectMatchParticipants({
+        ...base,
+        members: [member("one", 0), { ...member("queued", 1, 1, 2), lastSeenAt: 0 }],
+      }),
+    ).toMatchObject({ ok: false, error: { _tag: "InvalidInput", field: "members" } });
+    expect(
+      selectMatchParticipants({
+        ...base,
+        members: [member("one", 0), member("two", 1)],
+        maxPlayers: 1,
+      }),
+    ).toMatchObject({
+      ok: false,
+      error: { _tag: "PlayerCountOutOfBounds", actual: 2, direction: "above-maximum" },
+    });
   });
 });
 

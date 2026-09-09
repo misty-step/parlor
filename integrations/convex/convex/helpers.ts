@@ -1,5 +1,6 @@
 import { nextCycle } from "@parlor/core";
 import { ConvexError } from "convex/values";
+import type { StoredRoom } from "./dataModel.js";
 
 import type {
   ConvexCtx,
@@ -64,16 +65,21 @@ export const toMatchEnvelope = (match: MatchDoc): MatchEnvelope => {
   };
 };
 
+const isParlorRoom = (room: StoredRoom | null): room is RoomDoc =>
+  room !== null && room.hostPlayerId !== undefined;
+
 export const findOpenRoomByCode = async (ctx: ConvexCtx, code: string): Promise<RoomDoc | null> => {
   const room = await ctx.db
     .query("rooms")
     .withIndex("by_code_open", (q) => q.eq("code", code).eq("closedAt", undefined))
     .unique();
-  return room;
+  return isParlorRoom(room) ? room : null;
 };
 
-export const findRoom = async (ctx: ConvexCtx, roomId: RoomId): Promise<RoomDoc | null> =>
-  ctx.db.get(roomId);
+export const findRoom = async (ctx: ConvexCtx, roomId: RoomId): Promise<RoomDoc | null> => {
+  const room = await ctx.db.get(roomId);
+  return isParlorRoom(room) ? room : null;
+};
 
 export const findMember = async (
   ctx: ConvexCtx,
@@ -146,7 +152,7 @@ export const listOpenRoomsForHost = async (
     .query("rooms")
     .withIndex("by_host_open", (q) => q.eq("hostPlayerId", playerId).eq("closedAt", undefined))
     .take(limit);
-  return rooms;
+  return rooms.filter(isParlorRoom);
 };
 
 export const listOpenMembershipsForPlayer = async (

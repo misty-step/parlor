@@ -83,7 +83,7 @@ const activeEnvelope = (
 };
 
 /**
- * Begin the next match cycle and snapshot eligible, present members.
+ * Begin the next match cycle and snapshot eligible members, present-only by default.
  *
  * This helper deliberately writes the envelope and participant rows directly
  * in its caller's transaction. It never calls another registered function.
@@ -98,13 +98,23 @@ export const beginMatch = async (
     readonly nowMs?: number;
     /** Opt out of the default 30-minute cap; idle-room cleanup still applies. */
     readonly hardDeadline?: boolean;
+    /** Server-owned start policy; the actor must always be a room member. */
+    readonly authorization?: "host" | "member";
+    /** Include away members without bypassing eligibility or roster validation. */
+    readonly participation?: "present" | "eligible";
   },
 ): Promise<Extract<MatchEnvelope, { status: "active" }>> => {
   const room = (await findRoom(ctx, input.roomId)) ?? parlorError("ROOM_NOT_OPEN");
   if (room.closedAt !== undefined) parlorError("ROOM_NOT_OPEN");
   const membership = await findMember(ctx, input.roomId, input.actor.playerId);
   if (!membership) parlorError("NOT_A_ROOM_MEMBER");
-  if (room.hostPlayerId !== input.actor.playerId) parlorError("HOST_REQUIRED");
+  const authorization = input.authorization ?? "host";
+  if (authorization !== "host" && authorization !== "member") {
+    parlorError("MATCH_AUTHORIZATION_INVALID");
+  }
+  if (authorization === "host" && room.hostPlayerId !== input.actor.playerId) {
+    parlorError("HOST_REQUIRED");
+  }
   const now = input.nowMs ?? safeNow();
   const active = await findActiveMatch(ctx, input.roomId);
   if (active) {
@@ -115,19 +125,32 @@ export const beginMatch = async (
   const minPlayers = input.minPlayers ?? DEFAULT_MIN_ELIGIBLE_PLAYERS;
   const maxPlayers = input.maxPlayers ?? DEFAULT_MAX_ELIGIBLE_PLAYERS;
   const members = await listRoomMembers(ctx, input.roomId);
-  const selection = selectMatchParticipants({ members, cycle, now, minPlayers, maxPlayers });
+  const participation = input.participation ?? "present";
+  const selection = selectMatchParticipants({
+    members,
+    cycle,
+    now,
+    minPlayers,
+    maxPlayers,
+    participation,
+  });
   if (!selection.ok) {
     const error = selection.error;
-    if (error._tag === "NoParticipant") return parlorError("NOT_ENOUGH_PRESENT_PLAYERS");
+    const tooFew =
+      participation === "eligible" ? "NOT_ENOUGH_ELIGIBLE_PLAYERS" : "NOT_ENOUGH_PRESENT_PLAYERS";
+    if (error._tag === "NoParticipant") return parlorError(tooFew);
     if (error._tag === "PlayerCountOutOfBounds") {
       return parlorError(
         error.direction === "below-minimum"
-          ? "NOT_ENOUGH_PRESENT_PLAYERS"
-          : "TOO_MANY_PRESENT_PLAYERS",
+          ? tooFew
+          : participation === "eligible"
+            ? "TOO_MANY_ELIGIBLE_PLAYERS"
+            : "TOO_MANY_PRESENT_PLAYERS",
       );
     }
     if (error.field === "playerBounds") return parlorError("MATCH_PLAYER_BOUNDS_INVALID");
     if (error.field === "now") return parlorError("MATCH_TIMESTAMP_INVALID");
+    if (error.field === "participation") return parlorError("MATCH_PARTICIPATION_INVALID");
     return parlorError("ROOM_DATA_INVALID");
   }
   const matchId = await ctx.db.insert("matches", {

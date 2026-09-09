@@ -66,6 +66,8 @@ try {
   const ownerRevision = git(owner, "rev-parse", "HEAD").trim();
   let sourceRoot = owner;
   let revision = ownerRevision;
+  let referenceOrigin = guidanceOnly ? "working-tree" : "commit";
+  let referenceSha256;
   let framework = { installed: false };
   if (!guidanceOnly) {
     if (!existsSync(installedPath)) {
@@ -82,11 +84,56 @@ try {
         );
       }
       revision = upstream.commit;
+      if (
+        upstream.origin !== undefined &&
+        upstream.origin !== "commit" &&
+        upstream.origin !== "working-tree"
+      ) {
+        throw new Error("Unsupported vendor/parlor source origin.");
+      }
+      if (upstream.origin === "working-tree") {
+        if (
+          upstream.reference?.path !== skillPath ||
+          !/^[a-f0-9]{64}$/.test(upstream.reference?.sha256)
+        ) {
+          throw new Error(
+            "A working-tree snapshot must record the owner's skill path and SHA-256.",
+          );
+        }
+        if (
+          !upstream.files ||
+          Array.isArray(upstream.files) ||
+          Object.keys(upstream.files).length === 0
+        ) {
+          throw new Error("A working-tree snapshot must record its copied source file hashes.");
+        }
+        for (const [path, digest] of Object.entries(upstream.files)) {
+          if (
+            path.startsWith("/") ||
+            path.includes("\\") ||
+            path.split("/").includes("..") ||
+            !/^[a-f0-9]{64}$/.test(digest)
+          ) {
+            throw new Error("Invalid working-tree source fingerprint.");
+          }
+          const installedFile = join(installedPath, path);
+          if (
+            !lstatSync(installedFile).isFile() ||
+            sha256(readFileSync(installedFile)) !== digest
+          ) {
+            throw new Error(`Copied source differs from UPSTREAM.json: ${path}`);
+          }
+        }
+        referenceOrigin = "working-tree";
+        referenceSha256 = upstream.reference.sha256;
+      }
       framework = {
         installed: true,
         path: "vendor/parlor",
         revision,
+        origin: upstream.origin ?? "commit",
         provenance: "vendor/parlor/UPSTREAM.json",
+        provenanceSha256: sha256(readFileSync(upstreamPath)),
       };
     } else {
       sourceRoot = realpathSync(installedPath);
@@ -103,18 +150,24 @@ try {
     }
   }
 
-  // A copied vendor tree can omit the skill; recover it from the recorded commit, never the website.
+  // Commit imports recover the pinned skill; uncommitted imports require its recorded hash.
   const committedReference = git(sourceRoot, "show", `${revision}:${skillPath}`);
-  const reference = guidanceOnly
-    ? readFileSync(join(owner, skillPath), "utf8")
-    : committedReference;
+  const reference =
+    referenceOrigin === "working-tree"
+      ? readFileSync(join(owner, skillPath), "utf8")
+      : committedReference;
+  if (referenceSha256 && sha256(reference) !== referenceSha256) {
+    throw new Error(
+      "The owner's working-tree skill differs from the snapshot's recorded reference.",
+    );
+  }
   const provenance = {
     repository,
     framework,
     reference: {
       path: skillPath,
       revision,
-      origin: guidanceOnly ? "working-tree" : "commit",
+      origin: referenceOrigin,
       differsFromCommit: reference !== committedReference,
       sha256: sha256(reference),
     },
@@ -126,7 +179,9 @@ try {
   };
   const scope = guidanceOnly
     ? "**Guidance only: Parlor is not installed in this app.** This import does not select or perform a migration. Apply integration instructions only when the user requests that work, then select and inspect a pinned source revision."
-    : `**Installed source: \`vendor/parlor\` at \`${revision}\`.** The reference is copied from that exact commit. Inspect the installed exports and local modifications before using an example; source signatures take precedence over older prose. A copied vendor tree may omit examples or docs mentioned in the reference.`;
+    : framework.origin === "working-tree"
+      ? `**Installed source: \`vendor/parlor\`, an uncommitted working-tree snapshot based on \`${revision}\`.** The base commit is not a released pin for these changes. \`vendor/parlor/UPSTREAM.json\` records the copied file hashes and local changes; the reference is the hash-matched owner working tree. Inspect installed exports before using an example.`
+      : `**Installed source: \`vendor/parlor\` at \`${revision}\`.** The reference is copied from that exact commit. Inspect the installed exports and local modifications before using an example; source signatures take precedence over older prose. A copied vendor tree may omit examples or docs mentioned in the reference.`;
   const skill = `---
 name: parlor
 description: ${guidanceOnly ? "Review Parlor integration guidance for this game; Parlor is not installed and migration is not implied." : "Build and review this game's Parlor rooms, guest authentication, presence, matches, and React integration against its pinned local source."}

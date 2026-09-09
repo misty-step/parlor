@@ -8,6 +8,7 @@ import {
   parlorError,
   type ConvexMutationCtx,
   type MatchDoc,
+  type MatchEnvelope,
   MAX_ROOM_MEMBERS,
   MAX_SWEEP_BATCH,
   safeNow,
@@ -48,7 +49,8 @@ const everyParticipantAway = async (
 
 /**
  * Abandon a bounded page of active envelopes. The caller owns scheduling and
- * must continue from continueCursor until hasMore is false.
+ * must continue from continueCursor until hasMore is false. The optional callback
+ * composes game cleanup in this mutation; a thrown error rolls back the whole page.
  */
 export const sweepAbandonedMatches = async (
   ctx: ConvexMutationCtx,
@@ -56,6 +58,7 @@ export const sweepAbandonedMatches = async (
     readonly limit?: number;
     readonly cursor?: string;
     readonly nowMs?: number;
+    readonly onAbandoned?: (envelope: MatchEnvelope) => void | PromiseLike<void>;
   } = {},
 ): Promise<SweepResult> => {
   const limit = sweepLimit(input.limit);
@@ -73,11 +76,12 @@ export const sweepAbandonedMatches = async (
     const hardExpired = hasMatchDeadlineElapsed(match, now);
     const everyoneAway = hardExpired ? false : await everyParticipantAway(ctx, match, now);
     if (!hardExpired && !everyoneAway) continue;
-    await abandonMatch(ctx, {
+    const envelope = await abandonMatch(ctx, {
       matchId: match._id,
       reason: hardExpired ? "hard-deadline" : "everyone-away",
       nowMs: now,
     });
+    if (input.onAbandoned) await input.onAbandoned(envelope);
     abandoned += 1;
   }
   return {

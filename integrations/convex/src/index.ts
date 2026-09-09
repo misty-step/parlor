@@ -1,11 +1,16 @@
 export { parlorTables } from "../convex/schema.js";
 
-export { resolvePlayer } from "../convex/identity.js";
+export { resolvePlayer, resolvePlayerForIdentity } from "../convex/identity.js";
 export {
   createRoom,
+  createRoomForPlayer,
   joinRoom,
+  joinRoomForPlayer,
   leaveRoom,
+  leaveRoomForPlayer,
   closeRoom,
+  closeRoomForPlayer,
+  closeRoomAt,
   getRoomState,
   heartbeat,
 } from "../convex/rooms.js";

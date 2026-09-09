@@ -605,7 +605,7 @@ export type ParticipantSelectionError =
   | NoParticipantError
   | PlayerCountOutOfBoundsError;
 
-/** Validate a bounded room roster and select a stable, eligible, present snapshot. */
+/** Validate a bounded roster and select a stable eligible snapshot, present-only by default. */
 export function selectMatchParticipants<Member extends ParticipantCandidate>(input: {
   readonly members: readonly Member[];
   readonly cycle: number;
@@ -613,6 +613,7 @@ export function selectMatchParticipants<Member extends ParticipantCandidate>(inp
   readonly minPlayers?: number;
   readonly maxPlayers?: number;
   readonly policy?: Partial<PresencePolicy>;
+  readonly participation?: "present" | "eligible";
 }): Result<readonly Member[], ParticipantSelectionError> {
   const minimum = input.minPlayers ?? 1;
   const maximum = input.maxPlayers ?? MAX_SEATS;
@@ -632,6 +633,10 @@ export function selectMatchParticipants<Member extends ParticipantCandidate>(inp
   }
   if (!Number.isSafeInteger(input.now) || input.now < 0) {
     return failure(invalid("now", "must be a nonnegative safe integer"));
+  }
+  const participation = input.participation ?? "present";
+  if (participation !== "present" && participation !== "eligible") {
+    return failure(invalid("participation", "must be present or eligible"));
   }
   if (input.members.length > MAX_SEATS) {
     return failure(invalid("members", "exceeds room capacity"));
@@ -661,13 +666,20 @@ export function selectMatchParticipants<Member extends ParticipantCandidate>(inp
     players.add(member.playerId);
     if (
       member.eligibleFromCycle <= input.cycle &&
-      classifyPresence(member, input.now, input.policy) === "present"
+      (participation === "eligible" ||
+        classifyPresence(member, input.now, input.policy) === "present")
     ) {
       selected.push(member);
     }
   }
   if (selected.length === 0) {
-    return failure({ _tag: "NoParticipant", message: "no eligible present members are available" });
+    return failure({
+      _tag: "NoParticipant",
+      message:
+        participation === "eligible"
+          ? "no eligible members are available"
+          : "no eligible present members are available",
+    });
   }
   if (selected.length < minimum || selected.length > maximum) {
     return failure({
