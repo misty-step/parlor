@@ -1,6 +1,6 @@
 ---
 name: parlor
-description: Build and review phone-first multiplayer games with Parlor on Convex and React. Use when integrating guest authentication, rooms, presence, frozen match participants, game commands, or mobile browser capabilities.
+description: Build, review, and verify phone-first multiplayer games with Parlor on Convex and React. Use when integrating guest authentication, rooms, presence, frozen match participants, game commands, or mobile browser capabilities, or verifying changes in the Parlor repository.
 ---
 
 # Parlor
@@ -188,6 +188,27 @@ Exercise the path changed by the task against the consuming game's approved back
 When a trust or lifecycle boundary changes, exercise its affected transitions and failure cases: same-player renewal, unauthorized commands and viewer-safe projections, frozen late-join/rematch eligibility, mutation-driven host departure, reconnects, or sweeper continuation as applicable. Browser capability changes need denied/unsupported behavior; distinguish physical-device evidence from viewport emulation and report unavailable environments.
 
 The playground's local simulation does not prove guest signing, Convex functions, cookies, scheduling, or deployed mobile behavior. Review changed credential, authorization, and data boundaries before shipping. Production access, secret changes, destructive schema/data work, and deployment require separate operator authorization, not repeated approval for ordinary requested local implementation. Report the pin, paths and scenarios exercised, and verification gaps without unsupported stability claims.
+
+### Inside the Parlor repository
+
+Keep this canonical skill; do not self-import or create a competing verification skill. Read `skills/parlor/SKILL.md` explicitly when the runner does not load `skills/` automatically. An explicit-resource runner must include this exact file through its approved resource configuration, not enable global discovery.
+
+For a no-inference discovery check with an installed Pi, start from this checkout using `pi --no-session --no-extensions --no-skills --no-context-files --no-prompt-templates --no-themes --tools read --offline --no-approve --verbose --skill ./skills/parlor/SKILL.md`. Require the startup **[Skills]** list to show this checkout's exact canonical path, then exit with Ctrl+D without submitting a prompt. This explicitly loads the skill while refusing ambient project resources; it needs no login or persistent trust grant. Other runners should use their supported explicit-resource equivalent. Separately inspect the selected check and why the playground is not a real-backend result.
+
+| Changed surface                          | Existing entry point                       | What a passing result establishes                                                                                                                                                                         |
+| ---------------------------------------- | ------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Library contracts                        | `pnpm check`                               | Repository formatting, types, lint, and deterministic tests; not a running backend                                                                                                                        |
+| React/browser rehearsal                  | `pnpm test:e2e`                            | Playwright's mobile Chromium playground lifecycle; simulated identity and state only                                                                                                                      |
+| Built Convex consumer                    | `pnpm build:packages && pnpm smoke:convex` | Generated consumer types, real anonymous local Convex, signed identities, immutable roster/rematch, same-player renewal, rejected expired completion with unchanged score, scheduled abandonment, closure |
+| HTTP issuer and rendered multiplayer app | First Tap procedure below                  | Real browser → Next.js issuer/cookie → Convex integration with isolated players                                                                                                                           |
+
+Install with `pnpm install --frozen-lockfile` using the root manifest's Node/pnpm versions. Install the pinned browser with `pnpm exec playwright install chromium` when needed. The existing CI runs `pnpm check:all`; preserve it rather than adding a parallel verification wrapper.
+
+For the live app, read the checkout's `apps/site/src/content/docs/first-game.md`, especially **Isolated repository verification**, then the relevant journey tables. It owns exact setup, readiness, identities, failure probes, evidence, and teardown. The published counterpart is [Run First Tap](https://parlor.mistystep.io/docs/first-game/#isolated-repository-verification); use local source when the site release differs.
+
+The smoke command owns its temporary HOME, selected ports, backend process group, fixture consumer, and removal on normal success/failure. It downloads the pinned local backend and never uses a logged-in Convex account. Inspect its JSON `ok`, `backendVersion`, and `proved` fields, not exit status alone. Its existing expired-completion assertion must reject a regression that writes a score after the hard deadline. Do not treat a prior JSON receipt as current readiness or publish raw failure logs without checking them for secrets.
+
+Record source revision and uncommitted changes, target origin/backend kind, command results, observed player/seat and lifecycle invariants, and limitations. No local result proves hosted deployment, physical phones, or a consuming game's hidden-state rules.
 
 For a bug or missing primitive, prepare a minimal reproduction with the pinned commit and expected/actual behavior. Linear owns current work, prioritization, and selected unresolved opportunities; create or update an item only when the user requests it. Historical GitHub reports may remain useful evidence, but are not an automatic intake queue. Exclude tokens, cookies, private data, and secrets. Keep durable contracts and portable procedures in the repository, concise work summaries in Linear, and raw or sensitive run output in approved retained artifact storage.
 

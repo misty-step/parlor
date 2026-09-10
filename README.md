@@ -50,6 +50,8 @@ pnpm deploy:site
 
 The playground is a deterministic local rehearsal. It does not issue real guest tokens or talk to Convex. First Tap does.
 
+For agent-led verification of this repository, read the canonical [`skills/parlor/SKILL.md`](skills/parlor/SKILL.md#inside-the-parlor-repository) directly; no self-import is needed. It selects the existing checks by changed surface. The [First Tap verification procedure](apps/site/src/content/docs/first-game.md#isolated-repository-verification) covers a fresh anonymous local backend, the real HTTP issuer and multiplayer browser journey, failure probes, and owned cleanup. Published site guidance can lag the checkout; use these local files for candidate changes.
+
 ## License
 
 [MIT](LICENSE) © Misty Step

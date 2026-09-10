@@ -137,6 +137,87 @@ pnpm --filter @parlor/first-tap build:app
 
 The example's generated Convex types are committed so `pnpm check` and fresh checkouts typecheck immediately without a running backend. When you modify schema or endpoints, keep `dev:backend` running to synchronize `convex/_generated`.
 
+## Isolated repository verification
+
+Use this path for Parlor changes that need the real issuer and rendered game, not an established consumer deployment. The canonical agent entry point is `skills/parlor/SKILL.md`; inside this repository load it directly, without importing it into itself. `pnpm test:e2e` targets the simulated playground, while `pnpm smoke:convex` targets a real disposable backend without the First Tap HTTP/UI layer. Neither alone proves this journey.
+
+### Own a fresh local target
+
+Use a dedicated worktree with no existing `examples/first-tap/.env*` files or local deployment state. Do not copy an environment file, login, browser profile, or development deployment from another checkout. Record the source revision and any uncommitted changes before starting. Reserve port 3000 and do not stop an unrelated listener to obtain it. Network access is required for package/browser installation and the pinned local Convex binary download; missing downloads are blockers, not permission to use a fake backend.
+
+From the worktree root:
+
+```sh
+pnpm install --frozen-lockfile
+pnpm build:packages
+mktemp -d /tmp/parlor-first-tap-home.XXXXXX
+```
+
+Save the returned directory as `PARLOR_VERIFY_HOME` in each terminal below. It is the run-owned HOME, not your normal home directory. Start the backend in a supervised process (for an agent, use its process manager with PTY disabled rather than a detached shell). Interactive terminals may ask to install Convex AI files: decline that optional generation; keep Parlor's existing skills. Before restarting any retained process after an interruption, confirm its worktree and HOME still exist; lost temporary state requires a fresh target, not a fallback working directory.
+
+```sh
+env -i PATH="$PATH" HOME="$PARLOR_VERIFY_HOME" \
+  XDG_CONFIG_HOME="$PARLOR_VERIFY_HOME/.config" \
+  CONVEX_AGENT_MODE=anonymous CI=1 DO_NOT_TRACK=1 \
+  pnpm --filter @parlor/first-tap dev:backend \
+  --local-backend-version precompiled-2026-08-25-7cce8fb
+```
+
+Require `Convex functions ready` within 120 seconds. Otherwise stop this run's process and diagnose its log; do not retry against a remote account. The version matches `scripts/smoke-convex.mjs`; update both deliberately if the local runtime changes. Confirm the generated `.env.local` selects `anonymous:` and a loopback `NEXT_PUBLIC_CONVEX_URL` without printing its full contents. If the CLI requests account selection or a nonlocal target, stop.
+
+With that backend still running, use the same isolated HOME for setup:
+
+```sh
+env -i PATH="$PATH" HOME="$PARLOR_VERIFY_HOME" \
+  XDG_CONFIG_HOME="$PARLOR_VERIFY_HOME/.config" \
+  CONVEX_AGENT_MODE=anonymous CI=1 DO_NOT_TRACK=1 \
+  pnpm --filter @parlor/first-tap run setup
+```
+
+Allow up to four minutes for setup's bounded CLI calls. It must report successful configuration, not merely create a file. On partial failure retain the keys and follow its recovery message for the **same** local backend; never rotate keys to make a check pass. Start the frontend as a second supervised process:
+
+```sh
+env -i PATH="$PATH" HOME="$PARLOR_VERIFY_HOME" \
+  XDG_CONFIG_HOME="$PARLOR_VERIFY_HOME/.config" \
+  pnpm --filter @parlor/first-tap dev
+```
+
+Require the Next.js ready message and a rendered lobby at `http://localhost:3000` within 120 seconds. Use a browser on the same machine. Do not expose a tunnel, change origin guards, or interpret a phone's `localhost` as this target. An occupied port, unavailable backend download, or missing browser is a precise prerequisite failure.
+
+### Exercise and inspect
+
+Use the harness's native browser interaction or the repository-pinned Playwright with separate browser contexts, not two cookie-sharing tabs. Create fresh Ari and Bea contexts, then a third Cy context for the late-arrival check. Exercise the **Play with two identities**, **Check a late arrival**, **Check host transfer**, and **Check closure and stored state** procedures above. Inspect freshly rendered state after each transition. Keep all participating contexts active enough for heartbeats; a missing participant is not a UI pass.
+
+Collect the room code, distinct player IDs/seats, cycle and winner agreement in both clients, same-player rejoin after refresh, and Cy's transition from spectator to eligible rematch participant. Record closure from both clients. Store screenshots or traces only in approved run artifact storage; do not capture cookies, bearer tokens, or `.env.local`. Context disposal is a deliberate identity reset, so do the same-player refresh check before closing it.
+
+For a deterministic HTTP rejection check while Next.js is running, run this from the worktree root. It sends no credentials and creates no guest:
+
+```sh
+node --input-type=module -e '
+import assert from "node:assert/strict";
+const response = await fetch("http://localhost:3000/api/guest", {
+  method: "POST",
+  headers: { Origin: "http://127.0.0.1:3000", "Content-Type": "application/json" },
+  body: JSON.stringify({ mode: "acquire" }),
+  signal: AbortSignal.timeout(10000),
+});
+assert.equal(response.status, 403);
+assert.deepEqual(await response.json(), { code: "SAME_ORIGIN_REQUIRED" });
+assert.equal(response.headers.get("set-cookie"), null);
+console.log("Wrong-origin issuance rejected without a cookie");
+'
+```
+
+This must fail if the exact-origin guard is removed or relaxed; a generic server error is not successful rejection. The normal browser journey supplies the positive issuance case. The existing `pnpm smoke:convex` additionally asserts that expired completion rejects with `MATCH_NOT_ACTIVE` and leaves score zero before the scheduled sweeper clears the match. To challenge a changed check, alter only the relevant guard in a separate disposable candidate, require that check to fail, then discard only that deliberate mutation. Never run a fault injection against a shared backend.
+
+### Stop versus reset
+
+Close the run's browser contexts, stop the frontend, then stop the backend through their owning process manager. Wait for their exits and confirm the owned listeners are gone. Stopping alone preserves the local database and credentials for inspection or restart; it does not reset identities or erase history.
+
+After evidence is captured and only when discarding this run, remove the exact `PARLOR_VERIFY_HOME` directory returned by `mktemp` and this run's generated example `.env.local`. Keep these together until partial setup recovery is resolved or the whole disposable target is deliberately discarded. Inspect any remaining CLI-created local state and remove only paths recorded as created by this run. Never use a broad `git clean`, remove another worktree, or delete a shared Convex deployment. Retain source changes and generated API changes for review; do not erase them as runtime cleanup.
+
+No secret/configuration file belongs in Git or a verification report. Report unexercised physical-device behavior, hosted cookies, and any failed or skipped journey explicitly. A successful local run is not authorization to deploy.
+
 ## Diagnose setup failures
 
 | Symptom                                                   | Check                                                                                                                                                                                         |
