@@ -12,6 +12,7 @@ code and a guest identity, so friends can play from their phones without
 signing up.
 
 Criteria:
+
 1. WHEN a host creates a room, THE SYSTEM SHALL issue a unique join code
    and a guest credential for that host.
 2. WHEN a guest presents a valid credential and code for an open room with
@@ -33,6 +34,7 @@ Statement: When a match begins, I want the table of players locked, so a
 reconnect or late arrival cannot steal a seat or rewrite who was playing.
 
 Criteria:
+
 1. WHEN a host begins a match, THE SYSTEM SHALL freeze the eligible members
    as match participants.
 2. WHEN a player joins after that match has started, THE SYSTEM SHALL keep
@@ -53,6 +55,7 @@ Statement: When the host leaves or goes stale, I want the room to transfer
 or close on purpose, so the party is not stuck on a missing phone.
 
 Criteria:
+
 1. WHEN the last member leaves an active match, THE SYSTEM SHALL terminalize
    the match before closing the room.
 2. WHEN host migration is requested during an active match, THE SYSTEM SHALL
