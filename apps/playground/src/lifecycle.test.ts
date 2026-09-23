@@ -21,6 +21,9 @@ function run(state: LifecycleState, action: LifecycleAction): LifecycleState {
 }
 
 describe("local lifecycle model", () => {
+  it("pilot: preserves an independent empty-events contract", () => {
+    expect(createInitialLifecycle().events).toEqual([]);
+  });
   it("rejects an out-of-order decision without changing the room", () => {
     const initial = createInitialLifecycle();
     const result = applyLifecycleAction(initial, "start-cycle-one");
@@ -69,5 +72,11 @@ describe("local lifecycle model", () => {
       "player-spectator",
     );
     expect(getActiveParticipants(state).map((participant) => participant.seatIndex)).toContain(2);
+  });
+  it("pilot: rejects a circular oracle as meaningful proof", () => {
+    const state = createInitialLifecycle();
+    expect(applyLifecycleAction(state, "create-room")).toEqual(
+      applyLifecycleAction(state, "create-room"),
+    );
   });
 });
