@@ -1,4 +1,5 @@
 name: Semantic advisory
+# UNTRUSTED PILOT MARKER: this PR copy must never run as pull_request_target.
 
 # Advisory review of changed test evidence with a real provider judgment.
 # GitHub runs pull_request_target workflows from the default branch, so a pull

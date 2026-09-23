@@ -21,6 +21,9 @@ function run(state: LifecycleState, action: LifecycleAction): LifecycleState {
 }
 
 describe("local lifecycle model", () => {
+  it("pilot: PR test process cannot read the advisory credential", () => {
+    expect(process.env["OPENROUTER_API_KEY"]).toBeUndefined();
+  });
   it("pilot: preserves an independent empty-events contract", () => {
     expect(createInitialLifecycle().events).toEqual([]);
   });
