@@ -29,7 +29,7 @@ Packages are private workspace packages in this repository. They are not publish
 
 ## Made with Parlor
 
-[Poppycock](https://poppycock.mistystep.io) is a production 3–12 player bluffing game on this toolkit. [First Tap](examples/first-tap) is the bundled development example.
+Four Misty Step games run on this toolkit in production: [Poppycock](https://poppycock.mistystep.io) (3–12 player bluffing), [Linejam](https://linejam.app) (2–8 player pass-the-poem), [Kindred](https://kindred.mistystep.io) (2–12 players; pairs who say the same thing score), and [Double Take](https://doubletake.mistystep.io) (2–8 players; one line for two worlds). [First Tap](examples/first-tap) is the bundled development example.
 
 ## Development
 

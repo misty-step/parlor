@@ -167,6 +167,7 @@ for (const block of document.querySelectorAll<HTMLPreElement>(".prose pre, pre[d
   button.addEventListener("click", async () => {
     if (await copyText(code.textContent ?? "", "Code copied")) {
       label.textContent = "Copied";
+      button.dataset.copied = "";
     } else {
       label.textContent = "Select code";
       const range = document.createRange();
@@ -176,6 +177,7 @@ for (const block of document.querySelectorAll<HTMLPreElement>(".prose pre, pre[d
     }
     window.setTimeout(() => {
       label.textContent = "Copy";
+      delete button.dataset.copied;
       button.setAttribute("aria-label", "Copy code");
     }, 2500);
   });
@@ -249,54 +251,160 @@ if (externalLinkTemplate) {
   }
 }
 
+const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
+
 const roomPhases = {
   lobby: {
     label: "Come on in.",
     status: "Four friends. One room.",
     ticket: "Everyone starts here",
-    late: "Jo can watch this match",
+    late: "",
   },
   match: {
     label: "This match is locked.",
-    status: "The lineup is frozen.",
+    status: "The lineup is frozen. Jo arrived late, so Jo watches this one.",
     ticket: "Match in progress",
     late: "Jo is watching",
   },
   rematch: {
     label: "Same room. New round.",
-    status: "All five friends. Next match.",
+    status: "All five friends. Same code, next match.",
     ticket: "Next match includes Jo",
-    late: "Jo is ready to play",
+    late: "",
   },
 } as const;
+type RoomPhase = keyof typeof roomPhases;
+const isRoomPhase = (value: string | undefined): value is RoomPhase =>
+  value === "lobby" || value === "match" || value === "rematch";
 
 const sketch = document.querySelector<HTMLElement>("[data-room-sketch]");
-for (const button of document.querySelectorAll<HTMLButtonElement>("[data-phase-button]")) {
-  button.addEventListener("click", () => {
-    const phase = button.dataset.phaseButton;
-    if (!sketch || (phase !== "lobby" && phase !== "match" && phase !== "rematch")) return;
+if (sketch) {
+  const text = (selector: string, value: string) => {
+    const element = sketch.querySelector(selector);
+    if (element) element.textContent = value;
+  };
+  const dealButton = sketch.querySelector<HTMLButtonElement>("[data-deal-code]");
+  const codeDisplay = sketch.querySelector<HTMLElement>("[data-room-code]");
+  const tiles = [...sketch.querySelectorAll<HTMLElement>(".code-tile")];
+  const alphabet = sketch.dataset.alphabet ?? "";
+  const codeLength = Number(sketch.dataset.codeLength);
+  const confusables = [
+    ["0", "zero"],
+    ["O", "O"],
+    ["1", "one"],
+    ["I", "I"],
+  ] as const;
+  const skipped = confusables
+    .filter(([character]) => !alphabet.includes(character))
+    .map(([, name]) => name);
+  const skippedNote = skipped.length
+    ? ` No ${new Intl.ListFormat("en", { type: "disjunction" }).format(skipped)}, so it reads cleanly.`
+    : "";
+  let dealing = false;
+
+  const setPhase = (phase: RoomPhase) => {
     const next = roomPhases[phase];
     sketch.dataset.phase = phase;
-    const updates: Array<[string, string]> = [
-      ["[data-room-label]", next.label],
-      ["[data-room-status]", next.status],
-      ["[data-ticket]", next.ticket],
-      ["[data-late-copy]", next.late],
-    ];
-    for (const [selector, text] of updates) {
-      const element = sketch.querySelector(selector);
-      if (element) element.textContent = text;
-    }
-    const latePlayer = sketch.querySelector<HTMLElement>("[data-late-player]");
-    if (latePlayer) latePlayer.hidden = phase === "lobby";
-    const newGuest = sketch.querySelector<HTMLElement>("[data-new-guest]");
-    if (newGuest) newGuest.hidden = phase === "lobby";
+    text("[data-room-label]", next.label);
+    text("[data-room-status]", next.status);
+    text("[data-ticket]", next.ticket);
+    if (next.late) text("[data-late-copy]", next.late);
+    text("[data-open-seat-label]", phase === "rematch" ? "Jo" : "Open seat");
+    if (dealButton) dealButton.disabled = phase !== "lobby";
     for (const icon of sketch.querySelectorAll<HTMLElement>("[data-phase-icon]")) {
       icon.hidden = icon.dataset.phaseIcon !== phase;
     }
     for (const control of sketch.querySelectorAll("[data-phase-button]")) {
-      control.setAttribute("aria-pressed", String(control === button));
+      control.setAttribute(
+        "aria-pressed",
+        String(control.getAttribute("data-phase-button") === phase),
+      );
     }
+  };
+
+  for (const button of sketch.querySelectorAll<HTMLButtonElement>("[data-phase-button]")) {
+    button.addEventListener("click", () => {
+      const phase = button.dataset.phaseButton;
+      if (isRoomPhase(phase)) setPhase(phase);
+    });
+  }
+
+  const randomCode = () => {
+    const bytes = crypto.getRandomValues(new Uint8Array(codeLength));
+    return [...bytes].map((byte) => alphabet[byte % alphabet.length]).join("");
+  };
+
+  dealButton?.addEventListener("click", () => {
+    if (dealing || !alphabet || tiles.length !== codeLength) return;
+    const current = tiles.map((tile) => tile.textContent).join("");
+    let code = randomCode();
+    while (code === current) code = randomCode();
+    const finish = () => {
+      codeDisplay?.setAttribute("aria-label", `Room code ${code}`);
+      if (sketch.dataset.phase === "lobby") {
+        text("[data-room-status]", `Dealt ${code}.${skippedNote}`);
+      }
+      dealing = false;
+    };
+    if (reducedMotion.matches) {
+      tiles.forEach((tile, index) => (tile.textContent = code[index] ?? ""));
+      finish();
+      return;
+    }
+    dealing = true;
+    tiles.forEach((tile, index) => {
+      window.setTimeout(() => {
+        tile.classList.remove("is-flipping");
+        void tile.offsetWidth;
+        tile.classList.add("is-flipping");
+        window.setTimeout(() => (tile.textContent = code[index] ?? ""), 170);
+      }, index * 80);
+    });
+    window.setTimeout(finish, tiles.length * 80 + 340);
+  });
+
+  const table = sketch.querySelector<HTMLElement>("[data-room-table]");
+  const finePointer = window.matchMedia("(hover: hover) and (pointer: fine)");
+  if (table) {
+    table.addEventListener("pointermove", (event) => {
+      if (reducedMotion.matches || !finePointer.matches) return;
+      const bounds = table.getBoundingClientRect();
+      const x = (event.clientX - bounds.left) / bounds.width - 0.5;
+      const y = (event.clientY - bounds.top) / bounds.height - 0.5;
+      table.style.setProperty("--tilt-x", `${(-y * 5).toFixed(2)}deg`);
+      table.style.setProperty("--tilt-y", `${(x * 7).toFixed(2)}deg`);
+    });
+    table.addEventListener("pointerleave", () => {
+      table.style.removeProperty("--tilt-x");
+      table.style.removeProperty("--tilt-y");
+    });
+  }
+}
+
+const poppy = document.querySelector<HTMLElement>("[data-poppy]");
+if (poppy) {
+  const result = poppy.querySelector<HTMLElement>("[data-poppy-result]");
+  const reset = poppy.querySelector<HTMLButtonElement>("[data-poppy-reset]");
+  const choices = [...poppy.querySelectorAll<HTMLInputElement>("input[name='poppy-answer']")];
+  const prompt = result?.textContent ?? "";
+  for (const choice of choices) {
+    choice.addEventListener("change", () => {
+      poppy.dataset.revealed = "";
+      const author = choice.dataset.author;
+      if (result) {
+        result.textContent = author
+          ? `Fooled! That one was ${author}’s bluff. Otters hold pups for ransom.`
+          : "The truth, at last! Otters really do hold pups for ransom.";
+      }
+      if (reset) reset.hidden = false;
+    });
+  }
+  reset?.addEventListener("click", () => {
+    delete poppy.dataset.revealed;
+    for (const choice of choices) choice.checked = false;
+    if (result) result.textContent = prompt;
+    reset.hidden = true;
+    choices[0]?.focus();
   });
 }
 
@@ -337,4 +445,16 @@ if (tocLinks.length) {
   };
   sync();
   document.addEventListener("scroll", sync, { passive: true });
+}
+
+for (const heading of document.querySelectorAll<HTMLHeadingElement>(".prose :is(h2, h3)[id]")) {
+  const anchor = document.createElement("a");
+  anchor.className = "heading-anchor";
+  anchor.href = `#${heading.id}`;
+  anchor.textContent = "#";
+  anchor.setAttribute("aria-label", `Copy link to “${heading.textContent?.trim() ?? ""}”`);
+  anchor.addEventListener("click", () => {
+    void copyText(new URL(anchor.href, window.location.href).href, "Section link copied");
+  });
+  heading.append(anchor);
 }

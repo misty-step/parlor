@@ -66,3 +66,31 @@ Criteria:
 No-gos: no silent deletion of room history to make quotas work.
 
 Evidence: `integrations/convex/test/lifecycle.test.ts`, `integrations/convex/test/room-operations.test.ts`
+
+## Capability: Evaluating Parlor
+
+## US-004 Size up Parlor from its website
+
+Status: proposed 2026-09-24 with MIS-167; pending operator review.
+
+Statement: When I am deciding whether to build a party game on Parlor, I
+want the website to show what a room does and which games already run on
+it, so I can judge fit before installing anything.
+
+Criteria:
+
+1. WHEN a visitor presses Gather, Play, or Again on the home page, THE SYSTEM
+   SHALL show that room phase: an open seat, a frozen lineup with a late
+   player watching, and the late player seated for the next match.
+2. WHEN a visitor deals a new room code, THE SYSTEM SHALL draw every
+   character from `ROOM_CODE_ALPHABET` and announce the new code to
+   assistive technology.
+3. WHEN the home page renders, THE SYSTEM SHALL list every production game
+   built on Parlor with a working play link and a source link.
+4. WHILE a visitor prefers reduced motion, THE SYSTEM SHALL show every
+   demonstration state without movement.
+
+No-gos: no fake metrics, testimonials, or claims about games that do not
+depend on `@parlor/*`.
+
+Evidence: rendered-state review and axe runs recorded on MIS-167.

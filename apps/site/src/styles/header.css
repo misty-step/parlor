@@ -8,8 +8,23 @@
   top: 0;
   z-index: 30;
   border-bottom: 1px solid var(--line);
-  background: color-mix(in srgb, var(--cream) 96%, transparent);
-  backdrop-filter: blur(12px);
+  background: color-mix(in srgb, var(--cream) 90%, transparent);
+  backdrop-filter: blur(14px) saturate(1.4);
+}
+
+/* A quiet lift once the page moves beneath the header. */
+@supports (animation-timeline: scroll()) {
+  .site-header {
+    animation: header-lift linear both;
+    animation-timeline: scroll(root);
+    animation-range: 0 6rem;
+  }
+
+  @keyframes header-lift {
+    to {
+      box-shadow: 0 8px 24px #20304a0f;
+    }
+  }
 }
 
 .header-inner {
@@ -65,12 +80,24 @@
 .header-nav-item.is-current {
   color: var(--felt-deep);
   background: var(--cream);
-  box-shadow: 0 1px 3px #20304a14;
+  box-shadow:
+    0 1px 0 #d8deeb,
+    0 1px 3px #20304a14;
 }
 
 .header-nav-item:hover {
   color: var(--felt);
   background: var(--cream);
+}
+
+.header-nav-item svg,
+.nav-tool svg {
+  transition: transform 300ms var(--ease-spring);
+}
+
+.header-nav-item:hover svg,
+.nav-tool:hover svg {
+  transform: translateY(-1px) scale(1.08);
 }
 
 .header-actions {
@@ -118,23 +145,39 @@
   justify-content: center;
   gap: 0.5rem;
   min-height: 2.25rem;
-  padding: 0.5rem 0.75rem;
+  padding: 0.5rem 0.8rem;
   border: 1px solid var(--felt);
   border-radius: 0.55rem;
   background: var(--felt);
+  box-shadow: 0 2px 0 var(--felt-deep);
   color: var(--cream);
-  font: 650 0.8125rem/1 var(--body);
+  font: 700 0.8125rem/1 var(--display);
   white-space: nowrap;
   text-decoration: none;
   transition:
     background-color 120ms ease,
-    border-color 120ms ease;
+    transform 120ms var(--ease-out),
+    box-shadow 120ms var(--ease-out);
 }
 
 .header-start:hover {
-  background: var(--felt-deep);
-  border-color: var(--felt-deep);
+  background: #2b41a0;
   color: var(--cream);
+  transform: translateY(-1px);
+  box-shadow: 0 3px 0 var(--felt-deep);
+}
+
+.header-start:active {
+  transform: translateY(1px);
+  box-shadow: 0 1px 0 var(--felt-deep);
+}
+
+.header-start svg {
+  transition: transform 120ms var(--ease-out);
+}
+
+.header-start:hover svg {
+  transform: translateX(2px);
 }
 
 .site-header [data-tooltip]::after {
@@ -142,31 +185,41 @@
   position: absolute;
   top: calc(100% + 0.6rem);
   left: 50%;
-  transform: translateX(-50%);
+  transform: translate(-50%, -4px);
   z-index: 2;
   width: max-content;
   max-width: 14rem;
   padding: 0.45rem 0.65rem;
-  border-radius: 0.4rem;
+  border-radius: 0.45rem;
   background: var(--ink);
   color: var(--cream);
-  font: 500 0.75rem/1.4 var(--body);
-  box-shadow: 0 3px 12px #20304a18;
+  font: 600 0.75rem/1.4 var(--body);
+  box-shadow: 0 6px 16px #20304a24;
   opacity: 0;
   visibility: hidden;
   pointer-events: none;
+  transition:
+    opacity 140ms ease,
+    transform 200ms var(--ease-out),
+    visibility 0s linear 140ms;
 }
 
 .header-actions [data-tooltip]::after {
   left: auto;
   right: 0;
-  transform: none;
+  transform: translateY(-4px);
   max-width: min(14rem, calc(100vw - 2rem));
 }
 
 .site-header [data-tooltip]:is(:hover, :focus-visible)::after {
   opacity: 1;
   visibility: visible;
+  transform: translate(-50%, 0);
+  transition-delay: 250ms, 250ms, 0s;
+}
+
+.header-actions [data-tooltip]:is(:hover, :focus-visible)::after {
+  transform: none;
 }
 
 .site-header .tooltip-dismissed::after {
@@ -232,11 +285,18 @@
   margin-left: auto;
 }
 
+@media (prefers-reduced-motion: no-preference) {
+  .mobile-menu[open] > nav {
+    transform-origin: top right;
+    animation: dialog-in 200ms var(--ease-out);
+  }
+}
+
 .site-header svg {
   flex: 0 0 auto;
 }
 
-@media (max-width: 1280px) {
+@media (max-width: 760px) {
   .header-start,
   .header-divider {
     display: none;
@@ -289,7 +349,8 @@
 @media (prefers-reduced-motion: reduce) {
   .header-nav-item,
   .nav-tool,
-  .header-start {
+  .header-start,
+  .site-header [data-tooltip]::after {
     transition: none;
   }
 }
