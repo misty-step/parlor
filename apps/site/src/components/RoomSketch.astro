@@ -1,43 +1,74 @@
 ---
-import { DoorOpen, LockKeyhole, RotateCcw, Dices, UsersRound, UserPlus } from "@lucide/astro";
+import { Dices, DoorOpen, Eye, LockKeyhole, Plus, RotateCcw, Shuffle, UsersRound } from "@lucide/astro";
+import { ROOM_CODE_ALPHABET, ROOM_CODE_LENGTH } from "../../../../packages/core/src/index";
 import BrandMark from "./BrandMark.astro";
+
+const code = "PLAY";
+const guests = [
+  { initial: "A", name: "Alex" },
+  { initial: "J", name: "Jules" },
+  { initial: "S", name: "Sam" },
+  { initial: "Y", name: "You" },
+];
 ---
-<figure class="room-art" data-room-sketch data-phase="lobby" aria-labelledby="room-art-caption">
-  <div class="room-art-stage">
+<figure
+  class="room-art"
+  data-room-sketch
+  data-phase="lobby"
+  data-alphabet={ROOM_CODE_ALPHABET}
+  data-code-length={ROOM_CODE_LENGTH}
+  aria-labelledby="room-art-caption"
+>
+  <div class="room-table" data-room-table>
     <div class="room-art-back room-art-back--people" aria-hidden="true">
-      <UsersRound size={48} stroke-width={1.4} />
+      <UsersRound size={44} stroke-width={1.5} />
       <span>Good company.</span>
-      <div class="card-line"></div>
-      <div class="card-line card-line--short"></div>
     </div>
     <div class="room-art-back room-art-back--game" aria-hidden="true">
-      <Dices size={50} stroke-width={1.4} />
+      <Dices size={44} stroke-width={1.5} />
       <span>Your game.</span>
-      <div class="card-line"></div>
-      <div class="card-line card-line--short"></div>
     </div>
     <div class="room-invite">
-      <div class="room-invite-header"><BrandMark size={25} /><span>Room invitation</span></div>
-      <h2 data-room-label>Come on in.</h2>
-      <div class="invite-code" aria-label="Room code PLAY"><span>P</span><span>L</span><span>A</span><span>Y</span></div>
-      <p data-room-status>Four friends. One room.</p>
-      <div class="invite-guests" aria-label="Example players: Alex, Jules, Sam, and you">
-        <span title="Alex">A</span>
-        <span title="Jules">J</span>
-        <span title="Sam">S</span>
-        <span title="You">Y</span>
-        <span class="invite-new-guest" data-new-guest hidden title="Jo">J</span>
+      <div class="room-invite-header">
+        <BrandMark size={22} />
+        <span>Room invitation</span>
       </div>
-      <div class="invite-footer" aria-live="polite">
+      <h2 data-room-label>Come on in.</h2>
+      <div class="invite-code-row">
+        <div class="invite-code" role="img" aria-label={`Room code ${code}`} data-room-code>
+          {[...code].map((letter, index) => (
+            <span class="code-tile" style={`--i: ${index}`} aria-hidden="true">{letter}</span>
+          ))}
+          <span class="code-lock" aria-hidden="true"><LockKeyhole size={14} stroke-width={2} /></span>
+        </div>
+        <button type="button" class="deal-button" data-deal-code aria-label="Deal a new room code" title="Deal a new room code">
+          <Shuffle size={17} stroke-width={1.75} aria-hidden="true" />
+        </button>
+      </div>
+      <p class="invite-status" data-room-status aria-live="polite">Four friends. One room.</p>
+      <ul class="invite-seats" aria-label="Players in the room">
+        {guests.map(({ initial, name }, index) => (
+          <li class="seat" style={`--i: ${index}`} title={name}>
+            <span aria-hidden="true">{initial}</span>
+            <span class="sr-only">{name}</span>
+          </li>
+        ))}
+        <li class="seat seat--open" data-open-seat style="--i: 4" title="Open seat">
+          <span class="seat-empty" aria-hidden="true"><Plus size={14} stroke-width={2} /></span>
+          <span class="seat-jo" aria-hidden="true">J</span>
+          <span class="sr-only" data-open-seat-label>Open seat</span>
+        </li>
+      </ul>
+      <div class="invite-footer">
         <span data-phase-icon="lobby"><DoorOpen size={17} stroke-width={1.75} aria-hidden="true" /></span>
         <span data-phase-icon="match" hidden><LockKeyhole size={17} stroke-width={1.75} aria-hidden="true" /></span>
         <span data-phase-icon="rematch" hidden><RotateCcw size={17} stroke-width={1.75} aria-hidden="true" /></span>
         <span data-ticket>Everyone starts here</span>
       </div>
     </div>
-    <div class="late-player" data-late-player hidden>
-      <span class="late-badge"><UserPlus size={17} stroke-width={1.75} aria-hidden="true" /></span>
-      <span data-late-copy>Jo can watch this match</span>
+    <div class="late-player" data-late-player aria-hidden="true">
+      <Eye size={16} stroke-width={1.75} />
+      <span data-late-copy>Jo is watching</span>
     </div>
   </div>
   <div class="sketch-controls" role="group" aria-label="Explore a room’s lifecycle">

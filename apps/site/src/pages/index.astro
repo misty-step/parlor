@@ -11,10 +11,12 @@ import {
   Layers,
   MonitorSmartphone,
   Play,
+  Plus,
   RotateCcw,
   SlidersHorizontal,
-  UsersRound,
+  Sparkles,
 } from "@lucide/astro";
+import BrandMark from "../components/BrandMark.astro";
 
 const schemaCode = `import { parlorTables } from "@parlor/convex/schema";
 import { defineSchema } from "convex/server";
@@ -41,31 +43,78 @@ const packages = [
     description: "Rooms, membership, host transfer, and match lifecycles.",
     href: "/docs/api/#parlorconvex",
     Icon: Database,
+    tone: "mint",
   },
   {
     name: "react",
     description: "Room inputs, QR codes, presence hooks, and audio controls.",
     href: "/docs/api/#parlorreact",
     Icon: MonitorSmartphone,
+    tone: "sky",
   },
   {
     name: "auth",
     description: "Signed guest tokens. A seat at the table, without a sign-up.",
     href: "/docs/api/#parlorauth",
     Icon: KeyRound,
+    tone: "mustard",
   },
   {
     name: "core",
     description: "Pure domain types and the policies beneath every room.",
     href: "/docs/api/#parlorcore",
     Icon: Layers,
+    tone: "lilac",
   },
   {
     name: "web",
     description: "Credential storage, heartbeats, wake locks, and sound.",
     href: "/docs/api/#parlorweb",
     Icon: SlidersHorizontal,
+    tone: "rose",
   },
+];
+const poppyAnswers = [
+  { text: "Splashing it until it gives up and swims off.", author: "Sam" },
+  { text: "Seizing its pup and holding it for a food ransom.", author: "" },
+  { text: "Trading it a shiny pebble of equal value.", author: "Jules" },
+];
+const games = [
+  {
+    key: "linejam",
+    name: "Linejam",
+    pitch: "Write one line, seeing only the line before it. After nine rounds, everyone reads the whole poems aloud.",
+    players: "2–8 players",
+    href: "https://linejam.app",
+    source: "https://github.com/misty-step/linejam",
+  },
+  {
+    key: "kindred",
+    name: "Kindred",
+    pitch: "When exactly two of you say the same thing, you both score. Three of a kind scores nothing.",
+    players: "2–12 players",
+    href: "https://kindred.mistystep.io",
+    source: "https://github.com/misty-step/kindred",
+  },
+  {
+    key: "double-take",
+    name: "Double Take",
+    pitch: "Everyone gets the same two worlds. Write the one line that fits both best.",
+    players: "2–8 players",
+    href: "https://doubletake.mistystep.io",
+    source: "https://github.com/misty-step/double-take",
+  },
+];
+const linejamPoem = [
+  "Moonlight",
+  "spills slowly",
+  "across the kitchen",
+  "while everyone argues about",
+  "whose turn it really was",
+  "nobody remembers the rules",
+  "but someone laughs",
+  "too loud",
+  "again.",
 ];
 ---
 <Base>
@@ -73,7 +122,7 @@ const packages = [
     <section class="hero-section" aria-labelledby="hero-title">
       <div class="container hero">
         <div class="hero-copy">
-          <h1 id="hero-title">You bring<br />the game.<br />We make room.</h1>
+          <h1 id="hero-title">You bring<br /> the game.<br /> We make room.</h1>
           <p class="hero-description">The multiplayer toolkit for game night.</p>
           <p class="hero-detail">
             Guest identity, rooms, presence, and matches for Convex and React. Build what makes your game special. Leave the shared plumbing to Parlor.
@@ -84,12 +133,14 @@ const packages = [
               <ArrowRight size={18} stroke-width={1.75} aria-hidden="true" />
             </a>
             <a class="button button-outline" href="/docs/agents/">
+              <Bot size={18} stroke-width={1.75} aria-hidden="true" />
               Build with an agent
             </a>
           </div>
           <div class="hero-footnote">
             <a href="/license.txt">Open source, MIT licensed</a>
             <span>TypeScript, end to end</span>
+            <span>Made for phones around a table</span>
           </div>
         </div>
         <RoomSketch />
@@ -99,9 +150,9 @@ const packages = [
     <section id="why-parlor" class="section why-section" aria-labelledby="why-title">
       <div class="container">
         <div class="section-heading">
-          <h2 id="why-title">More game.<br />Less getting started.</h2>
+          <h2 id="why-title">More game.<br /> Less getting started.</h2>
           <p>
-            You have an idea for the next great party game.<br class="desktop-break" />
+            You have an idea for the next great party game. <br class="desktop-break" />
             You probably don’t have an idea for the next great heartbeat implementation.
           </p>
         </div>
@@ -121,7 +172,8 @@ const packages = [
           </div>
           <div class="benefit">
             <div class="benefit-symbol presence-symbol" aria-hidden="true">
-              <UsersRound size={20} stroke-width={1.75} />
+              <span class="presence-faces"><i>A</i><i>J</i><i>S</i></span>
+              <span class="presence-pulse"></span>
               <span>Still together</span>
             </div>
             <h3>Keep the room together.</h3>
@@ -156,21 +208,21 @@ const packages = [
       <div class="container ownership-grid">
         <div class="ownership-copy">
           <p class="section-kicker">A library inside your game</p>
-          <h2 id="ownership-title">A shared foundation.<br />Not a shared personality.</h2>
+          <h2 id="ownership-title">A shared foundation.<br /> Not a shared personality.</h2>
           <p>
             Parlor runs inside your Convex backend. Your app owns its data, its rules, and everything players see. No separate multiplayer service. No prescribed game loop.
           </p>
           <div class="ownership-lists">
-            <div>
-              <h3>We handle</h3>
+            <div class="ownership-list ownership-list--parlor">
+              <h3><BrandMark size={16} /> We handle</h3>
               <ul>
                 <li>Guests & room membership</li>
                 <li>Presence & host handoff</li>
                 <li>Match state & frozen lineups</li>
               </ul>
             </div>
-            <div>
-              <h3>You create</h3>
+            <div class="ownership-list ownership-list--yours">
+              <h3><Sparkles size={16} stroke-width={1.75} aria-hidden="true" /> You create</h3>
               <ul>
                 <li>Prompts, turns & surprises</li>
                 <li>Private answers & scoring</li>
@@ -184,21 +236,22 @@ const packages = [
           </a>
         </div>
         <div class="integration-code">
-          <div class="code-switcher" role="group" aria-label="Integration examples">
-            <button type="button" data-code-tab="schema" aria-pressed="true">The shared schema</button>
-            <button type="button" data-code-tab="match" aria-pressed="false">Your next match</button>
-          </div>
-          <div data-code-panel="schema">
-            <div class="code-filename">convex/schema.ts</div>
-            <Code code={schemaCode} lang="ts" theme="github-light" />
-          </div>
-          <div data-code-panel="match" hidden>
-            <div class="code-filename">Inside your game mutation</div>
-            <Code code={matchCode} lang="ts" theme="github-light" />
+          <div class="code-window">
+            <div class="code-switcher" role="group" aria-label="Integration examples">
+              <button type="button" data-code-tab="schema" aria-pressed="true">The shared schema</button>
+              <button type="button" data-code-tab="match" aria-pressed="false">Your next match</button>
+            </div>
+            <div class="code-panel" data-code-panel="schema">
+              <div class="code-filename">convex/schema.ts</div>
+              <Code code={schemaCode} lang="ts" theme="github-light" />
+            </div>
+            <div class="code-panel" data-code-panel="match" hidden>
+              <div class="code-filename">Inside your game mutation</div>
+              <Code code={matchCode} lang="ts" theme="github-light" />
+            </div>
           </div>
           <p>
-            Regular TypeScript. Ordinary Convex tables.<br />
-            <a href="/docs/first-game/">See it in a complete game.</a>
+            Regular TypeScript. Ordinary Convex tables. <a href="/docs/first-game/">See it in a complete game.</a>
           </p>
         </div>
       </div>
@@ -207,15 +260,15 @@ const packages = [
     <section class="section package-section" aria-labelledby="package-title">
       <div class="container">
         <div class="section-heading">
-          <h2 id="package-title">Five pieces.<br />Plenty of possibilities.</h2>
+          <h2 id="package-title">Five pieces.<br /> Plenty of possibilities.</h2>
           <p>
-            Bluffing, drawing, trivia, voting, and ideas<br class="desktop-break" />
+            Bluffing, drawing, trivia, voting, and ideas <br class="desktop-break" />
             that don’t have a name yet. Pick what you need.
           </p>
         </div>
         <div class="package-list">
-          {packages.map(({ name, description, href, Icon }) => (
-            <a href={href} class="package-row">
+          {packages.map(({ name, description, href, Icon, tone }) => (
+            <a href={href} class="package-row" style={`--tone: var(--${tone})`}>
               <span class="package-mark" aria-hidden="true">
                 <Icon size={18} stroke-width={1.75} />
               </span>
@@ -238,28 +291,34 @@ const packages = [
 
     <section id="in-the-wild" class="section showcase-section" aria-labelledby="showcase-title">
       <div class="container showcase-grid">
-        <div class="showcase-art">
-          <div class="poppy-window">
-            <div class="window-bar">
-              <span class="window-dots" aria-hidden="true"><i></i><i></i><i></i></span>
-              <span>poppycock.mistystep.io</span>
+        <figure class="showcase-art">
+          <div class="poppy-phone" data-poppy>
+            <div class="poppy-top">
+              <span class="poppy-wordmark">poppycock</span>
+              <span class="poppy-round">Round 3</span>
             </div>
-            <div class="poppy-poster">
-              <span class="poppy-name">poppycock!</span>
-              <p>A game of<br />beautiful nonsense.</p>
-              <div class="poppy-options" aria-hidden="true">
-                <span>Invent a lie.</span>
-                <span>Find the truth.</span>
-                <span>Trust nobody.</span>
-              </div>
-              <span class="poppy-players">3–12 players. Bring your best poker face.</span>
+            <span class="poppy-chip">Beastly cheats</span>
+            <p class="poppy-question">How have some sea otters persuaded another otter to surrender its food?</p>
+            <fieldset class="poppy-answers">
+              <legend class="sr-only">Pick the answer you believe. One is true; the others are bluffs.</legend>
+              {poppyAnswers.map(({ text, author }) => (
+                <label class="poppy-answer" data-bluff={author ? "" : undefined}>
+                  <input type="radio" name="poppy-answer" value={author ? `bluff-${author}` : "truth"} data-author={author || undefined} />
+                  <span class="poppy-answer-text">{text}</span>
+                  <span class="poppy-verdict">{author ? `${author}’s bluff` : "The truth"}</span>
+                </label>
+              ))}
+            </fieldset>
+            <div class="poppy-footer">
+              <p class="poppy-result" data-poppy-result aria-live="polite">One answer is true. Pick the one you believe.</p>
+              <button type="button" class="poppy-again" data-poppy-reset hidden>Play again</button>
             </div>
           </div>
-          <span class="showcase-caption">A Parlor-powered game by <a href="https://mistystep.io" target="_blank" rel="noopener noreferrer" class="plain-ext-link">Misty Step</a></span>
-        </div>
+          <figcaption class="showcase-caption">A sample round, drawn in Poppycock’s own colors.</figcaption>
+        </figure>
         <div class="showcase-copy">
           <p class="section-kicker">Out of the library. Around the table.</p>
-          <h2 id="showcase-title">Built for games<br />people actually play.</h2>
+          <h2 id="showcase-title">Built for games<br /> people actually play.</h2>
           <p>Poppycock is a bluffing game about making the wrong answer sound very, very right.</p>
           <p>It’s also why Parlor exists. The rooms, guest identities, presence, and matches are shared. The beautiful nonsense is all Poppycock.</p>
           <div class="showcase-actions">
@@ -268,16 +327,62 @@ const packages = [
           </div>
         </div>
       </div>
+      <div class="container game-gallery">
+        <div class="gallery-heading">
+          <h3>Three more games have pulled up a chair.</h3>
+          <p>Same rooms, guests, presence, and matches underneath. Nothing alike on top.</p>
+        </div>
+        <ul class="gallery-list">
+          {games.map(({ key, name, pitch, players, href, source }) => (
+            <li class:list={["game-card", `game-card--${key}`]}>
+              <div class="game-poster" aria-hidden="true">
+                {key === "linejam" && (
+                  <>
+                    <span class="poster-mark">linejam</span>
+                    <div class="linejam-poem">
+                      {linejamPoem.map((line, index) => <span style={`--i: ${index}`}>{line}</span>)}
+                    </div>
+                  </>
+                )}
+                {key === "kindred" && (
+                  <>
+                    <span class="poster-mark"><svg viewBox="0 0 28 18" width="28" height="18"><circle cx="9" cy="9" r="7.5" /><circle cx="19" cy="9" r="7.5" /><path d="M14 3.4a7.5 7.5 0 0 1 0 11.2a7.5 7.5 0 0 1 0-11.2Z" /></svg>Kindred</span>
+                    <span class="kindred-prompt">Something you sit on</span>
+                    <span class="kindred-pair"><span>sofa<small>Jo</small></span><span>couch<small>Priya</small></span></span>
+                    <span class="kindred-alone">chair<small>Sam</small></span>
+                  </>
+                )}
+                {key === "double-take" && (
+                  <>
+                    <span class="take-world take-world--vow">A wedding vow</span>
+                    <span class="take-line">I have waited years<br /> for this moment.<small>5 points</small></span>
+                    <span class="take-world take-world--gloat">A villain’s gloat</span>
+                  </>
+                )}
+              </div>
+              <div class="game-copy">
+                <h4>{name}</h4>
+                <p>{pitch}</p>
+                <span class="game-players">{players}</span>
+              </div>
+              <div class="game-actions">
+                <ExternalLink class="text-link" href={href}>Play {name}</ExternalLink>
+                <ExternalLink class="game-source" href={source}>Source</ExternalLink>
+              </div>
+            </li>
+          ))}
+        </ul>
+      </div>
     </section>
 
     <section class="section start-section" aria-labelledby="start-title">
       <div class="container">
         <div class="section-heading">
           <h2 id="start-title">Your next move.</h2>
-          <p>A working example for you.<br />A field guide for your coding agent.</p>
+          <p>A working example for you.<br /> A field guide for your coding agent.</p>
         </div>
         <div class="start-paths">
-          <article class="start-path">
+          <article class="start-path example-path">
             <span class="path-symbol" aria-hidden="true">
               <Play size={20} stroke-width={2} />
             </span>
@@ -285,6 +390,12 @@ const packages = [
             <p>
               Run First Tap: a small game with a real guest issuer, two-player rooms, a server-decided winner, and rematches. Read the code. Make it yours.
             </p>
+            <ol class="path-steps" aria-label="What running First Tap involves">
+              <li>Install the checkout</li>
+              <li>Start a Convex development backend</li>
+              <li>Set up guest access and start the app</li>
+              <li>Open two browsers and play each other</li>
+            </ol>
             <div class="start-path-actions">
               <a class="button" href="/docs/first-game/">
                 Run the example
@@ -315,42 +426,48 @@ Use the source APIs. Verify two players.</code></pre>
     </section>
 
     <section class="section faq-section" aria-labelledby="faq-title">
-      <div class="container">
-        <div class="section-heading faq-heading">
+      <div class="container faq-layout">
+        <div class="faq-heading">
           <h2 id="faq-title">A few things worth knowing.</h2>
+          <p>Something else on your mind? <ExternalLink class="text-link" href="https://github.com/misty-step/parlor/issues">Ask on GitHub</ExternalLink></p>
         </div>
         <div class="faq-list">
           <details>
-            <summary>Is Parlor a hosted service?</summary>
+            <summary>Is Parlor a hosted service?<Plus class="faq-icon" size={20} stroke-width={1.75} aria-hidden="true" /></summary>
             <p>No. Parlor is a library in your application. You deploy your own Convex backend and React app, and retain ownership of the data. The Parlor website does not host your players or games.</p>
           </details>
           <details>
-            <summary>Do I need to use Convex and React?</summary>
+            <summary>Do I need to use Convex and React?<Plus class="faq-icon" size={20} stroke-width={1.75} aria-hidden="true" /></summary>
             <p>The room and match backend is built for Convex. React gives you the ready-made UI components and hooks. The core policies and browser controllers are separate packages, but Parlor is not a backend-agnostic multiplayer framework.</p>
           </details>
           <details>
-            <summary>Can I use it commercially?</summary>
+            <summary>Can I use it commercially?<Plus class="faq-icon" size={20} stroke-width={1.75} aria-hidden="true" /></summary>
             <p>Yes. Parlor is <a href="/license.txt">MIT licensed</a>. Keep the copyright and license notice with the code. Hosting and Convex usage are your own operating costs.</p>
           </details>
           <details>
-            <summary>How stable is the API?</summary>
+            <summary>How stable is the API?<Plus class="faq-icon" size={20} stroke-width={1.75} aria-hidden="true" /></summary>
             <p>Parlor powers Poppycock, but the library is still pre-1.0. Pin a source revision, review changes before updating, and verify your own game’s behavior. <a href="/docs/installation/">The installation guide</a> covers that workflow.</p>
           </details>
         </div>
       </div>
     </section>
 
-    <section class="closing-section">
+    <section class="closing-section" aria-labelledby="closing-title">
       <div class="container closing-inner">
         <div>
-          <h2>The best part<br />is what you make.</h2>
+          <h2 id="closing-title">The best part<br /> is what you make.</h2>
           <p>Make something worth gathering around.</p>
         </div>
-        <a class="button button-yellow" href="/docs/getting-started/">
-          Make room for your game
-          <ArrowRight size={18} stroke-width={1.75} aria-hidden="true" />
-        </a>
-        <div class="closing-pieces" aria-hidden="true"><i></i><i></i><i></i></div>
+        <div class="closing-action">
+          <div class="closing-seats" aria-hidden="true">
+            <span>A</span><span>J</span><span>S</span><span>Y</span>
+            <span class="closing-seat-open"><Plus class="closing-seat-plus" size={16} stroke-width={2} /><BrandMark class="closing-seat-mark" size={16} /></span>
+          </div>
+          <a class="button button-yellow" href="/docs/getting-started/">
+            Make room for your game
+            <ArrowRight size={18} stroke-width={1.75} aria-hidden="true" />
+          </a>
+        </div>
       </div>
     </section>
   </main>

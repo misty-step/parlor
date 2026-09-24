@@ -30,6 +30,14 @@ const accentColors = [
   { name: "Mint", token: "--mint", role: "A little welcome" },
   { name: "Mustard", token: "--mustard", role: "A little energy" },
   { name: "Lilac", token: "--lilac", role: "A little possibility" },
+  { name: "Sky", token: "--sky", role: "One more friend" },
+  { name: "Rose", token: "--rose", role: "A new arrival" },
+];
+const motion = [
+  { token: "--quick", value: "140ms", role: "Feedback: hover, press, color" },
+  { token: "--settle", value: "420ms", role: "A piece landing in place" },
+  { token: "--ease-out", value: "cubic-bezier(0.22, 1, 0.36, 1)", role: "Everything that moves by default" },
+  { token: "--ease-spring", value: "cubic-bezier(0.34, 1.56, 0.64, 1)", role: "Tiles, seats, and marks that pop in" },
 ];
 const spaces = [4, 8, 12, 16, 24, 32, 48, 64];
 ---
@@ -50,6 +58,7 @@ const spaces = [4, 8, 12, 16, 24, 32, 48, 64];
         <a href="#color">Color</a>
         <a href="#type-and-space">Type & spacing</a>
         <a href="#interface">Icons & actions</a>
+        <a href="#pieces">Pieces & motion</a>
       </nav>
 
       <section class="kit-section" id="identity" aria-labelledby="identity-title">
@@ -236,6 +245,37 @@ const spaces = [4, 8, 12, 16, 24, 32, 48, 64];
               <ExternalLink href="https://github.com/misty-step/parlor" class="text-link">View GitHub</ExternalLink>
             </div>
             <p class="kit-note">Internal links stay in this tab. External links open a new one; text links use an upward-right arrow, while icon-only utilities keep a single clean symbol.</p>
+          </div>
+        </div>
+      </section>
+
+      <section class="kit-section" id="pieces" aria-labelledby="pieces-title">
+        <div class="kit-section-heading">
+          <h2 id="pieces-title">Pieces you can press.</h2>
+          <p>Parlor borrows from the game box. Tiles, buttons, and seats are printed pieces with one flat edge beneath them, and they press down when you use them.</p>
+        </div>
+        <div class="kit-interface-grid">
+          <div>
+            <h3>A printed edge</h3>
+            <div class="kit-piece-row" aria-hidden="true">
+              <span class="code-tile">P</span><span class="code-tile">L</span><span class="code-tile">A</span><span class="code-tile">Y</span>
+            </div>
+            <p>Pieces use <code>--tile-edge</code>: a 3px offset with no blur, one shade deeper than the piece. Pressing moves the piece 2px down onto <code>--tile-edge-pressed</code>. Cards lifted off the table keep a soft shadow; pieces never get both.</p>
+            <p>Room codes use tabular Manrope 800 so every tile holds the same width. Codes leave out zero, one, and the letters O and I, so no tile can be misread.</p>
+            <div class="kit-button-row">
+              <a href="/docs/first-game/" class="button">Run the example <ArrowRight size={18} stroke-width={1.75} aria-hidden="true" /></a>
+              <a href="/docs/getting-started/" class="button button-yellow">Make room for your game</a>
+            </div>
+          </div>
+          <div>
+            <h3>Motion with a job</h3>
+            <dl class="kit-motion-list">
+              {motion.map(({ token, value, role }) => (
+                <div><dt><code>{token}</code></dt><dd><strong>{role}</strong><span>{value}</span></dd></div>
+              ))}
+            </dl>
+            <p>Each page gets one orchestrated moment. On the home page, the invitation lands and its room code is dealt tile by tile. Everything else moves only in answer to a person: a press, an opened question, a new round.</p>
+            <p class="kit-note">Reduced motion removes the movement and keeps every state change. No information depends on animation.</p>
           </div>
         </div>
       </section>

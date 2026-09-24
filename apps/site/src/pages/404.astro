@@ -1,14 +1,33 @@
 ---
+import { ArrowRight, BookOpen } from "@lucide/astro";
+import { ROOM_CODE_ALPHABET } from "../../../../packages/core/src/index";
 import Base from "../layouts/Base.astro";
+
+const zeroIsImpossible = !ROOM_CODE_ALPHABET.includes("0");
 ---
 <Base title="Page not found — Parlor" description="This page is not in the Parlor handbook." noindex>
-  <main id="main" class="not-found container">
-    <span class="error-number">404</span>
-    <h1>This room isn’t here.</h1>
-    <p>The page may have moved. The handbook is a good place to find your way back.</p>
-    <div class="hero-actions">
-      <a class="button" href="/docs/getting-started/">Open the handbook</a>
-      <a class="button button-outline" href="/">Back to Parlor</a>
+  <main id="main" class="not-found">
+    <div class="container not-found-inner">
+      <div class="not-found-code" role="img" aria-label="Room code 404">
+        <span class="code-tile" style="--i: 0" aria-hidden="true">4</span>
+        <span class:list={["code-tile", { "code-tile--impossible": zeroIsImpossible }]} style="--i: 1" aria-hidden="true">0</span>
+        <span class="code-tile" style="--i: 2" aria-hidden="true">4</span>
+      </div>
+      <h1>This room isn’t here.</h1>
+      {zeroIsImpossible && (
+        <p>No Parlor room code ever contains a zero. We leave it out so nobody mistakes it for the letter O across the table.</p>
+      )}
+      <p>The page may have moved. The handbook is a good place to find your way back.</p>
+      <div class="hero-actions">
+        <a class="button" href="/docs/getting-started/">
+          <BookOpen size={18} stroke-width={1.75} aria-hidden="true" />
+          Open the handbook
+        </a>
+        <a class="button button-outline" href="/">
+          Back to Parlor
+          <ArrowRight size={18} stroke-width={1.75} aria-hidden="true" />
+        </a>
+      </div>
     </div>
   </main>
 </Base>

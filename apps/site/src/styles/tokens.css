@@ -11,12 +11,22 @@
   --mint: #c9e5dc;
   --mustard: #f0d58e;
   --lilac: #dcd5f0;
+  --rose: #f5c2d1;
+  --sky: #c4d3f4;
   --display: "Manrope Variable", "Manrope", sans-serif;
   --body: "DM Sans Variable", "DM Sans", sans-serif;
   --mono: ui-monospace, "SFMono-Regular", Consolas, monospace;
   --radius-control: 0.65rem;
   --radius-panel: 1.25rem;
   --shadow: 0 12px 35px #2436650c;
+  --shadow-lift: 0 22px 48px #1c2c521c;
+  /* Game pieces are printed, not glossy: one flat edge beneath, no blur. */
+  --tile-edge: 0 3px 0;
+  --tile-edge-pressed: 0 1px 0;
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --quick: 140ms;
+  --settle: 420ms;
   --content-width: 1320px;
   --icon-stroke: 1.75;
   --header-height: 4rem;
