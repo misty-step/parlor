@@ -11,5 +11,11 @@
     "tsBuildInfoFile": ".next/cache/tsconfig.solution.tsbuildinfo"
   },
   "include": ["app/**/*.ts", "app/**/*.tsx", "convex/**/*.ts"],
-  "exclude": ["node_modules"]
+  "exclude": ["node_modules"],
+  "references": [
+    { "path": "../../packages/core" },
+    { "path": "../../packages/auth" },
+    { "path": "../../packages/react" },
+    { "path": "../../integrations/convex" }
+  ]
 }
