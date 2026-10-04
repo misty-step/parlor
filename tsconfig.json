@@ -6,6 +6,7 @@
     { "path": "./packages/web" },
     { "path": "./packages/react" },
     { "path": "./integrations/convex" },
-    { "path": "./apps/playground" }
+    { "path": "./apps/playground" },
+    { "path": "./examples/first-tap/tsconfig.solution.json" }
   ]
 }
