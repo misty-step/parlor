@@ -1,74 +1,27 @@
 import { readFileSync } from "node:fs";
-import { fileURLToPath } from "node:url";
 import { resolve } from "node:path";
-import ts from "typescript";
+import { fileURLToPath } from "node:url";
 
 const defaultPath = fileURLToPath(new URL("../examples/first-tap/convex/game.ts", import.meta.url));
 const sourcePath = process.argv[2] ? resolve(process.argv[2]) : defaultPath;
-const sourceText = readFileSync(sourcePath, "utf8");
-const sourceFile = ts.createSourceFile(
-  sourcePath,
-  sourceText,
-  ts.ScriptTarget.Latest,
-  true,
-  ts.ScriptKind.TS,
-);
-
+const sourceText = readFileSync(sourcePath, "utf8").replace(/\/\*[\s\S]*?\*\/|\/\/[^\n]*/g, "");
 const failures = [];
-let tap;
-
-const propertyName = (property) => {
-  if (property.name && (ts.isIdentifier(property.name) || ts.isStringLiteral(property.name))) {
-    return property.name.text;
-  }
-  return undefined;
-};
-
-const visit = (node) => {
-  if (ts.isVariableDeclaration(node) && ts.isIdentifier(node.name) && node.name.text === "tap") {
-    tap = node.initializer;
-  }
-
-  if (
-    ts.isCallExpression(node) &&
-    ts.isIdentifier(node.expression) &&
-    node.expression.text === "completeMatch"
-  ) {
-    const input = node.arguments[1];
-    const hasActor =
-      input &&
-      ts.isObjectLiteralExpression(input) &&
-      input.properties.some((property) => propertyName(property) === "actor");
-    if (!hasActor) {
-      const position = sourceFile.getLineAndCharacterOfPosition(node.getStart(sourceFile));
-      failures.push(`completeMatch call at line ${position.line + 1} must include actor`);
-    }
-  }
-
-  ts.forEachChild(node, visit);
-};
-
-visit(sourceFile);
-
-let tapReferencesParticipants = false;
-if (tap) {
-  const inspectTap = (node) => {
-    if (
-      ts.isCallExpression(node) &&
-      ts.isPropertyAccessExpression(node.expression) &&
-      node.expression.name.text === "query" &&
-      node.arguments.some(
-        (argument) => ts.isStringLiteral(argument) && argument.text === "matchParticipants",
-      )
-    ) {
-      tapReferencesParticipants = true;
-    }
-    ts.forEachChild(node, inspectTap);
-  };
-  inspectTap(tap);
+const completeMatchCalls = sourceText.match(/\bcompleteMatch\s*\(/g) ?? [];
+const completeMatchCallsWithActor =
+  sourceText.match(/\bcompleteMatch\s*\(\s*ctx\s*,\s*\{[^}]*\bactor\s*(?=[:,}])[^}]*\}\s*\)/gs) ??
+  [];
+if (
+  completeMatchCalls.length === 0 ||
+  completeMatchCallsWithActor.length !== completeMatchCalls.length
+) {
+  failures.push("every completeMatch call must include actor");
 }
 
-if (!tapReferencesParticipants) {
+const tapStart = sourceText.indexOf("export const tap");
+const nextExport = sourceText.indexOf("export const", tapStart + 1);
+const tapSource =
+  tapStart === -1 ? "" : sourceText.slice(tapStart, nextExport === -1 ? undefined : nextExport);
+if (!/\.query\s*\(\s*["']matchParticipants["']\s*\)/s.test(tapSource)) {
   failures.push("tap must query matchParticipants");
 }
 
