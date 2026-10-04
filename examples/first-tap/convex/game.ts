@@ -28,6 +28,15 @@ export const tap = mutation({
   handler: async (ctx, args) => {
     const actor = await resolvePlayer(ctx, args.guestToken);
     await requireActiveMatch(ctx, args.matchId, args.roomId);
+    const participant = await ctx.db
+      .query("matchParticipants")
+      .withIndex("by_match_player", (q) =>
+        q.eq("matchId", args.matchId).eq("playerId", actor.playerId),
+      )
+      .unique();
+    if (!participant) {
+      throw new ConvexError({ code: "MATCH_PARTICIPANT_REQUIRED" });
+    }
     const member = await ctx.db
       .query("roomMembers")
       .withIndex("by_room_player", (q) =>
