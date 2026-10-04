@@ -13,7 +13,7 @@
     "deploy:site": "pnpm --filter @parlor/site run deploy",
     "format": "oxfmt .",
     "format:check": "oxfmt --check .",
-    "lint": "oxlint --type-aware --deny-warnings .",
+    "lint": "oxlint --type-aware --deny-warnings . && node scripts/check-copy-surface.mjs",
     "test": "vitest run",
     "test:e2e": "playwright test",
     "smoke:convex": "node scripts/smoke-convex.mjs",
