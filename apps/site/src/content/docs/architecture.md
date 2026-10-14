@@ -69,9 +69,9 @@ The backend stores `lastSeenAt` and derives presence from timestamps. Heartbeats
 
 - **[First Tap](/docs/first-game/)** is the complete runnable example in [`examples/first-tap`](https://github.com/misty-step/parlor/tree/master/examples/first-tap): a Convex backend, signed-cookie issuer, and React game. It is the starting point for learning the integration.
 
-- **[Poppycock](https://poppycock.mistystep.io)** is a shipped game using Parlor. Its [source](https://github.com/misty-step/poppycock) demonstrates game-owned phases, scoring, safe projections, a Node guest issuer and paginated maintenance. Its 3–12 player bounds and one-minute cron are Poppycock decisions, not universal package defaults.
+- **Poppycock**, linked with its source in the [production game gallery](/#in-the-wild), is a shipped game using Parlor. Its source demonstrates game-owned phases, scoring, safe projections, a Node guest issuer and paginated maintenance. Its 3–12 player bounds and one-minute cron are Poppycock decisions, not universal package defaults.
 - **`apps/playground`** is a deterministic, browser-local lifecycle rehearsal using core policies and React UI with a simulated clock and roster. The repository's `pnpm dev` runs this surface; [First Tap's commands](/docs/first-game/#run-the-example) run the shared Convex game instead.
 - **`tests/consumer/convex`** is a game-owned schema/backend fixture for the repository's Convex smoke runner, separate from the example frontend.
-- **[Linejam](https://linejam.app)** is a shipped game using Parlor, a pass-the-poem game for 2–8 players.
+- **Linejam** is a shipped game using Parlor, a pass-the-poem game for 2–8 players. The [production game gallery](/#in-the-wild) maintains its Play and Source links alongside the other games.
 
 Matchmaking, game content, account recovery, retention, hosting, and deployment policy remain product decisions. Parlor makes room and match invariants reusable while keeping those responsibilities explicit. Review [public deployment boundaries](/docs/first-game/#before-a-public-deployment) before shipping.

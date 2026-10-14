@@ -1,0 +1,28 @@
+{
+  "poppycock": {
+    "name": "Poppycock",
+    "href": "https://poppycock.mistystep.io",
+    "source": "https://github.com/misty-step/poppycock"
+  },
+  "linejam": {
+    "name": "Linejam",
+    "pitch": "Write one line, seeing only the line before it. After nine rounds, everyone reads the whole poems aloud.",
+    "players": "2–8 players",
+    "href": "https://linejam.mistystep.io",
+    "source": "https://github.com/misty-step/linejam"
+  },
+  "kindred": {
+    "name": "Kindred",
+    "pitch": "When exactly two of you say the same thing, you both score. Three of a kind scores nothing.",
+    "players": "2–12 players",
+    "href": "https://kindred-legacy.mistystep.io",
+    "source": "https://github.com/misty-step/kindred-game-legacy"
+  },
+  "double-take": {
+    "name": "Double Take",
+    "pitch": "Everyone gets the same two worlds. Write the one line that fits both best.",
+    "players": "2–8 players",
+    "href": "https://doubletake.mistystep.io",
+    "source": "https://github.com/misty-step/double-take"
+  }
+}

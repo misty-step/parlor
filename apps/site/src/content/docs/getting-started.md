@@ -55,4 +55,4 @@ Read [architecture and ownership](/docs/architecture/) for the five packages and
 - [React and browser capabilities](/docs/react/): hook contracts, styling, connection state, and optional capabilities.
 - [Agent onboarding](/docs/agents/): the [portable skill](/skill.md), [documentation index](/llms.txt), and [full documentation](/llms-full.txt).
 
-Want to explore before setting up a backend? The [playground source](https://github.com/misty-step/parlor/tree/master/apps/playground) runs a browser-local lifecycle rehearsal with the repository's `pnpm dev`. For a shared backend and browser identities, run First Tap. [Poppycock](https://poppycock.mistystep.io) is a shipped consuming game with [source available](https://github.com/misty-step/poppycock).
+Want to explore before setting up a backend? The [playground source](https://github.com/misty-step/parlor/tree/master/apps/playground) runs a browser-local lifecycle rehearsal with the repository's `pnpm dev`. For a shared backend and browser identities, run First Tap. The [production game gallery](/#in-the-wild) links Poppycock and the other shipped games with their source.

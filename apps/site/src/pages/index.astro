@@ -17,6 +17,7 @@ import {
   Sparkles,
 } from "@lucide/astro";
 import BrandMark from "../components/BrandMark.astro";
+import catalog from "../data/games.json";
 
 const schemaCode = `import { parlorTables } from "@parlor/convex/schema";
 import { defineSchema } from "convex/server";
@@ -79,32 +80,8 @@ const poppyAnswers = [
   { text: "Seizing its pup and holding it for a food ransom.", author: "" },
   { text: "Trading it a shiny pebble of equal value.", author: "Jules" },
 ];
-const games = [
-  {
-    key: "linejam",
-    name: "Linejam",
-    pitch: "Write one line, seeing only the line before it. After nine rounds, everyone reads the whole poems aloud.",
-    players: "2–8 players",
-    href: "https://linejam.app",
-    source: "https://github.com/misty-step/linejam",
-  },
-  {
-    key: "kindred",
-    name: "Kindred",
-    pitch: "When exactly two of you say the same thing, you both score. Three of a kind scores nothing.",
-    players: "2–12 players",
-    href: "https://kindred.mistystep.io",
-    source: "https://github.com/misty-step/kindred",
-  },
-  {
-    key: "double-take",
-    name: "Double Take",
-    pitch: "Everyone gets the same two worlds. Write the one line that fits both best.",
-    players: "2–8 players",
-    href: "https://doubletake.mistystep.io",
-    source: "https://github.com/misty-step/double-take",
-  },
-];
+const { poppycock, ...gallery } = catalog;
+const games = Object.entries(gallery).map(([key, game]) => ({ key, ...game }));
 const linejamPoem = [
   "Moonlight",
   "spills slowly",
@@ -322,8 +299,8 @@ const linejamPoem = [
           <p>Poppycock is a bluffing game about making the wrong answer sound very, very right.</p>
           <p>It’s also why Parlor exists. The rooms, guest identities, presence, and matches are shared. The beautiful nonsense is all Poppycock.</p>
           <div class="showcase-actions">
-            <ExternalLink class="button" href="https://poppycock.mistystep.io">Play Poppycock</ExternalLink>
-            <ExternalLink class="text-link showcase-source" href="https://github.com/misty-step/poppycock">Read the source</ExternalLink>
+            <ExternalLink class="button" href={poppycock.href}>Play {poppycock.name}</ExternalLink>
+            <ExternalLink class="text-link showcase-source" href={poppycock.source}>Read the source</ExternalLink>
           </div>
         </div>
       </div>
