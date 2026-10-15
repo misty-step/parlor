@@ -66,7 +66,9 @@ protocol from that object.
     later frames with the identity in force when it was admitted. A connection
     may run 32 actions at once; more are refused, not queued.
   - Socket frames may carry 1 MiB and HTTP request bodies 8 MiB, counted in
-    UTF-8 bytes as they arrive, whatever `Content-Length` claims.
+    UTF-8 bytes as they arrive, whatever `Content-Length` claims. An unwanted
+    body is still read and discarded, up to 32 MiB, before the response, so
+    the runtime delivers the 413 (or 401 or 404).
 - **Auth.** OIDC providers (`domain` plus `applicationID`) and `customJwt`
   providers come from the app's `auth.config.ts`. Tokens are verified with
   RS256 or ES256 against cached JWKS. A token must carry a finite numeric
