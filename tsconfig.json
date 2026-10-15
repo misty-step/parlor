@@ -6,6 +6,7 @@
     { "path": "./packages/web" },
     { "path": "./packages/react" },
     { "path": "./integrations/convex" },
+    { "path": "./integrations/cloudflare" },
     { "path": "./apps/playground" }
   ]
 }

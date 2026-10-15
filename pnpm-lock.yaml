@@ -144,6 +144,16 @@ importers:
         specifier: 7.0.2
         version: 7.0.2
 
+  integrations/cloudflare:
+    dependencies:
+      convex:
+        specifier: ^1.42.3
+        version: 1.45.0(react@19.2.8)
+    devDependencies:
+      vitest:
+        specifier: 5.0.0
+        version: 5.0.0(@edge-runtime/vm@5.0.0)(@types/node@26.0.0)(happy-dom@20.10.6)(vite@8.2.2(@types/node@26.0.0)(esbuild@0.28.2)(yaml@2.9.0))
+
   integrations/convex:
     dependencies:
       '@parlor/auth':
