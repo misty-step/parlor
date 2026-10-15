@@ -1,0 +1,76 @@
+# Verify stories against SPEC.md
+
+Read [SPEC.md](../SPEC.md), select the affected story IDs and numbered criteria,
+and compare fresh observed output with that contract. This page maps checks to
+stories; it does not define behavior or turn untested criteria green.
+
+## Existing executable checks
+
+From the repository root with its pinned toolchain:
+
+```sh
+pnpm install --frozen-lockfile
+pnpm exec playwright install chromium
+pnpm check:all
+```
+
+The gate includes formatting, types, lint, deterministic tests, builds, the mobile
+playground walk, and a real anonymous local Convex consumer. For focused debugging:
+
+| SPEC stories                           | Executable check                                                                                                                                   | Boundary / limitation                                                                                                                        |
+| -------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| US-001, US-002, US-003, US-006, US-007 | `pnpm exec vitest run integrations/convex/test/lifecycle.test.ts integrations/convex/test/room-operations.test.ts packages/core/test/core.test.ts` | Deterministic room, identity, presence, deadline, opt-out and paginated-maintenance cases; not an HTTP/browser journey                       |
+| US-005                                 | `pnpm exec vitest run packages/auth/test/auth.test.ts packages/web/test/browser.test.ts packages/react/test/hooks.test.tsx`                        | Signed-proof failures, storage/renewal/cancellation; injected issuer/timers do not prove hosted cookies                                      |
+| US-006, US-008                         | `pnpm exec vitest run packages/web/test/browser.test.ts packages/react/test/hooks.test.tsx`                                                        | Visibility, failures, no overlap, wake-lock release/reacquisition; simulated capability, not physical screen behavior                        |
+| US-009                                 | `pnpm exec vitest run packages/web/test/audio.test.ts`                                                                                             | Mute, volume, cue mapping, persistence failures; no claim of audible output                                                                  |
+| US-010                                 | `pnpm exec vitest run packages/react/test/components.test.tsx`                                                                                     | Rendered semantics, input/paste, completion, QR and avatars; use browser checks for actual interaction                                       |
+| US-011                                 | `pnpm test:e2e`                                                                                                                                    | Local rehearsal only                                                                                                                         |
+| US-001, US-002, US-003, US-005, US-007 | `pnpm build:packages && pnpm smoke:convex`                                                                                                         | Real disposable backend, signed identities, renewal, expiry rejection with unchanged score, scheduled sweep, closure; not First Tap's issuer |
+
+Inspect the smoke JSON's `ok`, `backendVersion`, and `proved` fields. A nonzero
+exit or missing proof is not a pass. Keep `pnpm check:all` as the one full gate,
+not another synchronized wrapper.
+
+## Real issuer and multiplayer browser
+
+Follow [First Tap's isolated verification procedure](../apps/site/src/content/docs/first-game.md#isolated-repository-verification).
+It owns the HOME, backend, origin, setup, readiness, three separate identities,
+refresh/rejoin, late arrival/rematch, host departure, closure, stored-state check,
+wrong-origin rejection, and owned cleanup. Compare results with US-001–003,
+US-005–006 and US-011 rather than copying their criteria here.
+
+For US-008–010, also inspect the running room's invitation/QR, code entry,
+connection announcement, avatar names/decorative behavior, and audio toggle.
+Capture the active-match UI with wake-lock unavailable and verify that tapping
+still works. Use denied/unsupported capability injection only in disposable
+browser contexts and label it as fault injection. Test visibility with real browser
+events; an overridden visibility getter is a controlled probe, not a physical
+backgrounding claim. Never log credentials, cookies, signing keys, or environment
+files. QR screenshots alone do not prove a physical scanner can open localhost.
+
+## Website and agent surfaces
+
+For US-004 and US-012, use the live site or a freshly built local site, recording
+which. Drive phase/deal/reduced-motion controls, gallery links, bluff reset and
+code tabs. For agent surfaces request `/skill.md`, `/llms.txt`, `/llms-full.txt`,
+`/search.json`, and a guide's HTML/Markdown pair; compare skill bytes with the
+tested revision only when testing a matching build. Search with a known term,
+an impossible term, and a failed search-index request in a fresh context. Exercise
+keyboard result navigation and clipboard denial, recording exact visible text.
+
+The reusable audit runners `scripts/story-*.mjs` are retained in task t_1133c3dc's
+`parlor-audit-evidence.tar.gz`, not installed programs or an alternative spec.
+Run them with the checkout's pinned Playwright/Convex dependencies on the isolated
+target. They collect observations; assert those observations against the current
+SPEC (some original runners only log), and retain the assertion results with the
+run. Additional capability probes and screenshots belong in the same evidence
+bundle. Do not count an old audit receipt as a fresh candidate check.
+
+## Handoff
+
+Record revision and dirty diff, command exit/output, story/criterion sampled,
+concrete input and observed result, screenshots inspected, and known failures or
+unexercised cases. In particular distinguish physical-device wake lock/audio,
+real backgrounding, hosted secure cookies, and a consuming game's private rules
+from emulated or local evidence. Report a failing criterion without weakening the
+spec or silently implementing an out-of-scope behavior fix.
