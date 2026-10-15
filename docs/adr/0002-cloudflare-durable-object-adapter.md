@@ -72,7 +72,10 @@ protocol from that object.
     delivers the 413 (or 401 or 404); workerd resets a connection whose body
     was left unread. Discarding is bounded: it stops and cancels the body at
     32 MiB in all, after 1 s without a chunk, or after 5 s, so a client that
-    stalls delays only its own response, by at most those bounds.
+    stalls delays only its own response, by at most those bounds. When
+    discarding stops before the body ends, workerd logs
+    `Can't read from request stream after response has been sent` for that
+    request; the response is still delivered and the object keeps serving.
 - **Auth.** OIDC providers (`domain` plus `applicationID`) and `customJwt`
   providers come from the app's `auth.config.ts`. Tokens are verified with
   RS256 or ES256 against cached JWKS. A token must carry a finite numeric
