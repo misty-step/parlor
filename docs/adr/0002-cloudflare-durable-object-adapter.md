@@ -1,4 +1,4 @@
-# ADR 0001: Run Convex apps on a Cloudflare Durable Object
+# ADR 0002: Run Convex apps on a Cloudflare Durable Object
 
 Status: accepted, version 1 of the adapter contract
 Date: 2026-10-15
@@ -44,9 +44,10 @@ protocol from that object.
   `limit()` before it bounds each page and ends pagination once full.
 - **IDs.** Document IDs use Convex's own v6 format, checked against IDs minted
   by a real backend: `base32(vint(table) ++ 16 random bytes ++ fletcher16)`.
-  Table numbers start at 10001, and `_tables` numbers are kept on import. So
-  `normalizeId`, `v.id()` and stored references agree with Convex, and a
-  snapshot can move between Convex and this adapter in either direction.
+  Table numbers are unsigned 32-bit, user tables start at 10001, and `_tables`
+  numbers are kept on import. So `normalizeId`, `v.id()` and stored references
+  agree with Convex, and a snapshot can move between Convex and this adapter
+  in either direction.
 - **Reactivity.** Each query records the half-open key intervals it read. A
   commit re-runs only the subscriptions whose intervals contain a changed key.
   Transitions carry a single commit timestamp. Paginated subscriptions keep
@@ -67,8 +68,11 @@ protocol from that object.
     may run 32 actions at once; more are refused, not queued.
   - Socket frames may carry 1 MiB and HTTP request bodies 8 MiB, counted in
     UTF-8 bytes as they arrive, whatever `Content-Length` claims. An unwanted
-    body is still read and discarded, up to 32 MiB, before the response, so
-    the runtime delivers the 413 (or 401 or 404).
+    body is still read and discarded before the response, so the runtime
+    delivers the 413 (or 401 or 404); workerd resets a connection whose body
+    was left unread. Discarding is bounded: it stops and cancels the body at
+    32 MiB in all, after 1 s without a chunk, or after 5 s, so a client that
+    stalls delays only its own response, by at most those bounds.
 - **Auth.** OIDC providers (`domain` plus `applicationID`) and `customJwt`
   providers come from the app's `auth.config.ts`. Tokens are verified with
   RS256 or ES256 against cached JWKS. A token must carry a finite numeric
@@ -80,11 +84,16 @@ protocol from that object.
 - **Scheduler and crons.** `ctx.scheduler.runAfter/runAt/cancel` write
   `_scheduled_functions` rows, with their arguments as Convex values, in the
   caller's transaction. A Durable Object alarm runs due jobs. A scheduled
-  mutation's state change commits atomically with its writes. A job or cron
+  mutation's state change commits atomically with its writes. Scheduled and
+  cron actions start from the alarm but run outside it, so a slow action
+  never holds up other jobs or crons. Up to 16 scheduled actions run at once;
+  a due action finding every slot busy stays pending until one ends. As on
+  Convex, at most one run of each cron executes at a time, and a run that
+  comes due while the previous one is still going is skipped. A job or cron
   whose module fails to load is recorded as failed and never holds up the
   others. Actions cut off by a restart or a freeze are marked failed once
-  writes resume. `cronJobs()` schedules (interval, hourly, daily, weekly,
-  monthly, cron) run from the same alarm.
+  writes resume, never retried. `cronJobs()` schedules (interval, hourly,
+  daily, weekly, monthly, cron) run from the same alarm.
 - **Operations.** Admin routes under `/admin/*` require a bearer key of at
   least 32 characters from a configured binding, compared in constant time.
   - `freeze` is the single-writer barrier. While frozen, the backend admits no
@@ -96,11 +105,14 @@ protocol from that object.
   - `status` reports that timestamp, `writesFrozen`, `importPending` and the
     number of running actions.
   - `import/begin` (frozen only) validates the snapshot's table names and
-    numbers before anything changes, then replaces all data in one
-    transaction and refreshes every live subscription. `import/documents`
-    loads a snapshot page, keeping IDs, creation times and table numbers.
-    `import/commit` succeeds only when every table's count and checksum equal
-    the snapshot's. Writes cannot be unfrozen while an import is pending.
+    the complete resulting table mapping, schema tables included, before
+    anything changes. It then replaces all data and marks the import pending
+    in one transaction, so a failure at any point leaves data, mappings,
+    receipts and maintenance state as they were, and it refreshes every live
+    subscription. `import/documents` loads a snapshot page, keeping IDs,
+    creation times and table numbers. `import/commit` succeeds only when
+    every table's count and checksum equal the snapshot's. Writes cannot be
+    unfrozen while an import is pending.
   - `export` pages documents in the Convex ZIP's JSONL shape, each page with
     the timestamp it was read at. An export is consistent when every page
     reports the same timestamp while frozen.
