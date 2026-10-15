@@ -4,7 +4,7 @@ An accountless, phone-first multiplayer toolkit for game night. Built on [Convex
 
 Parlor handles rooms, guest credentials, presence, host transfer, frozen match participants, and abandonment sweeping. Each game keeps its own rules, prompts, scoring, and look.
 
-**[parlor.mistystep.io](https://parlor.mistystep.io)** · MIT licensed · pre-1.0 source distribution
+**[parlor.mistystep.io](https://parlor.mistystep.io)** · MIT licensed · [source releases](https://parlor.mistystep.io/changelog/)
 
 ## Start here
 

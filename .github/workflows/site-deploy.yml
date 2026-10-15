@@ -56,6 +56,7 @@ jobs:
           pnpm --filter @parlor/site exec wrangler deploy --env staging --tag "$GITHUB_SHA-baseline" | tee staging-deploy.log
           url=$(python3 -c 'import re; print(re.search(r"https://parlor-site-staging\.[a-z0-9-]+\.workers\.dev", open("staging-deploy.log").read())[0])')
           printf 'SITE_URL=%s\n' "$url" >> "$GITHUB_ENV"
+          node scripts/verify-site-deploy.mjs "$url"
           printf '%s\n' "$GITHUB_SHA" > apps/site/dist/version.txt
       - name: Skip a superseded candidate
         id: current
@@ -112,3 +113,33 @@ jobs:
             apps/site/dist/
             test-results/
           retention-days: 14
+
+  release:
+    needs: deploy
+    if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+    runs-on: ubuntu-24.04
+
+    permissions:
+      contents: write
+      pull-requests: write
+      actions: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Refuse unverified or superseded source
+        id: source
+        run: bash scripts/release-current.sh
+        env:
+          GATE_RESULT: ${{ needs.deploy.result }}
+      - uses: googleapis/release-please-action@45996ed1f6d02564a971a2fa1b5860e934307cf7 # v5.0.0
+        if: steps.source.outputs.current == 'true'
+        id: release
+      - name: Approve the generated PR's real native CI
+        if: steps.release.outputs.prs_created == 'true'
+        run: python3 scripts/approve-release-ci.py
+        env:
+          RELEASE_PR: ${{ steps.release.outputs.pr }}

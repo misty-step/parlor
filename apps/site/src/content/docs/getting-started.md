@@ -25,7 +25,7 @@ Choose other infrastructure for high-frequency movement simulation, large persis
 
 ## Source distribution
 
-Parlor is MIT-licensed and pre-1.0. The `@parlor/*` packages are private **workspace packages distributed from this repository**, not npm releases. Install a complete checkout, build its packages, and keep the reviewed commit with your game. The website describes current source; an installed revision's export maps and signatures remain your contract.
+Parlor is MIT-licensed and [source-versioned](/changelog/). The `@parlor/*` packages are private **workspace packages distributed from this repository**, not npm releases. Install a complete checkout, build its packages, and keep the reviewed commit with your game. The website describes current source; an installed revision's export maps and signatures remain your contract.
 
 The example requires **Node.js 22.12+**, **pnpm 11** (the repository pins **11.25.0**), Git, and a Convex development backend. [First Tap's run guide](/docs/first-game/#run-the-example) walks through the commands and environment setup.
 

@@ -299,3 +299,11 @@ plain text without scraping a rendered page.
    code-block failure selects the code. A page-fetch failure offers its Markdown
    link rather than claiming success. Mobile navigation can be closed with Escape
    and restores its summary focus.
+
+### US-013 [live] Read the source release history
+
+As a game maker, I can reach the changelog from desktop or phone navigation,
+read the source version and changes included in this site build, and follow the
+same notes as Markdown or GitHub Releases. Before the first generated release,
+the page says no release has been generated, rather than inventing history.
+The version does not claim the private packages are published to npm.

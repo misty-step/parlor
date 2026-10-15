@@ -47,7 +47,7 @@ After importing, reload the tool if needed and ask it to identify the file it lo
 
 ## Match the skill to the framework revision
 
-The website's `/skill.md` follows the site release. Your game's package version `0.1.0` does not identify a unique API contract: Parlor is a pre-1.0 source distribution. Inspect `.agents/skills/parlor/SOURCE.json`, compare its framework revision with `vendor/parlor` Git HEAD or `UPSTREAM.json`, then read the installed export maps and signatures. Local source modifications take precedence over an older example.
+The website's `/skill.md` follows the site release. Your game's package version `0.1.0` does not identify a unique API contract: Parlor is a source distribution with [generated release notes](/changelog/). Inspect `.agents/skills/parlor/SOURCE.json`, compare its framework revision with `vendor/parlor` Git HEAD or `UPSTREAM.json`, then read the installed export maps and signatures. Local source modifications take precedence over an older example.
 
 A copied vendor tree may retain only libraries and root build configuration, omitting the skill or examples. For a committed pin, the importer recovers the skill from that commit without changing the tree. An uncommitted snapshot instead requires the recorded hash-matched owner guidance described above. Inside Parlor itself, work from `skills/parlor/SKILL.md`; no self-import is needed.
 
