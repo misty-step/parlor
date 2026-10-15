@@ -87,11 +87,11 @@ the same player/seat. Offer room-code and phone-friendly invite-link joining.
 Keep identity, phase deadlines, private projections, and scoring on the server.
 Compose match/game writes atomically; wire presence, host transfer, renewal,
 and every sweeper page. Wake lock and audio are optional enhancements.
-Use an approved development environment. Ask before new production access,
-credential changes, spending, or destructive schema/data operations; keep
-credentials out of code and reports. Routine deployments need independent
-review, successful exact-candidate verification, and a verified rollback path,
-not separate human permission; use the project's normal continuous deployment.
+Use an approved development environment. Ask before production access, secret
+changes, spending, or destructive schema/data operations; keep credentials out
+of code and reports. Routine deployments need independent review, successful
+exact-candidate verification, and a verified rollback path, not separate human
+permission; use the project's normal continuous deployment.
 
 Exercise create/join/start/vote/reveal/score/rematch with separate identities,
 rejected unauthorized commands, late joining, refresh, host departure,
@@ -109,7 +109,7 @@ A skill assists implementation; it is not a security audit. Before shipping a ne
 - **Credentials:** server-only keys, verified same-player renewal, cookie expiry, deliberate guest reset, and rotation. See [authentication](/docs/authentication/).
 - **Authorization and privacy:** each command resolves the actor and checks lifecycle, frozen participation, and game permissions. Queries expose only viewer-safe state. `requireActiveMatch` is a lifecycle guard, not caller authorization. See [matches](/docs/matches/).
 - **Lifecycle:** atomic match/game writes, newly frozen rematch rosters, mutation-driven host transfer, and all abandonment pages on the intended backend. See [rooms and presence](/docs/rooms-and-presence/).
-- **Operations:** approved environments and permission for new access, credential changes, spending, and destructive schema/data operations. Independently reviewed routine changes ship through the project's normal continuous deployment after successful exact-candidate checks, with a verified rollback path. Missing or failed verification stops deployment; a skill does not grant access authority.
+- **Operations:** approved environments, schema/data migrations, and a recovery path; permission for production access, secret changes, spending, and destructive schema/data operations. Independently reviewed routine changes ship through the project's normal continuous deployment after successful exact-candidate checks, with a verified rollback path. Missing or failed verification stops deployment; a skill does not grant access authority.
 - **Evidence:** inspect the running game with separate players and supported phone browsers. Ask which flows, identities, environments, and devices were exercised; HTTPS cookies, scheduling, reconnects, and denied capabilities need runtime evidence. Name an unavailable environment or device as a verification gap.
 
 ## Give agents focused documentation
