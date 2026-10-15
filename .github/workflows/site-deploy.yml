@@ -56,6 +56,7 @@ jobs:
           pnpm --filter @parlor/site exec wrangler deploy --env staging --tag "$GITHUB_SHA-baseline" | tee staging-deploy.log
           url=$(python3 -c 'import re; print(re.search(r"https://parlor-site-staging\.[a-z0-9-]+\.workers\.dev", open("staging-deploy.log").read())[0])')
           printf 'SITE_URL=%s\n' "$url" >> "$GITHUB_ENV"
+          node scripts/verify-site-deploy.mjs "$url"
           printf '%s\n' "$GITHUB_SHA" > apps/site/dist/version.txt
       - name: Skip a superseded candidate
         id: current
