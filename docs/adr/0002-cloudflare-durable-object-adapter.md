@@ -128,6 +128,17 @@ protocol from that object.
   checksums; then make the other backend the only writer. Until that
   handover, a failure is undone by unfreezing, because nothing was accepted
   after the freeze.
+- **Operator CLI.** `parlor-cloudflare` (`src/cli.ts`) runs these steps over
+  HTTPS, reading the admin key from the environment or stdin and printing
+  only table names, numbers, counts and digests. `stats` and `compare` work
+  on Convex snapshot ZIPs. `import` requires a frozen backend, sends pages
+  under the 8 MiB body limit and commits only on the ZIP's digests. `export`
+  requires a frozen backend with no running actions, checks one timestamp
+  across pages and equality with `stats`, and writes a ZIP that
+  `convex import --replace-all` accepts. Only user tables move: a ZIP with
+  file storage, components or values that are not plain JSON (Int64, Bytes)
+  is refused, and system tables such as `_scheduled_functions` are
+  reported, never imported.
 - **Testing.** `@parlor/cloudflare/testing` exports a `convex-test`-compatible
   `convexTest(schema, modules)` backed by this runtime, using in-memory
   `node:sqlite`. An app can run its existing Convex test suite against the
