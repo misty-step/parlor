@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { expect, test } from "@playwright/test";
 import project from "../../package.json" with { type: "json" };
 
-test.use({ baseURL: process.env.SITE_URL ?? "http://127.0.0.1:4174" });
+test.use({ baseURL: process.env.CHANGELOG_BASE_URL ?? "http://127.0.0.1:4174" });
 
 for (const width of [1440, 390]) {
   test(`finds the build's canonical release notes at ${width}px`, async ({ page }, testInfo) => {
