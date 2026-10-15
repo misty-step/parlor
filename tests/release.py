@@ -44,12 +44,16 @@ elif "/pulls/" in args:
     print((root / "pr.json").read_text())
 else:
     workflow = "check.yml" if "/check.yml/" in args else "gallery-links.yml"
+    counter = root / (workflow + ".reads")
+    count = int(counter.read_text()) if counter.exists() else 0
+    counter.write_text(str(count + 1))
     run = {"id": 10, "head_sha": os.environ["GITHUB_SHA"],
            "head_repository": {"full_name": "fixture/parlor"},
            "path": ".github/workflows/" + workflow, "event": "pull_request",
            "conclusion": "action_required", "status": "completed"}
     run.update(json.loads(os.environ.get("RUN_OVERRIDE", "{}")))
-    print(json.dumps({"workflow_runs": [] if os.environ.get("MISSING_RUN") else [run]}))
+    missing = os.environ.get("MISSING_RUN") or (os.environ.get("DELAY_RUNS") and count == 0)
+    print(json.dumps({"workflow_runs": [] if missing else [run]}))
 ''')
         gh.chmod(0o755)
         curl = self.cwd / "curl"
@@ -68,8 +72,16 @@ else:
 
     def approve(self):
         (self.cwd / "pr.json").write_text(json.dumps(self.pr))
-        return subprocess.run(["python3", str(ROOT / "scripts/approve-release-ci.py")], cwd=self.cwd,
+        script = str(ROOT / "scripts/approve-release-ci.py")
+        return subprocess.run(["python3", "-c", "import runpy,time; time.sleep=lambda _:None; runpy.run_path(" + repr(script) + ",run_name='__main__')"], cwd=self.cwd,
                               env=self.env, text=True, capture_output=True)
+
+    def test_native_run_discovery_waits_for_registration(self):
+        self.env["DELAY_RUNS"] = "1"
+        self.assertEqual(self.approve().returncode, 0)
+        self.assertEqual(len((self.cwd / "approved").read_text().splitlines()), 2)
+        for workflow in ("check.yml", "gallery-links.yml"):
+            self.assertEqual((self.cwd / (workflow + ".reads")).read_text(), "2")
 
     def test_gate_source_and_live_identity(self):
         self.assertEqual(self.current().returncode, 0)

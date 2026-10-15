@@ -2,6 +2,7 @@
 import json
 import os
 import subprocess
+import time
 
 repo = os.environ["GITHUB_REPOSITORY"]
 generated = json.loads(os.environ["RELEASE_PR"])
@@ -21,9 +22,16 @@ assert pr["user"]["login"] == "github-actions[bot]"
 assert pr["head"]["ref"] == generated["headBranchName"]
 sha = pr["head"]["sha"]
 for workflow in ("check.yml", "gallery-links.yml"):
-    runs = api(f"actions/workflows/{workflow}/runs?event=pull_request&head_sha={sha}")["workflow_runs"]
-    runs = [r for r in runs if r["head_sha"] == sha and r["head_repository"]["full_name"] == repo]
-    assert runs, f"Missing exact-head native {workflow} run; nothing substituted"
+    # Bounded discovery of GitHub's delayed native run, not CI-success polling.
+    for _ in range(24):
+        assert api(f"pulls/{number}")["head"]["sha"] == sha, "Release PR moved"
+        runs = api(f"actions/workflows/{workflow}/runs?event=pull_request&head_sha={sha}")["workflow_runs"]
+        runs = [r for r in runs if r["head_sha"] == sha and r["head_repository"]["full_name"] == repo]
+        if runs:
+            break
+        time.sleep(5)
+    else:
+        raise SystemExit(f"Missing exact-head native {workflow} run; nothing substituted")
     for run in runs:
         assert run["path"] == f".github/workflows/{workflow}" and run["event"] == "pull_request"
         assert api(f"pulls/{number}")["head"]["sha"] == sha, "Release PR moved"
