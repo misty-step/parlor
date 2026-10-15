@@ -1,0 +1,42 @@
+import { readFileSync } from "node:fs";
+import { expect, test } from "@playwright/test";
+import project from "../../package.json" with { type: "json" };
+
+test.use({ baseURL: process.env.SITE_URL ?? "http://127.0.0.1:4174" });
+
+for (const width of [1440, 390]) {
+  test(`finds the build's canonical release notes at ${width}px`, async ({ page }, testInfo) => {
+    await page.setViewportSize({ width, height: 960 });
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    await page.goto("/");
+    if (width < 600) await page.locator('summary[aria-label="Navigation menu"]').click();
+    const navigation = page.getByRole("navigation", {
+      name: width < 600 ? "Mobile navigation" : "Main navigation",
+      exact: true,
+    });
+    await navigation.getByRole("link", { name: "Changelog", exact: true }).click();
+    await expect(page).toHaveURL(/\/changelog\/?$/);
+    await expect(
+      page.getByRole("heading", { level: 1, name: "Changelog", exact: true }),
+    ).toBeVisible();
+    await expect(page.getByRole("main")).toContainText(`v${project.version}`);
+    const canonical = readFileSync("CHANGELOG.md", "utf8");
+    const markdown = await page.request.get("/changelog.md");
+    expect(markdown.status()).toBe(200);
+    expect(await markdown.text()).toBe(canonical);
+    const identity = await page.request.get("/release.json");
+    expect((await identity.json()).version).toBe(project.version);
+    const notes = page.getByRole("article", { name: "Release notes" });
+    for (const line of canonical.split("\n").filter((value) => value.startsWith("* "))) {
+      const text = line
+        .slice(2)
+        .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1")
+        .replace(/\*\*/g, "");
+      await expect(notes).toContainText(text);
+    }
+    expect(
+      await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth),
+    ).toBe(true);
+    await page.screenshot({ path: testInfo.outputPath(`changelog-${width}.png`), fullPage: true });
+  });
+}

@@ -1,0 +1,35 @@
+---
+import { Content, getHeadings } from "../../../../CHANGELOG.md";
+import Base from "../layouts/Base.astro";
+import ExternalLink from "../components/ExternalLink.astro";
+import project from "../../../../package.json";
+import "../styles/docs.css";
+---
+<Base title="Changelog — Parlor" description="Source releases and changes included in this Parlor build.">
+  <main id="main" class="changelog site-frame">
+    <header class="doc-heading">
+      <h1>Changelog</h1>
+      <p class="doc-description">What changed in Parlor, from the source included in this build.</p>
+      <p>Source version <strong>v{project.version}</strong>. Packages are not published to npm.</p>
+      <div class="doc-tools">
+        <a href="/changelog.md">Markdown</a>
+        <ExternalLink href="https://github.com/misty-step/parlor/releases">GitHub releases</ExternalLink>
+      </div>
+    </header>
+    <article class="prose release-notes" aria-label="Release notes">
+      {getHeadings().length > 1 ? <Content /> : <p>No generated release yet. The first release will appear here after its version pull request lands.</p>}
+    </article>
+  </main>
+</Base>
+<style>
+  .changelog {
+    max-width: 52rem;
+    padding-block: 3rem 5rem;
+  }
+  .release-notes {
+    overflow-wrap: anywhere;
+  }
+  .release-notes :global(> h1) {
+    display: none;
+  }
+</style>
