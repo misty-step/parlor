@@ -4,7 +4,8 @@ import os
 import subprocess
 
 repo = os.environ["GITHUB_REPOSITORY"]
-number = int(json.loads(os.environ["RELEASE_PR"])["number"])
+generated = json.loads(os.environ["RELEASE_PR"])
+number = int(generated["number"])
 
 
 def api(path, method="GET"):
@@ -17,7 +18,7 @@ pr = api(f"pulls/{number}")
 assert pr["state"] == "open" and pr["base"]["ref"] == "master"
 assert pr["head"]["repo"]["full_name"] == repo
 assert pr["user"]["login"] == "github-actions[bot]"
-assert pr["head"]["ref"] == "release-please--branches--master"
+assert pr["head"]["ref"] == generated["headBranchName"]
 sha = pr["head"]["sha"]
 for workflow in ("check.yml", "gallery-links.yml"):
     runs = api(f"actions/workflows/{workflow}/runs?event=pull_request&head_sha={sha}")["workflow_runs"]

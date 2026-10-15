@@ -16,7 +16,8 @@ class ReleaseBoundaries(unittest.TestCase):
         self.cwd = Path(self.tmp.name)
         self.env = dict(os.environ, PATH=f"{self.cwd}:{os.environ['PATH']}",
                         GITHUB_REPOSITORY="fixture/parlor", GATE_RESULT="success",
-                        RELEASE_PR='{"number": 7}', GITHUB_OUTPUT=str(self.cwd / "output"),
+                        RELEASE_PR='{"number": 7, "headBranchName": "release-please--branches--master--components--parlor"}',
+                        GITHUB_OUTPUT=str(self.cwd / "output"),
                         GIT_AUTHOR_NAME="Fixture", GIT_COMMITTER_NAME="Fixture",
                         GIT_AUTHOR_EMAIL="fixture@example.invalid", GIT_COMMITTER_EMAIL="fixture@example.invalid")
         self.run_command(["git", "init", "--quiet"])
@@ -25,7 +26,7 @@ class ReleaseBoundaries(unittest.TestCase):
         self.env.update(GITHUB_SHA=self.sha, FIXTURE_SHA=self.sha, FIXTURE_LIVE=self.sha)
         self.write_config(self.sha)
         self.pr = {"state": "open", "base": {"ref": "master"},
-                   "head": {"sha": self.sha, "ref": "release-please--branches--master",
+                   "head": {"sha": self.sha, "ref": json.loads(self.env["RELEASE_PR"])["headBranchName"],
                             "repo": {"full_name": "fixture/parlor"}},
                    "user": {"login": "github-actions[bot]"}}
         gh = self.cwd / "gh"
@@ -93,6 +94,10 @@ else:
         self.assertEqual(self.approve().returncode, 0)
         self.assertEqual(len((self.cwd / "approved").read_text().splitlines()), 2)
         (self.cwd / "approved").unlink()
+        self.pr["head"]["ref"] = "release-please--branches--master"
+        self.assertNotEqual(self.approve().returncode, 0)
+        self.assertFalse((self.cwd / "approved").exists())
+        self.pr["head"]["ref"] = json.loads(self.env["RELEASE_PR"])["headBranchName"]
         self.env["RUN_OVERRIDE"] = json.dumps({"conclusion": None, "status": "in_progress"})
         self.assertEqual(self.approve().returncode, 0)
         self.assertFalse((self.cwd / "approved").exists())
