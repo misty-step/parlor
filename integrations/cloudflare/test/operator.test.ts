@@ -1,6 +1,11 @@
-import type { JSONValue } from "convex/values";
+import { convexToJson, type JSONValue } from "convex/values";
 import { strToU8, unzipSync, strFromU8, zipSync } from "fflate";
-import { describe, expect, it } from "vitest";
+import { createServer } from "node:http";
+import { mkdtemp, rm, stat, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { describe, expect, it, vi } from "vitest";
+import { describeError, main } from "../src/cli.js";
 import {
   compareStats,
   readConvexSnapshot,
@@ -279,5 +284,202 @@ describe("BackendOperator", () => {
     expect(() => new BackendOperator({ url: "https://b.test/backend", adminKey: "short" })).toThrow(
       /at least 32/,
     );
+  });
+});
+
+// A synthetic stand-in for a private value: it must never reach an error.
+const CANARY = "SYNTHETIC_PRIVATE_CANARY_R16";
+const canarySnapshot = () => ({
+  tables: { rooms: 10001 },
+  documents: { rooms: [{ _id: CANARY, _creationTime: 1, code: "TEST" }] },
+});
+
+/** The test Durable Object behind a real loopback HTTP server, as the CLI reaches a backend. */
+async function servedBackend() {
+  const object = await durableObject();
+  const server = createServer(async (request, response) => {
+    const chunks: Buffer[] = [];
+    for await (const chunk of request) chunks.push(chunk as Buffer);
+    const method = request.method ?? "GET";
+    const answer = await object.backend.fetch(
+      new Request(`http://127.0.0.1${request.url}`, {
+        method,
+        headers: request.headers as Record<string, string>,
+        ...(method === "GET" ? {} : { body: Buffer.concat(chunks) }),
+      }),
+    );
+    response.writeHead(answer.status, Object.fromEntries(answer.headers));
+    response.end(Buffer.from(await answer.arrayBuffer()));
+  });
+  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+  const { port } = server.address() as { port: number };
+  return {
+    object,
+    url: `http://127.0.0.1:${port}/backend`,
+    close: () => new Promise<void>((resolve) => server.close(() => resolve())),
+  };
+}
+
+/** Run the CLI in-process with the admin key in an environment variable; collect stderr. */
+async function runCli(argv: string[]) {
+  const written: string[] = [];
+  const spy = vi.spyOn(process.stderr, "write").mockImplementation((chunk) => {
+    written.push(String(chunk));
+    return true;
+  });
+  process.env["PARLOR_TEST_ADMIN_KEY"] = ADMIN_KEY;
+  try {
+    const failure: unknown = await main([...argv, "--admin-key-env", "PARLOR_TEST_ADMIN_KEY"]).then(
+      () => null,
+      (error: unknown) => error,
+    );
+    return { failure, printed: failure === null ? "" : describeError(failure), stderr: written };
+  } finally {
+    delete process.env["PARLOR_TEST_ADMIN_KEY"];
+    spy.mockRestore();
+  }
+}
+
+describe("print-safe errors, table numbers and plain JSON (review R16-R18)", () => {
+  it("R16: a document value the backend rejects never reaches the operator's error", async () => {
+    const { operator } = await backendWithOperator();
+    await operator.freeze(true);
+    const error = await operator.importSnapshot(canarySnapshot()).catch((caught) => caught);
+    expect(error).toBeInstanceOf(OperatorError);
+    expect(String(error)).toContain("POST admin/import/documents returned 400 (BadRequest)");
+    expect(String(error)).not.toContain(CANARY);
+    // The backend's fixed maintenance messages are still shown.
+    await expect(operator.freeze(false)).rejects.toThrow(
+      "POST admin/freeze returned 409 (Conflict): An import is pending; commit it with matching checksums before unfreezing writes",
+    );
+  });
+
+  it("R16: the CLI prints neither the admin key nor a rejected value, and withholds foreign messages", async () => {
+    const served = await servedBackend();
+    const directory = await mkdtemp(join(tmpdir(), "parlor-cli-"));
+    try {
+      const file = join(directory, "canary.zip");
+      await writeFile(file, writeConvexSnapshot(canarySnapshot()), { mode: 0o600 });
+      const run = await runCli(["import", "--url", served.url, file]);
+      expect(run.failure).toBeInstanceOf(OperatorError);
+      expect(run.printed).toBe("POST admin/import/documents returned 400 (BadRequest)");
+      for (const text of [run.printed, ...run.stderr]) {
+        expect(text).not.toContain(CANARY);
+        expect(text).not.toContain(ADMIN_KEY);
+      }
+      // Errors this tool did not write (a parser's, the runtime's) show only their class and code.
+      expect(describeError(new SyntaxError(`Unexpected token in "${CANARY}"`))).toBe(
+        "SyntaxError (details withheld: they can quote snapshot data)",
+      );
+      const missing = await runCli(["stats", join(directory, `${CANARY}.zip`)]);
+      expect(missing.printed).toBe("Error ENOENT (details withheld: they can quote snapshot data)");
+    } finally {
+      await served.close();
+      await rm(directory, { recursive: true, force: true });
+    }
+  });
+
+  it("R17: an import whose tables begin under other numbers never commits, empty tables included", async () => {
+    // A transport fault: the backend is told counters is 20003; the snapshot says 10003.
+    const object = await durableObject();
+    const operator = new BackendOperator({
+      url: "https://backend.example.test/backend",
+      adminKey: ADMIN_KEY,
+      fetch: async (input: RequestInfo | URL, init?: RequestInit) => {
+        if (href(input).endsWith("/admin/import/begin") && typeof init?.body === "string") {
+          const body = JSON.parse(init.body);
+          body.tables.counters = 20003;
+          init = { ...init, body: JSON.stringify(body) };
+        }
+        return object.backend.fetch(new Request(href(input), init));
+      },
+    });
+    await expect(operator.importSnapshot(readConvexSnapshot(convexExport()))).rejects.toThrow(
+      "import/begin did not give 1 tables the snapshot's numbers (counters 10003); writes stay frozen and the import stays pending",
+    );
+    expect(await operator.status()).toMatchObject({ writesFrozen: true, importPending: true });
+  });
+
+  it("R17: the backend's own stats are compared, numbers included, before the commit", async () => {
+    // The same fault, with begin's answer also rewritten to look right.
+    const object = await durableObject();
+    const operator = new BackendOperator({
+      url: "https://backend.example.test/backend",
+      adminKey: ADMIN_KEY,
+      fetch: async (input: RequestInfo | URL, init?: RequestInit) => {
+        const begin = href(input).endsWith("/admin/import/begin");
+        if (begin && typeof init?.body === "string") {
+          const body = JSON.parse(init.body);
+          body.tables.counters = 20003;
+          init = { ...init, body: JSON.stringify(body) };
+        }
+        const response = await object.backend.fetch(new Request(href(input), init));
+        if (!begin) return response;
+        const answer = (await response.json()) as { tables: Record<string, number> };
+        return Response.json({ tables: { ...answer.tables, counters: 10003 } });
+      },
+    });
+    const error = await operator
+      .importSnapshot(readConvexSnapshot(convexExport()))
+      .catch((caught) => caught);
+    expect(String(error)).toContain("The loaded backend differs from the snapshot");
+    expect(String(error)).toContain('"table":"counters"');
+    expect(String(error)).toContain('"number":20003');
+    expect(await operator.status()).toMatchObject({ writesFrozen: true, importPending: true });
+  });
+
+  for (const [label, value, encoding] of [
+    ["Int64", 42n, "$integer"],
+    ["Bytes", new Uint8Array([1, 2]).buffer, "$bytes"],
+    ["NaN", Number.NaN, "$float"],
+    ["Infinity", Number.POSITIVE_INFINITY, "$float"],
+    ["negative zero", -0, "$float"],
+  ] as const) {
+    it(`R18: refuses to write ${label} into a plain-JSON Convex import ZIP`, () => {
+      const rows = [convexToJson({ _id: newId(10003), _creationTime: 1, name: "n", value })];
+      expect(() =>
+        writeConvexSnapshot({ tables: { counters: 10003 }, documents: { counters: rows } }),
+      ).toThrow(`counters holds an encoded ${encoding} value, which plain JSON cannot carry`);
+    });
+  }
+
+  it("R18: refuses encoded values, reserved fields and -0 in a snapshot without schema metadata", () => {
+    const counter = (value: string) =>
+      zipSync({
+        "_tables/documents.jsonl": strToU8(`${JSON.stringify({ name: "counters", id: 10003 })}\n`),
+        "counters/documents.jsonl": strToU8(
+          `{"_id":"${newId(10003)}","_creationTime":1,"name":"n","value":${value}}\n`,
+        ),
+      });
+    expect(() => readConvexSnapshot(counter('{"$integer":"KgAAAAAAAAA="}'))).toThrow(
+      /counters holds an encoded \$integer value/,
+    );
+    expect(() => readConvexSnapshot(counter('[{"$custom":1}]'))).toThrow(
+      /counters holds a reserved \$ field/,
+    );
+    expect(() => readConvexSnapshot(counter("-0"))).toThrow(/counters holds negative zero/);
+    expect(readConvexSnapshot(counter("0")).documents["counters"]).toHaveLength(1);
+  });
+
+  it("R18: the CLI export refuses an Int64 before it writes any file", async () => {
+    const served = await servedBackend();
+    const directory = await mkdtemp(join(tmpdir(), "parlor-cli-"));
+    try {
+      const operator = new BackendOperator({ url: served.url, adminKey: ADMIN_KEY });
+      await operator.importSnapshot({
+        tables: { counters: 10003 },
+        documents: {
+          counters: [convexToJson({ _id: newId(10003), _creationTime: 1, name: "n", value: 42n })],
+        },
+      });
+      const out = join(directory, "export.zip");
+      const run = await runCli(["export", "--url", served.url, "--out", out]);
+      expect(run.failure).toBeInstanceOf(SnapshotFormatError);
+      expect(run.printed).toMatch(/^counters holds an encoded \$integer value/);
+      await expect(stat(out)).rejects.toMatchObject({ code: "ENOENT" });
+    } finally {
+      await served.close();
+      await rm(directory, { recursive: true, force: true });
+    }
   });
 });

@@ -5,7 +5,10 @@
  * table checksums. The admin key is read from stdin (`--admin-key-stdin`) or
  * from the environment variable named by `--admin-key-env` (default
  * PARLOR_ADMIN_KEY); it is never printed. Output is JSON: table names,
- * numbers, counts and SHA-256 digests only, never documents.
+ * numbers, counts and SHA-256 digests only, never documents. Errors are
+ * print-safe too: only this tool's own messages are shown, and any other
+ * error (a parser's or the runtime's, which can quote snapshot data) is
+ * reduced to its class and system error code.
  *
  *   stats   <snapshot.zip>
  *   compare <a.zip> <b.zip>
@@ -23,7 +26,13 @@ import {
   snapshotStats,
   writeConvexSnapshot,
 } from "./convexZip.js";
-import { BackendOperator } from "./operator.js";
+import { BackendOperator, OperatorError } from "./operator.js";
+import { SnapshotFormatError } from "./convexZip.js";
+
+/** A malformed command line; its message names flags and paths only. */
+class UsageError extends Error {
+  override readonly name = "UsageError";
+}
 
 interface Parsed {
   readonly command: string | undefined;
@@ -44,7 +53,7 @@ function parse(argv: readonly string[]): Parsed {
     const name = arg.slice(2);
     const next = rest[index + 1];
     if (["url", "out", "admin-key-env"].includes(name)) {
-      if (next === undefined) throw new Error(`--${name} needs a value`);
+      if (next === undefined) throw new UsageError(`--${name} needs a value`);
       flags.set(name, next);
       index += 1;
     } else flags.set(name, true);
@@ -60,7 +69,7 @@ async function readStdin(): Promise<string> {
 
 async function operator(flags: Map<string, string | true>): Promise<BackendOperator> {
   const url = flags.get("url");
-  if (typeof url !== "string") throw new Error("--url <backend> is required");
+  if (typeof url !== "string") throw new UsageError("--url <backend> is required");
   const env = flags.get("admin-key-env");
   const adminKey = flags.has("admin-key-stdin")
     ? await readStdin()
@@ -69,7 +78,7 @@ async function operator(flags: Map<string, string | true>): Promise<BackendOpera
 }
 
 async function snapshotFile(file: string | undefined) {
-  if (file === undefined) throw new Error("A snapshot ZIP path is required");
+  if (file === undefined) throw new UsageError("A snapshot ZIP path is required");
   return readConvexSnapshot(new Uint8Array(await readFile(file)));
 }
 
@@ -99,7 +108,7 @@ export async function main(argv: readonly string[]): Promise<number> {
       return 0;
     case "freeze": {
       if (flags.has("on") === flags.has("off"))
-        throw new Error("freeze needs exactly one of --on or --off");
+        throw new UsageError("freeze needs exactly one of --on or --off");
       print(await (await operator(flags)).freeze(flags.has("on")));
       return 0;
     }
@@ -117,7 +126,7 @@ export async function main(argv: readonly string[]): Promise<number> {
     }
     case "export": {
       const out = flags.get("out");
-      if (typeof out !== "string") throw new Error("--out <snapshot.zip> is required");
+      if (typeof out !== "string") throw new UsageError("--out <snapshot.zip> is required");
       const result = await (await operator(flags)).exportSnapshot();
       await writeFile(out, writeConvexSnapshot(result.snapshot), { mode: 0o600 });
       print({ ts: result.ts, tables: result.stats });
@@ -131,6 +140,27 @@ export async function main(argv: readonly string[]): Promise<number> {
   }
 }
 
+/**
+ * What the CLI prints for a failure. Its own errors are built from routes,
+ * statuses, flags, table names, numbers, counts and digests; anything else
+ * shows only its class and a system error code such as ENOENT.
+ */
+export function describeError(error: unknown): string {
+  if (
+    error instanceof OperatorError ||
+    error instanceof SnapshotFormatError ||
+    error instanceof UsageError
+  )
+    return error.message;
+  const name = error instanceof Error ? error.name : "Error";
+  const { code, cause } = (error ?? {}) as { code?: unknown; cause?: { code?: unknown } };
+  const system = [code, cause?.code].find(
+    (value): value is string => typeof value === "string" && /^E[A-Z0-9_]{1,40}$/.test(value),
+  );
+  const shownName = /^[A-Za-z]{1,40}$/.test(name) ? name : "Error";
+  return `${shownName}${system === undefined ? "" : ` ${system}`} (details withheld: they can quote snapshot data)`;
+}
+
 const invoked = process.argv[1];
 if (invoked !== undefined && fileURLToPath(import.meta.url) === realpathSync(invoked)) {
   main(process.argv.slice(2)).then(
@@ -138,7 +168,7 @@ if (invoked !== undefined && fileURLToPath(import.meta.url) === realpathSync(inv
       process.exitCode = code;
     },
     (error: unknown) => {
-      process.stderr.write(`${error instanceof Error ? error.message : String(error)}\n`);
+      process.stderr.write(`${describeError(error)}\n`);
       process.exitCode = 1;
     },
   );

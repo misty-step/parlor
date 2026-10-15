@@ -130,15 +130,24 @@ protocol from that object.
   after the freeze.
 - **Operator CLI.** `parlor-cloudflare` (`src/cli.ts`) runs these steps over
   HTTPS, reading the admin key from the environment or stdin and printing
-  only table names, numbers, counts and digests. `stats` and `compare` work
-  on Convex snapshot ZIPs. `import` requires a frozen backend, sends pages
-  under the 8 MiB body limit and commits only on the ZIP's digests. `export`
-  requires a frozen backend with no running actions, checks one timestamp
-  across pages and equality with `stats`, and writes a ZIP that
-  `convex import --replace-all` accepts. Only user tables move: a ZIP with
-  file storage, components or values that are not plain JSON (Int64, Bytes)
-  is refused, and system tables such as `_scheduled_functions` are
-  reported, never imported.
+  only table names, numbers, counts and digests. Its errors are print-safe
+  as well: they carry routes, statuses, error codes and the backend's fixed
+  maintenance-state messages, never a response body, and any error the tool
+  did not write itself shows only its class and system error code, because
+  the backend's and parsers' messages can quote document values. `stats` and
+  `compare` work on Convex snapshot ZIPs. `import` requires a frozen backend,
+  sends pages under the 8 MiB body limit, checks that `import/begin` gave
+  every table the ZIP's number, and commits only after the backend's own
+  `stats` equal the ZIP's numbers, counts and digests, empty tables included
+  (the commit route itself compares counts and digests). `export` requires a
+  frozen backend with no running actions, checks one timestamp across pages
+  and equality with `stats`, and writes a ZIP that
+  `convex import --replace-all` accepts. Only user tables move, as plain JSON
+  in both directions: a ZIP with file storage, components or values that are
+  not plain JSON (Int64, Bytes, special floats, any other `$` field) is
+  refused, an export holding such a value is refused before any file is
+  written, and system tables such as `_scheduled_functions` are reported,
+  never imported.
 - **Testing.** `@parlor/cloudflare/testing` exports a `convex-test`-compatible
   `convexTest(schema, modules)` backed by this runtime, using in-memory
   `node:sqlite`. An app can run its existing Convex test suite against the

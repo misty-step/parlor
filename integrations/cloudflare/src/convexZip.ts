@@ -8,8 +8,10 @@ import { documentsChecksum, type TableStats } from "./snapshot.js";
  * snapshot holds `_tables/documents.jsonl` (each user table's name and
  * number) and `<table>/documents.jsonl` (one document per line). Only user
  * tables move: file storage, components and special-typed values (Int64,
- * Bytes) are refused rather than silently dropped or re-typed, and system
- * tables such as `_scheduled_functions` are reported but never imported.
+ * Bytes, special floats) are refused, in both directions, rather than
+ * silently dropped or re-typed, and system tables such as
+ * `_scheduled_functions` are reported but never imported. Errors name
+ * tables and ZIP entries, never document content.
  */
 export interface ConvexSnapshot {
   /** User table name to Convex table number (the number inside every `_id`). */
@@ -30,6 +32,50 @@ const SCHEMA = /^([^/]+)\/generated_schema\.jsonl$/;
 // Anything else records values plain JSON cannot carry (Int64, Bytes, special
 // floats), whose documents.jsonl text is not the value, so it is refused.
 const UNIFORM = "uniform";
+/** Convex's table-name rule; anything else is refused unnamed. */
+const TABLE_NAME = /^[A-Za-z_][A-Za-z0-9_]{0,63}$/;
+/** `convexToJson`'s encodings for values JSON lacks: Int64, Bytes, special floats. */
+const ENCODINGS = new Set(["$integer", "$bytes", "$float"]);
+
+/** A ZIP entry name for an error message, or a placeholder for an odd one. */
+function shownEntry(entry: string): string {
+  return /^[A-Za-z0-9_][A-Za-z0-9_./-]{0,127}$/.test(entry) ? entry : "(an oddly named entry)";
+}
+
+/**
+ * The first value in `rows` that a Convex import of plain-JSON documents
+ * would not restore exactly, described without its content: an encoded
+ * Int64, Bytes or special float (`{"$integer": ...}`; Convex field names
+ * never start with `$`), any other `$` field, a non-finite number, or -0.
+ */
+function specialValue(rows: readonly JSONValue[]): string | null {
+  const pending: unknown[] = [...rows];
+  while (pending.length > 0) {
+    const value = pending.pop();
+    if (typeof value === "number") {
+      if (!Number.isFinite(value)) return "a non-finite number";
+      if (Object.is(value, -0)) return "negative zero";
+    } else if (Array.isArray(value)) {
+      pending.push(...value);
+    } else if (value !== null && typeof value === "object") {
+      for (const [key, inner] of Object.entries(value)) {
+        if (key.startsWith("$"))
+          return ENCODINGS.has(key) ? `an encoded ${key} value` : "a reserved $ field";
+        pending.push(inner);
+      }
+    }
+  }
+  return null;
+}
+
+function refuseSpecialValues(table: string, rows: readonly JSONValue[]) {
+  const found = specialValue(rows);
+  if (found !== null) {
+    throw new SnapshotFormatError(
+      `${table} holds ${found}, which plain JSON cannot carry (Int64, Bytes or special floats need Convex's generated schema); this tool does not convert it`,
+    );
+  }
+}
 
 function jsonl(bytes: Uint8Array, entry: string): JSONValue[] {
   const values: JSONValue[] = [];
@@ -40,7 +86,7 @@ function jsonl(bytes: Uint8Array, entry: string): JSONValue[] {
     try {
       values.push(JSON.parse(line) as JSONValue);
     } catch {
-      throw new SnapshotFormatError(`${entry} line ${index + 1} is not JSON`);
+      throw new SnapshotFormatError(`${shownEntry(entry)} line ${index + 1} is not JSON`);
     }
   }
   return values;
@@ -48,7 +94,12 @@ function jsonl(bytes: Uint8Array, entry: string): JSONValue[] {
 
 /** Parse a Convex snapshot ZIP; refuses anything this adapter cannot import exactly. */
 export function readConvexSnapshot(zip: Uint8Array): ConvexSnapshot {
-  const entries = unzipSync(zip);
+  let entries: Record<string, Uint8Array>;
+  try {
+    entries = unzipSync(zip);
+  } catch {
+    throw new SnapshotFormatError("Not a ZIP archive that can be read");
+  }
   const tablesEntry = entries["_tables/documents.jsonl"];
   if (tablesEntry === undefined) {
     throw new SnapshotFormatError("Not a Convex snapshot: _tables/documents.jsonl is missing");
@@ -60,6 +111,8 @@ export function readConvexSnapshot(zip: Uint8Array): ConvexSnapshot {
     if (typeof name !== "string" || !Number.isSafeInteger(id)) {
       throw new SnapshotFormatError("_tables/documents.jsonl has a row without name and id");
     }
+    if (!TABLE_NAME.test(name))
+      throw new SnapshotFormatError("_tables/documents.jsonl lists a name Convex does not allow");
     if (name.startsWith("_")) systemTables.push(name);
     else if (name in tables) throw new SnapshotFormatError(`Table ${name} is listed twice`);
     else tables[name] = id as number;
@@ -80,7 +133,7 @@ export function readConvexSnapshot(zip: Uint8Array): ConvexSnapshot {
       const shape = jsonl(bytes, entry);
       if (!(shape.length === 0 || (shape.length === 1 && shape[0] === UNIFORM))) {
         throw new SnapshotFormatError(
-          `${schema[1]} has values that are not plain JSON (Int64, Bytes or special floats), which this tool does not convert`,
+          `${shownEntry(schema[1]!)} has values that are not plain JSON (Int64, Bytes or special floats), which this tool does not convert`,
         );
       }
       continue;
@@ -98,40 +151,53 @@ export function readConvexSnapshot(zip: Uint8Array): ConvexSnapshot {
     }
     const target = documents[table];
     if (target === undefined) {
-      throw new SnapshotFormatError(`${entry} belongs to a table missing from _tables`);
+      throw new SnapshotFormatError(`${shownEntry(entry)} belongs to a table missing from _tables`);
     }
     target.push(...jsonl(bytes, entry));
   }
   if (unsupported.length > 0) {
     throw new SnapshotFormatError(
-      `Snapshot holds data this adapter does not import (file storage, components or unknown files): ${unsupported.sort().join(", ")}`,
+      `Snapshot holds data this adapter does not import (file storage, components or unknown files): ${unsupported.sort().map(shownEntry).join(", ")}`,
     );
   }
+  // A table without generated-schema metadata (or with crafted text) could
+  // still hold encoded Int64/Bytes/special floats; Convex would not restore
+  // them as plain JSON, so neither direction of this tool accepts them.
+  for (const [table, rows] of Object.entries(documents)) refuseSpecialValues(table, rows);
   return { tables, documents, systemTables: systemTables.sort() };
 }
 
-/** Write user tables as a ZIP that `npx convex import --replace-all` accepts. */
+/**
+ * Write user tables as a ZIP that `npx convex import --replace-all` accepts.
+ * It holds plain JSON only, so a table with an Int64, Bytes or special-float
+ * value is refused before any bytes are produced.
+ */
 export function writeConvexSnapshot(
   snapshot: Pick<ConvexSnapshot, "tables" | "documents">,
 ): Uint8Array {
-  const files: Zippable = {};
   const names = Object.keys(snapshot.tables).sort(
     (a, b) => snapshot.tables[a]! - snapshot.tables[b]!,
   );
+  for (const name of names) {
+    if (!TABLE_NAME.test(name))
+      throw new SnapshotFormatError("Refusing to write a table name Convex does not allow");
+    if (name.startsWith("_"))
+      throw new SnapshotFormatError(`Refusing to write system table ${name}`);
+    refuseSpecialValues(name, snapshot.documents[name] ?? []);
+  }
+  for (const name of Object.keys(snapshot.documents)) {
+    if (!(name in snapshot.tables))
+      throw new SnapshotFormatError(`Documents for ${shownEntry(name)} have no table number`);
+  }
+  const files: Zippable = {};
   files["_tables/documents.jsonl"] = strToU8(
     names.map((name) => `${JSON.stringify({ name, id: snapshot.tables[name] })}\n`).join(""),
   );
   for (const name of names) {
-    if (name.startsWith("_"))
-      throw new SnapshotFormatError(`Refusing to write system table ${name}`);
     const rows = snapshot.documents[name] ?? [];
     files[`${name}/documents.jsonl`] = strToU8(
       rows.map((row) => `${JSON.stringify(row)}\n`).join(""),
     );
-  }
-  for (const name of Object.keys(snapshot.documents)) {
-    if (!(name in snapshot.tables))
-      throw new SnapshotFormatError(`Documents for ${name} have no table number`);
   }
   return zipSync(files, { level: 6, mtime: new Date("2000-01-01T00:00:00Z") });
 }

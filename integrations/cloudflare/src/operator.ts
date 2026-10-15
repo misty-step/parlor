@@ -1,17 +1,17 @@
 import type { JSONValue } from "convex/values";
 import type { TableStats } from "./snapshot.js";
-import {
-  compareStats,
-  snapshotStats,
-  type ConvexSnapshot,
-  type StatsDifference,
-} from "./convexZip.js";
+import { snapshotStats, type ConvexSnapshot, type StatsDifference } from "./convexZip.js";
 
 /**
  * Operator client for a deployed backend's admin routes (`<url>/admin/*`):
  * the import and export halves of a cutover or rollback (ADR 0002,
  * Operations). Every step re-checks the maintenance state it relies on and
  * stops at the first surprise; nothing here unfreezes writes implicitly.
+ *
+ * Errors are print-safe. They carry routes, statuses, error codes, table
+ * names, numbers, counts and digests, never a response body: the backend's
+ * messages can quote document values (a rejected `_id`, for example), so
+ * only its fixed maintenance-state messages are repeated.
  */
 export interface AdminStatus {
   readonly ts: string;
@@ -39,6 +39,97 @@ export class OperatorError extends Error {
 }
 
 const EXPORT_PAGE = 1000;
+/** Error codes the admin routes answer with; any other value is not repeated. */
+const ERROR_CODES = new Set([
+  "BadRequest",
+  "Conflict",
+  "InternalServerError",
+  "NotFound",
+  "Unauthorized",
+]);
+/** The backend's maintenance-state refusals (HTTP 409): fixed text, no data. */
+const MAINTENANCE_MESSAGES = new Set([
+  "An import is pending; commit it with matching checksums before unfreezing writes",
+  "Begin an import before loading documents",
+  "Freeze writes before importing a snapshot",
+  "No import is pending",
+]);
+const SHA256 = /^[0-9a-f]{64}$/;
+const TIMESTAMP = /^\d{1,24}$/;
+
+/** `<route> returned <status> (<code>): <fixed message>`, built only from parts that hold no data. */
+function refusal(method: string, route: string, status: number, body: unknown): string {
+  const { code, message } = (body ?? {}) as { code?: unknown; message?: unknown };
+  let text = `${method} admin/${route} returned ${status}`;
+  if (typeof code === "string" && ERROR_CODES.has(code)) text += ` (${code})`;
+  if (typeof message === "string" && MAINTENANCE_MESSAGES.has(message)) text += `: ${message}`;
+  return text;
+}
+
+/** A backend-reported commit timestamp, or a placeholder when it is not one. */
+function shownTs(value: unknown): string {
+  return typeof value === "string" && TIMESTAMP.test(value) ? value : "(not a timestamp)";
+}
+
+function isTableStats(value: unknown): value is TableStats {
+  const stats = value as Partial<Record<keyof TableStats, unknown>> | null;
+  return (
+    typeof stats === "object" &&
+    stats !== null &&
+    Number.isSafeInteger(stats.number) &&
+    Number.isSafeInteger(stats.count) &&
+    typeof stats.sha256 === "string" &&
+    SHA256.test(stats.sha256)
+  );
+}
+
+/**
+ * Where a backend's stats differ from what an import of `expected` must leave:
+ * every expected table listed with the same number, count and checksum (empty
+ * tables included, so their numbers are checked too), and every other user
+ * table, one the schema declares but the snapshot lacks, empty. A server entry
+ * that is not well-formed stats counts as different and is reported as absent.
+ */
+export function importDifferences(
+  expected: Readonly<Record<string, TableStats>>,
+  server: unknown,
+): StatsDifference[] {
+  const tables = (typeof server === "object" && server !== null ? server : {}) as Record<
+    string,
+    unknown
+  >;
+  const differences: StatsDifference[] = [];
+  for (const table of Object.keys(expected).sort()) {
+    const want = expected[table]!;
+    const have = isTableStats(tables[table]) ? tables[table] : null;
+    if (
+      have === null ||
+      have.number !== want.number ||
+      have.count !== want.count ||
+      have.sha256 !== want.sha256
+    ) {
+      differences.push({ table, left: want, right: have });
+    }
+  }
+  const extra = Object.keys(tables).filter(
+    (table) => !(table in expected) && !table.startsWith("_"),
+  );
+  for (const table of extra.sort()) {
+    const have = isTableStats(tables[table]) ? tables[table] : null;
+    if (have === null || have.count !== 0) differences.push({ table, left: null, right: have });
+  }
+  return differences;
+}
+
+/** The first differences as table names, numbers, counts and digests. */
+function listDifferences(differences: readonly StatsDifference[]): string {
+  return `${JSON.stringify(differences.slice(0, 50))}${differences.length > 50 ? " ..." : ""}`;
+}
+
+interface Call {
+  readonly body?: unknown;
+  readonly query?: URLSearchParams;
+}
 
 export class BackendOperator {
   private readonly url: string;
@@ -57,12 +148,14 @@ export class BackendOperator {
     this.maxPageDocuments = options.maxPageDocuments ?? 500;
   }
 
+  /** One admin request. The query string stays out of errors: export cursors are document IDs. */
   private async call(
     method: "GET" | "POST",
     route: string,
-    body?: unknown,
+    { body, query }: Call = {},
   ): Promise<{ status: number; body: any }> {
-    const response = await this.fetcher(`${this.url}/admin/${route}`, {
+    const search = query === undefined ? "" : `?${query.toString()}`;
+    const response = await this.fetcher(`${this.url}/admin/${route}${search}`, {
       method,
       headers: {
         Authorization: `Bearer ${this.options.adminKey}`,
@@ -75,18 +168,15 @@ export class BackendOperator {
     try {
       parsed = JSON.parse(text);
     } catch {
-      parsed = { message: text.slice(0, 200) };
+      parsed = null;
     }
     return { status: response.status, body: parsed };
   }
 
-  private async ok(method: "GET" | "POST", route: string, body?: unknown): Promise<any> {
-    const result = await this.call(method, route, body);
-    if (result.status !== 200) {
-      throw new OperatorError(
-        `${method} admin/${route} returned ${result.status}: ${JSON.stringify(result.body).slice(0, 500)}`,
-      );
-    }
+  private async ok(method: "GET" | "POST", route: string, call: Call = {}): Promise<any> {
+    const result = await this.call(method, route, call);
+    if (result.status !== 200)
+      throw new OperatorError(refusal(method, route, result.status, result.body));
     return result.body;
   }
 
@@ -101,16 +191,17 @@ export class BackendOperator {
 
   /** Set the single-writer barrier; returns the commit timestamp it landed on. */
   async freeze(frozen: boolean): Promise<{ writesFrozen: boolean; ts: string }> {
-    const result = await this.ok("POST", "freeze", { frozen });
-    if (result.writesFrozen !== frozen)
-      throw new OperatorError(`freeze returned writesFrozen=${result.writesFrozen}`);
-    return result;
+    const result = await this.ok("POST", "freeze", { body: { frozen } });
+    if (result?.writesFrozen !== frozen)
+      throw new OperatorError(`freeze did not report writesFrozen=${frozen}`);
+    return { writesFrozen: frozen, ts: shownTs(result.ts) };
   }
 
   /**
    * Replace the backend's data with `snapshot`, then commit only if the
-   * backend's counts and checksums equal the snapshot's. Requires writes
-   * already frozen and no import pending; leaves writes frozen either way.
+   * backend's table numbers, counts and checksums equal the snapshot's.
+   * Requires writes already frozen and no import pending. Writes stay frozen
+   * either way, and on any disagreement the import stays pending.
    */
   async importSnapshot(snapshot: Pick<ConvexSnapshot, "tables" | "documents">) {
     const before = await this.status();
@@ -119,19 +210,32 @@ export class BackendOperator {
     if (before.importPending)
       throw new OperatorError("An import is already pending; finish or redo it deliberately");
     const expected = await snapshotStats(snapshot);
-    this.log(`import: begin with ${Object.keys(snapshot.tables).length} tables`);
-    await this.ok("POST", "import/begin", { tables: snapshot.tables });
+    const tables = Object.keys(snapshot.tables).sort();
+    this.log(`import: begin with ${tables.length} tables`);
+    const begun = await this.ok("POST", "import/begin", { body: { tables: snapshot.tables } });
+    const mapped = (begun?.tables ?? {}) as Record<string, unknown>;
+    const unmapped = tables.filter((table) => mapped[table] !== snapshot.tables[table]);
+    if (unmapped.length > 0) {
+      throw new OperatorError(
+        `import/begin did not give ${unmapped.length} tables the snapshot's numbers (${unmapped
+          .slice(0, 50)
+          .map((table) => `${table} ${snapshot.tables[table]}`)
+          .join(", ")}); writes stay frozen and the import stays pending`,
+      );
+    }
     let total = 0;
-    for (const table of Object.keys(snapshot.tables).sort()) {
+    for (const table of tables) {
       const rows = snapshot.documents[table] ?? [];
       let page: JSONValue[] = [];
       let bytes = 0;
       const flush = async () => {
         if (page.length === 0) return;
-        const result = await this.ok("POST", "import/documents", { table, documents: page });
-        if (result.imported !== page.length) {
+        const result = await this.ok("POST", "import/documents", {
+          body: { table, documents: page },
+        });
+        if (result?.imported !== page.length) {
           throw new OperatorError(
-            `import/documents for ${table} imported ${result.imported} of ${page.length}`,
+            `import/documents for ${table} did not report ${page.length} documents imported`,
           );
         }
         total += page.length;
@@ -149,34 +253,47 @@ export class BackendOperator {
       await flush();
       this.log(`import: ${table} ${rows.length}`);
     }
+    // The commit route compares counts and checksums only, so compare the
+    // numbers too, here, before committing: an empty table under another
+    // number holds the same rows but not the same IDs.
+    const loaded = importDifferences(expected, (await this.stats())?.tables);
+    if (loaded.length > 0) {
+      throw new OperatorError(
+        `The loaded backend differs from the snapshot; writes stay frozen and the import stays pending: ${listDifferences(loaded)}`,
+      );
+    }
     const commit = await this.call("POST", "import/commit", {
-      tables: Object.fromEntries(
-        Object.entries(expected).map(([name, { count, sha256 }]) => [name, { count, sha256 }]),
-      ),
+      body: {
+        tables: Object.fromEntries(
+          Object.entries(expected).map(([name, { count, sha256 }]) => [name, { count, sha256 }]),
+        ),
+      },
     });
     if (commit.status !== 200 || commit.body?.committed !== true) {
       throw new OperatorError(
-        `import/commit refused (${commit.status}); writes stay frozen and the import stays pending: ${JSON.stringify(commit.body?.mismatches ?? commit.body).slice(0, 2000)}`,
+        `${refusal("POST", "import/commit", commit.status, commit.body)}; writes stay frozen and the import stays pending`,
+      );
+    }
+    const committed = importDifferences(expected, commit.body?.tables);
+    if (committed.length > 0) {
+      throw new OperatorError(
+        `import/commit reported tables that differ from the snapshot; keep writes frozen and import again: ${listDifferences(committed)}`,
       );
     }
     const after = await this.status();
     if (!after.writesFrozen || after.importPending) {
       throw new OperatorError(
-        `After commit: writesFrozen=${after.writesFrozen} importPending=${after.importPending}`,
+        `After commit the backend is ${after.writesFrozen ? "frozen" : "not frozen"} with ${after.importPending ? "an" : "no"} import pending; expected frozen with none`,
       );
     }
-    return {
-      documents: total,
-      stats: commit.body.tables as Record<string, TableStats>,
-      ts: after.ts,
-    };
+    return { documents: total, stats: expected, ts: shownTs(after.ts) };
   }
 
   /**
    * Read every user table while writes stay frozen. Every page must carry the
-   * same commit timestamp and `writesFrozen`, and the pages' own counts and
-   * checksums must equal `GET admin/stats` at that timestamp, so the result is
-   * one consistent snapshot of everything accepted before the freeze.
+   * same commit timestamp and `writesFrozen`, and the pages' own numbers,
+   * counts and checksums must equal `GET admin/stats` at that timestamp, so the
+   * result is one consistent snapshot of everything accepted before the freeze.
    */
   async exportSnapshot(): Promise<{
     snapshot: ConvexSnapshot;
@@ -189,11 +306,12 @@ export class BackendOperator {
     if (status.importPending)
       throw new OperatorError("An import is pending; this backend's data is incomplete");
     if (status.runningActions !== 0) {
-      throw new OperatorError(
-        `${status.runningActions} actions are still running; wait until status shows 0`,
-      );
+      const running = Number.isSafeInteger(status.runningActions) ? status.runningActions : "Some";
+      throw new OperatorError(`${running} actions are still running; wait until status shows 0`);
     }
     const ts = status.ts;
+    if (typeof ts !== "string" || !TIMESTAMP.test(ts))
+      throw new OperatorError("status did not report a commit timestamp");
     const tables = Object.fromEntries(
       Object.entries(status.tables).filter(([name]) => !name.startsWith("_")),
     );
@@ -204,12 +322,14 @@ export class BackendOperator {
       for (;;) {
         const query = new URLSearchParams({ table, limit: String(EXPORT_PAGE) });
         if (after !== null) query.set("after", after);
-        const page = await this.ok("GET", `export?${query.toString()}`);
-        if (page.ts !== ts || page.writesFrozen !== true) {
+        const page = await this.ok("GET", "export", { query });
+        if (page?.ts !== ts || page?.writesFrozen !== true) {
           throw new OperatorError(
-            `export page for ${table} saw ts ${page.ts} (frozen ${page.writesFrozen}); expected ${ts} frozen`,
+            `export page for ${table} saw ts ${shownTs(page?.ts)} (frozen ${page?.writesFrozen === true}); expected ${ts} frozen`,
           );
         }
+        if (!Array.isArray(page.documents) || (page.next !== null && typeof page.next !== "string"))
+          throw new OperatorError(`export page for ${table} is not a page of documents`);
         rows.push(...(page.documents as JSONValue[]));
         if (page.next === null) break;
         after = page.next as string;
@@ -222,13 +342,13 @@ export class BackendOperator {
     const server = await this.stats();
     if (server.ts !== ts || !server.writesFrozen) {
       throw new OperatorError(
-        `stats saw ts ${server.ts} (frozen ${server.writesFrozen}); expected ${ts} frozen`,
+        `stats saw ts ${shownTs(server.ts)} (${server.writesFrozen ? "frozen" : "not frozen"}); expected ${ts} frozen`,
       );
     }
-    const differences = compareStats(stats, server.tables);
+    const differences = importDifferences(stats, server.tables);
     if (differences.length > 0) {
       throw new OperatorError(
-        `Exported pages differ from admin/stats: ${JSON.stringify(differences).slice(0, 2000)}`,
+        `Exported pages differ from admin/stats: ${listDifferences(differences)}`,
       );
     }
     return { snapshot, stats, ts };
