@@ -32,7 +32,7 @@ for (const width of [1440, 390]) {
         .slice(2)
         .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1")
         .replace(/\*\*/g, "");
-      await expect(notes).toContainText(text);
+      expect((await notes.innerText()).replaceAll(" (opens in a new tab)", "")).toContain(text);
     }
     expect(
       await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth),
