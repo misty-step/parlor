@@ -37,8 +37,11 @@ identity requirement.
    identities from different issuers remain distinct even with the same subject.
 6. A player may host four open rooms and hold sixteen open memberships. Closed
    rooms/memberships do not consume these quotas. New joins allow ten attempts
-   per sixty-second window; failures consume attempts, known-member retries do
-   not. Exceeding limits reports a rate-limit failure without deleting history.
+   per sixty-second window. After name and identity validation, each new-join code
+   submission consumes an attempt: invalid codes, closed/unknown/full rooms,
+   membership-quota rejections, and successful joins all count. Known-member
+   retries and rejected display names do not. Exceeding limits reports a rate-limit
+   failure without deleting history.
 7. Room state is available only to members and identifies the viewer, host,
    members' names/seats/time facts, and any active match and frozen participants.
    It is not a projection of the game's private answers or scoring rules.
@@ -259,16 +262,14 @@ verification does and does not establish.
 
 ### US-004 [live] Size up Parlor from its website
 
-As a prospective game maker, I can judge fit before installing anything. This is
-implemented website behavior, not a proposed future story. The status decision
-and former review reference are resolved in the canonical-spec decision record.
+As a prospective game maker, I can judge fit before installing anything.
 
 1. Gather shows an open seat; Play shows a frozen lineup with Jo watching; Again
    shows Jo seated for the next match. Selected controls expose their pressed
    state. These are demonstrations, not actual shared rooms.
 2. Dealing a new code in Gather uses US-001's alphabet and length, changes the code,
-   and announces `Dealt <code>.` with its updated accessible room-code label.
-   Dealing is disabled outside Gather.
+   and announces a status beginning `Dealt <code>.` with its updated accessible
+   room-code label. Dealing is disabled outside Gather.
 3. The production-game gallery provides working play and source links for listed
    Parlor games. No fake metrics/testimonials or claims about games not using
    Parlor. The gallery is the maintained inventory, not a duplicated list here.

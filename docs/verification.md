@@ -21,8 +21,8 @@ playground walk, and a real anonymous local Convex consumer. For focused debuggi
 | -------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
 | US-001, US-002, US-003, US-006, US-007 | `pnpm exec vitest run integrations/convex/test/lifecycle.test.ts integrations/convex/test/room-operations.test.ts packages/core/test/core.test.ts` | Deterministic room, identity, presence, deadline, opt-out and paginated-maintenance cases; not an HTTP/browser journey                       |
 | US-005                                 | `pnpm exec vitest run packages/auth/test/auth.test.ts packages/web/test/browser.test.ts packages/react/test/hooks.test.tsx`                        | Signed-proof failures, storage/renewal/cancellation; injected issuer/timers do not prove hosted cookies                                      |
-| US-006, US-008                         | `pnpm exec vitest run packages/web/test/browser.test.ts packages/react/test/hooks.test.tsx`                                                        | Visibility, failures, no overlap, wake-lock release/reacquisition; simulated capability, not physical screen behavior                        |
-| US-009                                 | `pnpm exec vitest run packages/web/test/audio.test.ts`                                                                                             | Mute, volume, cue mapping, persistence failures; no claim of audible output                                                                  |
+| US-006, US-008                         | `pnpm exec vitest run packages/web/test/browser.test.ts packages/react/test/hooks.test.tsx`                                                        | Heartbeat visibility, send failure/recovery, no overlap; wake-lock unsupported, release/reacquire and unmount cleanup; simulated             |
+| US-009                                 | `pnpm exec vitest run packages/web/test/audio.test.ts`                                                                                             | Mute, finite-volume clamping, cue mapping, successful preference persistence/restoration and notifications; no claim of audible output       |
 | US-010                                 | `pnpm exec vitest run packages/react/test/components.test.tsx`                                                                                     | Rendered semantics, input/paste, completion, QR and avatars; use browser checks for actual interaction                                       |
 | US-011                                 | `pnpm test:e2e`                                                                                                                                    | Local rehearsal only                                                                                                                         |
 | US-001, US-002, US-003, US-005, US-007 | `pnpm build:packages && pnpm smoke:convex`                                                                                                         | Real disposable backend, signed identities, renewal, expiry rejection with unchanged score, scheduled sweep, closure; not First Tap's issuer |
@@ -30,6 +30,12 @@ playground walk, and a real anonymous local Convex consumer. For focused debuggi
 Inspect the smoke JSON's `ok`, `backendVersion`, and `proved` fields. A nonzero
 exit or missing proof is not a pass. Keep `pnpm check:all` as the one full gate,
 not another synchronized wrapper.
+
+US-008.3's denied-request nonblocking UI is sampled only by disposable browser
+fault injection, not these unit checks. Its failure-reason snapshot, failed
+release, and late-granted-lock cleanup remain verification gaps, as do US-009.2's
+nonfinite volume and US-009.3's storage failures. Passing the named checks does
+not certify these unexercised clauses.
 
 ## Real issuer and multiplayer browser
 

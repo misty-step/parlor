@@ -1,6 +1,6 @@
 # ADR 0001: One canonical behavior specification
 
-Status: accepted for implementation, 2026-10-15; independent review required before merge.
+Status: accepted 2026-10-15 (designer review, PR16).
 
 ## Context
 
@@ -12,11 +12,12 @@ authorizes consolidation and verification, not behavior changes.
 ## Decision
 
 The implementing engineer in t_a1c6aa6d classifies US-004 as live based on the
-shipped website and executable browser checks, subject to independent designer
-review. This resolves the old “pending operator review” label; MIS-167 is historical
-context, not acceptance evidence. “Live” means implemented, not universal device
-or deployment certification. A failing criterion remains a defect, not a reason to
-weaken the contract; the gallery-link defect is owned by sibling t_4c69e952.
+shipped website and executable browser checks, with independent designer
+concurrence in PR16. This resolves the old “pending operator review” label;
+MIS-167 is historical context, not acceptance evidence. “Live” means implemented,
+not universal device or deployment certification. A failing criterion remains a
+defect, not a reason to weaken the contract; the gallery-link defect is owned by
+sibling t_4c69e952.
 
 SPEC.md is the sole behavioral catalog, using the Linejam pilot's capability and
 `### US-<digits> [live|next|later] <title>` headings. Preserve US-001 through US-004;
