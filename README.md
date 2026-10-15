@@ -29,7 +29,7 @@ Packages are private workspace packages in this repository. They are not publish
 
 ## Made with Parlor
 
-Four Misty Step games run on this toolkit in production: [Poppycock](https://poppycock.mistystep.io) (3–12 player bluffing), [Linejam](https://linejam.app) (2–8 player pass-the-poem), [Kindred](https://kindred.mistystep.io) (2–12 players; pairs who say the same thing score), and [Double Take](https://doubletake.mistystep.io) (2–8 players; one line for two worlds). [First Tap](examples/first-tap) is the bundled development example.
+Explore the [production games and their source](https://parlor.mistystep.io/#in-the-wild). The site's catalog in [`apps/site/src/data/games.json`](apps/site/src/data/games.json) owns the links; `pnpm check:gallery-links` checks every Play and Source URL. The dedicated Gallery links workflow runs on pull requests, master pushes, and every six hours, with red failures and per-link error annotations. [First Tap](examples/first-tap) is the bundled development example.
 
 ## Development
 
