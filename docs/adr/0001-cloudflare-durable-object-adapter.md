@@ -36,9 +36,12 @@ protocol from that object.
   make is its own transaction, as in Convex.
 - **Storage.** Documents are stored as Convex JSON. Each index is a table of
   order-preserving keys: a prefix-free byte encoding, stored as hex, that sorts
-  exactly like `compareValues`. Index ranges, `order`, `filter`, `take`,
-  `first`, `unique`, `paginate` and `count` follow Convex semantics, including
-  the implicit `by_id` and `by_creation_time` indexes.
+  exactly like `compareValues`, NaN signs and payloads included. Index ranges,
+  `order`, `filter`, `take`, `first`, `unique`, `paginate` and `count` follow
+  Convex semantics, including the implicit `by_id` and `by_creation_time`
+  indexes. Filter and limit stages run in the order the query applied them.
+  Each page of `paginate()` runs the pipeline afresh from its cursor, so a
+  `limit()` before it bounds each page and ends pagination once full.
 - **IDs.** Document IDs use Convex's own v6 format, checked against IDs minted
   by a real backend: `base32(vint(table) ++ 16 random bytes ++ fletcher16)`.
   Table numbers start at 10001, and `_tables` numbers are kept on import. So
@@ -59,28 +62,55 @@ protocol from that object.
   - Mutation responses carry their commit timestamp. Retries from a
     reconnecting client replay the stored result exactly once, using
     `(sessionId, requestId)` receipts kept for seven days.
+  - Frames are handled in order, except that an admitted action runs alongside
+    later frames with the identity in force when it was admitted. A connection
+    may run 32 actions at once; more are refused, not queued.
+  - Socket frames may carry 1 MiB and HTTP request bodies 8 MiB, counted in
+    UTF-8 bytes as they arrive, whatever `Content-Length` claims.
 - **Auth.** OIDC providers (`domain` plus `applicationID`) and `customJwt`
   providers come from the app's `auth.config.ts`. Tokens are verified with
-  RS256 or ES256 against cached JWKS. Identities map claims exactly as Convex
-  does (`tokenIdentifier = iss|sub`, and so on).
+  RS256 or ES256 against cached JWKS. A token must carry a finite numeric
+  `exp`, and `nbf` and `iat` must be numbers when present, so every identity
+  expires. Identities map claims exactly as Convex does
+  (`tokenIdentifier = iss|sub`, and so on).
 - **Errors.** In production, unexpected errors are replaced by "Server Error".
   `ConvexError` messages and data reach the client unchanged.
 - **Scheduler and crons.** `ctx.scheduler.runAfter/runAt/cancel` write
-  `_scheduled_functions` rows in the caller's transaction. A Durable Object
-  alarm runs due jobs. A scheduled mutation's state change commits atomically
-  with its writes. Actions interrupted by a restart are marked failed.
-  `cronJobs()` schedules (interval, hourly, daily, weekly, monthly, cron) run
-  from the same alarm.
+  `_scheduled_functions` rows, with their arguments as Convex values, in the
+  caller's transaction. A Durable Object alarm runs due jobs. A scheduled
+  mutation's state change commits atomically with its writes. A job or cron
+  whose module fails to load is recorded as failed and never holds up the
+  others. Actions cut off by a restart or a freeze are marked failed once
+  writes resume. `cronJobs()` schedules (interval, hourly, daily, weekly,
+  monthly, cron) run from the same alarm.
 - **Operations.** Admin routes under `/admin/*` require a bearer key of at
   least 32 characters from a configured binding, compared in constant time.
-  - `freeze` stops public writes, the scheduler and crons, giving a single
-    writer for imports.
-  - `import/begin` and `import/documents` load a Convex snapshot with its IDs,
-    creation times and table numbers intact.
-  - `export` pages documents in the Convex ZIP's JSONL shape.
+  - `freeze` is the single-writer barrier. While frozen, the backend admits no
+    mutation, action, HTTP action (503), scheduled function or cron, whoever
+    calls, and commits no write except an import. The freeze takes the
+    database lock, so its response carries the timestamp of the last accepted
+    write. An action already running can no longer write. Queries and
+    subscriptions keep working. A new deployment starts frozen.
+  - `status` reports that timestamp, `writesFrozen`, `importPending` and the
+    number of running actions.
+  - `import/begin` (frozen only) validates the snapshot's table names and
+    numbers before anything changes, then replaces all data in one
+    transaction and refreshes every live subscription. `import/documents`
+    loads a snapshot page, keeping IDs, creation times and table numbers.
+    `import/commit` succeeds only when every table's count and checksum equal
+    the snapshot's. Writes cannot be unfrozen while an import is pending.
+  - `export` pages documents in the Convex ZIP's JSONL shape, each page with
+    the timestamp it was read at. An export is consistent when every page
+    reports the same timestamp while frozen.
   - `stats` returns per-table counts and canonical SHA-256 digests. The same
     digests can be computed from a Convex export ZIP, which makes migrations
     and rollbacks checkable without comparing database files.
+- **Moving data out.** To hand writes to another backend without losing one:
+  freeze; wait until `status` shows no running actions; export every table
+  and require one timestamp across pages; restore elsewhere and require equal
+  checksums; then make the other backend the only writer. Until that
+  handover, a failure is undone by unfreezing, because nothing was accepted
+  after the freeze.
 - **Testing.** `@parlor/cloudflare/testing` exports a `convex-test`-compatible
   `convexTest(schema, modules)` backed by this runtime, using in-memory
   `node:sqlite`. An app can run its existing Convex test suite against the
@@ -96,6 +126,9 @@ These fail loudly rather than misbehaving:
 - Admin-key function calls.
 - `query_at_ts`.
 - Streaming import and export.
+- NaN payloads beyond what the JavaScript engine keeps. Keys order every IEEE
+  bit pattern as `compareValues` does, but V8 may canonicalize a NaN stored in
+  an array of doubles, which `compareValues` itself does internally.
 
 Throughput is bounded by one object, so this suits a game backend, not a
 high-write analytics store. Any of these needs a new ADR and a protocol
