@@ -12,9 +12,12 @@ workspace package manifests are not a promise of separately published packages.
 Registry publishing remains a separate decision.
 
 Adopt release-please in Node manifest mode, from explicit baseline
-`55410ca45451ccca9a848f04af48162d2bf73384`, with starting source version `0.1.0`.
-The first release follows the generator's default `1.0.0`; this does not assert
-npm availability. Subsequent fixes/features/breaking changes use normal SemVer.
+`55410ca45451ccca9a848f04af48162d2bf73384`. The manifest starts at the generator's
+`0.0.0` no-prior-release sentinel: there are no prior release tags, and the old
+static package `0.1.0` was not a published release authority. No tag or package
+version is reset. The first release follows the generator's default `1.0.0`;
+this does not assert npm availability. Subsequent fixes/features/breaking changes
+use normal SemVer.
 The generator owns the root package version, manifest and CHANGELOG.md. The
 initial changelog is empty, not invented historic releases.
 
