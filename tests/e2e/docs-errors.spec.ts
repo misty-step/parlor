@@ -11,6 +11,9 @@ test("US-012: caught docs failures are private, bounded, and recoverable", async
 }, testInfo) => {
   const canary = "PRIVATE-DOCS-CANARY";
   const envelopes: string[] = [];
+  expect((await page.request.get("/")).headers()["content-security-policy"]).toContain(
+    "connect-src 'self' https://o4510313803677696.ingest.us.sentry.io;",
+  );
   await context.grantPermissions(["clipboard-read", "clipboard-write"]);
   await context.addCookies([{ name: "private", value: canary, url: "http://127.0.0.1:4174" }]);
   await page.route(sink, async (route) => {
