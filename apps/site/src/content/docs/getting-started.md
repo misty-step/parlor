@@ -25,7 +25,7 @@ Choose other infrastructure for high-frequency movement simulation, large persis
 
 ## Source distribution
 
-Parlor is MIT-licensed and pre-1.0. The `@parlor/*` packages are private **workspace packages distributed from this repository**, not npm releases. Install a complete checkout, build its packages, and keep the reviewed commit with your game. The website describes current source; an installed revision's export maps and signatures remain your contract.
+Parlor is MIT-licensed and [source-versioned](/changelog/). The `@parlor/*` packages are private **workspace packages distributed from this repository**, not npm releases. Install a complete checkout, build its packages, and keep the reviewed commit with your game. The website describes current source; an installed revision's export maps and signatures remain your contract.
 
 The example requires **Node.js 22.12+**, **pnpm 11** (the repository pins **11.25.0**), Git, and a Convex development backend. [First Tap's run guide](/docs/first-game/#run-the-example) walks through the commands and environment setup.
 
@@ -55,4 +55,4 @@ Read [architecture and ownership](/docs/architecture/) for the five packages and
 - [React and browser capabilities](/docs/react/): hook contracts, styling, connection state, and optional capabilities.
 - [Agent onboarding](/docs/agents/): the [portable skill](/skill.md), [documentation index](/llms.txt), and [full documentation](/llms-full.txt).
 
-Want to explore before setting up a backend? The [playground source](https://github.com/misty-step/parlor/tree/master/apps/playground) runs a browser-local lifecycle rehearsal with the repository's `pnpm dev`. For a shared backend and browser identities, run First Tap. [Poppycock](https://poppycock.mistystep.io) is a shipped consuming game with [source available](https://github.com/misty-step/poppycock).
+Want to explore before setting up a backend? The [playground source](https://github.com/misty-step/parlor/tree/master/apps/playground) runs a browser-local lifecycle rehearsal with the repository's `pnpm dev`. For a shared backend and browser identities, run First Tap. The [production game gallery](/#in-the-wild) links Poppycock and the other shipped games with their source.

@@ -1,4 +1,5 @@
 import { getCollection } from "astro:content";
+import project from "../../../../package.json";
 
 export async function GET() {
   const docs = (await getCollection("docs")).sort((a, b) => a.data.order - b.data.order);
@@ -7,7 +8,7 @@ export async function GET() {
     "",
     "> Open-source room, guest identity, presence, and match primitives for phone-first party games, built on Convex and React.",
     "",
-    "Parlor 0.1.0 is MIT-licensed and source-distributed. Packages are not published to npm. Run the First Tap example from a complete checkout, or follow the source-workspace installation guide and pin a source revision. The game owns its rules, scoring, authorization, private projections, and credential endpoint.",
+    `Parlor ${project.version} is MIT-licensed and source-distributed. Packages are not published to npm. Run the First Tap example from a complete checkout, or follow the source-workspace installation guide and pin a source revision. The game owns its rules, scoring, authorization, private projections, and credential endpoint.`,
     "",
     "## Start here",
     "",
@@ -15,6 +16,7 @@ export async function GET() {
     "- [Full documentation](https://parlor.mistystep.io/llms-full.txt): All guides as plain Markdown.",
     "- [First Tap example](https://github.com/misty-step/parlor/tree/master/examples/first-tap): Complete Convex and React game.",
     "- [Source](https://github.com/misty-step/parlor): Package implementations and tests.",
+    "- [Changelog](https://parlor.mistystep.io/changelog.md): Generated source release notes.",
     "",
     "## Guides",
     "",

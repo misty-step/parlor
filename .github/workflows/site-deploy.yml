@@ -1,0 +1,145 @@
+name: Deploy site
+
+on:
+  push:
+    branches: [master]
+  workflow_dispatch:
+    inputs:
+      rollback_drill:
+        description: Force a smoke failure on staging and verify automatic rollback (run must fail)
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+# Never interrupt a promotion, and do not let a delayed older run replace master.
+concurrency:
+  group: site-${{ inputs.rollback_drill && 'staging' || 'production' }}
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    if: github.ref == 'refs/heads/master' || (github.event_name == 'workflow_dispatch' && inputs.rollback_drill)
+    runs-on: ubuntu-24.04
+    environment: ${{ inputs.rollback_drill && 'staging' || 'production' }}
+    env:
+      SITE_ENV: ${{ inputs.rollback_drill && 'staging' || 'production' }}
+      SITE_URL: https://parlor.mistystep.io
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "22"
+          package-manager-cache: false
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+        with:
+          cache: true
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm exec playwright install --with-deps chromium
+      - name: Build and verify the candidate once
+        run: |
+          pnpm check:all
+          pnpm check:gallery-links
+          printf '%s\n' "$GITHUB_SHA" > apps/site/dist/version.txt
+          pnpm --filter @parlor/site exec wrangler versions upload --env "$SITE_ENV" --dry-run
+      - name: Prepare the isolated staging baseline
+        if: inputs.rollback_drill
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          printf '%s-baseline\n' "$GITHUB_SHA" > apps/site/dist/version.txt
+          pnpm --filter @parlor/site exec wrangler deploy --env staging --tag "$GITHUB_SHA-baseline" | tee staging-deploy.log
+          url=$(python3 -c 'import re; print(re.search(r"https://parlor-site-staging\.[a-z0-9-]+\.workers\.dev", open("staging-deploy.log").read())[0])')
+          printf 'SITE_URL=%s\n' "$url" >> "$GITHUB_ENV"
+          node scripts/verify-site-deploy.mjs "$url"
+          printf '%s\n' "$GITHUB_SHA" > apps/site/dist/version.txt
+      - name: Skip a superseded candidate
+        id: current
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          head=$(gh api "repos/$GITHUB_REPOSITORY/commits/master" --jq .sha)
+          if [ "$SITE_ENV" = staging ] || [ "$head" = "$GITHUB_SHA" ]; then
+            printf 'promote=true\n' >> "$GITHUB_OUTPUT"
+          else
+            printf 'Skipping superseded candidate %s (master is %s)\n' "$GITHUB_SHA" "$head"
+          fi
+      - name: Capture the immutable rollback target and public artifacts
+        id: previous
+        if: steps.current.outputs.promote == 'true'
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          mkdir -p test-results
+          pnpm --filter @parlor/site exec wrangler deployments status --env "$SITE_ENV" --json > test-results/previous-deployment.json
+          version=$(jq -er '.versions | select(length == 1) | .[0] | select(.percentage == 100) | .version_id' test-results/previous-deployment.json)
+          node scripts/verify-site-deploy.mjs "$SITE_URL" test-results/previous-site --snapshot
+          printf 'version=%s\n' "$version" >> "$GITHUB_OUTPUT"
+      - name: Promote the verified assets without changing routes
+        id: promote
+        if: steps.current.outputs.promote == 'true'
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          pnpm --filter @parlor/site exec wrangler versions upload --env "$SITE_ENV" --tag "$GITHUB_SHA"
+          pnpm --filter @parlor/site exec wrangler versions deploy --env "$SITE_ENV" --version-tag "$GITHUB_SHA@100%" --yes
+      - name: Force a staging-only smoke failure
+        if: inputs.rollback_drill && steps.current.outputs.promote == 'true'
+        run: printf '\nforced smoke mismatch\n' >> apps/site/dist/search.json
+      - name: Read back the shipped identity and exact public artifacts
+        id: readback
+        if: steps.current.outputs.promote == 'true'
+        run: node scripts/verify-site-deploy.mjs "$SITE_URL"
+      - name: Roll back a failed promotion and verify recovery
+        if: failure() && steps.previous.outputs.version != '' && (steps.promote.outcome == 'failure' || steps.readback.outcome == 'failure')
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          PREVIOUS_VERSION: ${{ steps.previous.outputs.version }}
+        run: |
+          pnpm --filter @parlor/site exec wrangler rollback "$PREVIOUS_VERSION" --env "$SITE_ENV" --yes --message "Failed site promotion $GITHUB_SHA"
+          pnpm --filter @parlor/site exec wrangler deployments status --env "$SITE_ENV" --json > test-results/rollback-deployment.json
+          jq -e --arg version "$PREVIOUS_VERSION" '.versions == [{version_id: $version, percentage: 100}]' test-results/rollback-deployment.json
+          node scripts/verify-site-deploy.mjs "$SITE_URL" test-results/previous-site
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: always()
+        with:
+          name: site-${{ github.sha }}
+          path: |
+            apps/site/dist/
+            test-results/
+          retention-days: 14
+
+  release:
+    needs: deploy
+    if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+    runs-on: ubuntu-24.04
+
+    permissions:
+      contents: write
+      pull-requests: write
+      actions: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Refuse unverified or superseded source
+        id: source
+        run: bash scripts/release-current.sh
+        env:
+          GATE_RESULT: ${{ needs.deploy.result }}
+      - uses: googleapis/release-please-action@45996ed1f6d02564a971a2fa1b5860e934307cf7 # v5.0.0
+        if: steps.source.outputs.current == 'true'
+        id: release
+      - name: Approve the generated PR's real native CI
+        if: steps.release.outputs.prs_created == 'true'
+        run: python3 scripts/approve-release-ci.py
+        env:
+          RELEASE_PR: ${{ steps.release.outputs.pr }}

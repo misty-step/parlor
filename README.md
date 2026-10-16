@@ -4,7 +4,7 @@ An accountless, phone-first multiplayer toolkit for game night. Built on [Convex
 
 Parlor handles rooms, guest credentials, presence, host transfer, frozen match participants, and abandonment sweeping. Each game keeps its own rules, prompts, scoring, and look.
 
-**[parlor.mistystep.io](https://parlor.mistystep.io)** · MIT licensed · pre-1.0 source distribution
+**[parlor.mistystep.io](https://parlor.mistystep.io)** · MIT licensed · [source releases](https://parlor.mistystep.io/changelog/)
 
 ## Start here
 
@@ -29,7 +29,7 @@ Packages are private workspace packages in this repository. They are not publish
 
 ## Made with Parlor
 
-Four Misty Step games run on this toolkit in production: [Poppycock](https://poppycock.mistystep.io) (3–12 player bluffing), [Linejam](https://linejam.app) (2–8 player pass-the-poem), [Kindred](https://kindred.mistystep.io) (2–12 players; pairs who say the same thing score), and [Double Take](https://doubletake.mistystep.io) (2–8 players; one line for two worlds). [First Tap](examples/first-tap) is the bundled development example.
+Explore the [production games and their source](https://parlor.mistystep.io/#in-the-wild). The site's catalog in [`apps/site/src/data/games.json`](apps/site/src/data/games.json) owns the links; `pnpm check:gallery-links` checks every Play and Source URL. The dedicated Gallery links workflow runs on pull requests, master pushes, and every six hours, with red failures and per-link error annotations. [First Tap](examples/first-tap) is the bundled development example.
 
 ## Development
 
@@ -52,7 +52,7 @@ The playground is a deterministic local rehearsal. It does not issue real guest 
 
 [`SPEC.md`](SPEC.md) is the sole behavior specification; [story verification](docs/verification.md) maps its criteria to executable checks and browser journeys.
 
-For agent-led verification of this repository, read the canonical [`skills/parlor/SKILL.md`](skills/parlor/SKILL.md#inside-the-parlor-repository) directly; no self-import is needed. It selects the existing checks by changed surface. The [First Tap verification procedure](apps/site/src/content/docs/first-game.md#isolated-repository-verification) covers a fresh anonymous local backend, the real HTTP issuer and multiplayer browser journey, failure probes, and owned cleanup. Published site guidance can lag the checkout; use these local files for candidate changes.
+For agent-led verification of this repository, read the canonical [`skills/parlor/SKILL.md`](skills/parlor/SKILL.md#inside-the-parlor-repository) directly; no self-import is needed. It selects the existing checks by changed surface. The [First Tap verification procedure](apps/site/src/content/docs/first-game.md#isolated-repository-verification) covers a fresh anonymous local backend, the real HTTP issuer and multiplayer browser journey, failure probes, and owned cleanup.
 
 ## License
 

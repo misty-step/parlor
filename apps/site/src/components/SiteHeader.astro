@@ -1,5 +1,5 @@
 ---
-import { ArrowRight, BookOpen, Bot, CodeXml, House, Menu, Palette, Play, X } from "@lucide/astro";
+import { ArrowRight, BookOpen, Bot, CodeXml, History, House, Menu, Palette, Play, X } from "@lucide/astro";
 import Brand from "./Brand.astro";
 import ExternalLink from "./ExternalLink.astro";
 import Search from "./Search.astro";
@@ -10,6 +10,7 @@ const items = [
   { href: "/", label: "Overview", Icon: House, current: path === "/" },
   { href: "/docs/getting-started/", label: "Documentation", Icon: BookOpen, current: path.startsWith("/docs/") && path !== "/docs/agents/" },
   { href: "/docs/agents/", label: "Build with an agent", Icon: Bot, current: path === "/docs/agents/" },
+  { href: "/changelog/", label: "Changelog", Icon: History, current: path === "/changelog/" },
 ];
 ---
 <header class="site-header">
