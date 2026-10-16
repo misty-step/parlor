@@ -96,7 +96,11 @@ test("US-012: caught docs failures are private, bounded, and recoverable", async
         "sdk",
       ].sort(),
     );
-    expect(event["sdk"]).toMatchObject({ name: "sentry.javascript.browser", version: "11.7.0" });
+    expect(event["sdk"]).toMatchObject({
+      name: "sentry.javascript.browser",
+      version: "11.7.0",
+      settings: { infer_ip: "never" },
+    });
     expect(event["level"]).toBe("error");
     expect(event["environment"]).toBeTruthy();
     expect(event["release"]).toBeTruthy();

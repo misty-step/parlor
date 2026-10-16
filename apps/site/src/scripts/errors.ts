@@ -19,6 +19,7 @@ export function reportDocsFailure(operation: keyof typeof messages) {
       environment,
       release,
       defaultIntegrations: false,
+      dataCollection: { userInfo: false },
       attachStacktrace: false,
       sendClientReports: false,
       transportOptions: {
