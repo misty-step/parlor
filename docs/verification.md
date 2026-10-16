@@ -66,6 +66,19 @@ tested revision only when testing a matching build. Search with a known term,
 an impossible term, and a failed search-index request in a fresh context. Exercise
 keyboard result navigation and clipboard denial, recording exact visible text.
 
+`tests/e2e/docs-errors.spec.ts` exercises US-012.4 against built assets: actual
+browser envelopes, privacy canaries, per-page limits, and a held/failed sink while
+search and Markdown recover. These intercepted envelopes are not a Sentry receipt.
+For a receipt, fault only a disposable browser's documentation requests, let its
+report reach [Parlor's Sentry project](https://misty-step.sentry.io/settings/projects/parlor/),
+and read back that exact event and the existing organization-wide intake action.
+CI stamps `PUBLIC_SITE_ENVIRONMENT` and `PUBLIC_SITE_RELEASE` into the build;
+local builds default to `development`. The public DSN lives in `errors.ts`.
+Automatic instrumentation is off; only the two fixed messages are sent, without
+raw exceptions. Sentry owns retention, scrubbing and org quota/spike protection;
+this plan does not support per-key rate caps. The browser sends at most two reports
+per page load and does not retry failed telemetry.
+
 The reusable audit runners `scripts/story-*.mjs` are retained in task t_1133c3dc's
 `parlor-audit-evidence.tar.gz`, not installed programs or an alternative spec.
 Run them with the checkout's pinned Playwright/Convex dependencies on the isolated

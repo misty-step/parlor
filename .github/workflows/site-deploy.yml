@@ -26,6 +26,8 @@ jobs:
     env:
       SITE_ENV: ${{ inputs.rollback_drill && 'staging' || 'production' }}
       SITE_URL: https://parlor.mistystep.io
+      PUBLIC_SITE_ENVIRONMENT: ${{ inputs.rollback_drill && 'staging' || 'production' }}
+      PUBLIC_SITE_RELEASE: ${{ github.sha }}
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
