@@ -122,6 +122,20 @@ protocol from that object.
   - `stats` returns per-table counts and canonical SHA-256 digests. The same
     digests can be computed from a Convex export ZIP, which makes migrations
     and rollbacks checkable without comparing database files.
+  - `bookmark` returns Cloudflare's point-in-time-recovery bookmark for now,
+    read under the lock with the timestamp it follows, or with `?at=<ms>` the
+    bookmark for that moment. `restore` (frozen only) takes `{ bookmark }` or
+    `{ at }`, stages a restore of the whole object, data and maintenance state
+    alike, and answers 202 with the target and an undo bookmark that reverses
+    it. Every request then gets 503 until the object restarts a second later
+    exactly as it was at the target: later writes are gone, and it is frozen
+    or not as it was then. Storage without the recovery methods answers 501.
+- **Backups.** A SQLite-backed object keeps 30 days of point-in-time history
+  whether or not anyone asks, so recovery needs only `restore`, and its
+  rehearsal is a restore on a deployed object: local workerd keeps no change
+  log and refuses. The history lives with the object, so deleting the class
+  or its namespace deletes it too; a consistent `export` kept elsewhere is
+  the copy that survives that.
 - **Moving data out.** To hand writes to another backend without losing one:
   freeze; wait until `status` shows no running actions; export every table
   and require one timestamp across pages; restore elsewhere and require equal
@@ -147,7 +161,9 @@ protocol from that object.
   not plain JSON (Int64, Bytes, special floats, any other `$` field) is
   refused, an export holding such a value is refused before any file is
   written, and system tables such as `_scheduled_functions` are reported,
-  never imported.
+  never imported. `bookmark` and `restore` run point-in-time recovery;
+  `restore` requires a frozen backend, logs the undo bookmark as soon as the
+  restore is staged, and returns the restarted object's status.
 - **Testing.** `@parlor/cloudflare/testing` exports a `convex-test`-compatible
   `convexTest(schema, modules)` backed by this runtime, using in-memory
   `node:sqlite`. An app can run its existing Convex test suite against the

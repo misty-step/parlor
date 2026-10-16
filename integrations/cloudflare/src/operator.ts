@@ -52,10 +52,13 @@ const MAINTENANCE_MESSAGES = new Set([
   "An import is pending; commit it with matching checksums before unfreezing writes",
   "Begin an import before loading documents",
   "Freeze writes before importing a snapshot",
+  "Freeze writes before restoring a bookmark",
   "No import is pending",
 ]);
 const SHA256 = /^[0-9a-f]{64}$/;
 const TIMESTAMP = /^\d{1,24}$/;
+/** Point-in-time-recovery bookmarks: hex groups such as `0000007b-0000b26e-...`. */
+const BOOKMARK = /^[0-9A-Za-z]{1,64}(-[0-9A-Za-z]{1,64}){0,7}$/;
 
 /** `<route> returned <status> (<code>): <fixed message>`, built only from parts that hold no data. */
 function refusal(method: string, route: string, status: number, body: unknown): string {
@@ -69,6 +72,13 @@ function refusal(method: string, route: string, status: number, body: unknown): 
 /** A backend-reported commit timestamp, or a placeholder when it is not one. */
 function shownTs(value: unknown): string {
   return typeof value === "string" && TIMESTAMP.test(value) ? value : "(not a timestamp)";
+}
+
+/** A backend-reported bookmark; anything else is refused rather than repeated. */
+function checkedBookmark(route: string, value: unknown): string {
+  if (typeof value !== "string" || !BOOKMARK.test(value))
+    throw new OperatorError(`${route} did not report a bookmark`);
+  return value;
 }
 
 function isTableStats(value: unknown): value is TableStats {
@@ -195,6 +205,68 @@ export class BackendOperator {
     if (result?.writesFrozen !== frozen)
       throw new OperatorError(`freeze did not report writesFrozen=${frozen}`);
     return { writesFrozen: frozen, ts: shownTs(result.ts) };
+  }
+
+  /**
+   * The point-in-time-recovery bookmark for now, with the commit timestamp it
+   * follows, or the bookmark for `at` (milliseconds since the epoch).
+   */
+  async bookmark(
+    at?: number,
+  ): Promise<
+    { bookmark: string; ts: string; writesFrozen: boolean } | { bookmark: string; at: number }
+  > {
+    if (at === undefined) {
+      const now = await this.ok("GET", "bookmark");
+      return {
+        bookmark: checkedBookmark("bookmark", now?.bookmark),
+        ts: shownTs(now?.ts),
+        writesFrozen: now?.writesFrozen === true,
+      };
+    }
+    const query = new URLSearchParams({ at: String(at) });
+    return {
+      bookmark: checkedBookmark(
+        "bookmark",
+        (await this.ok("GET", "bookmark", { query }))?.bookmark,
+      ),
+      at,
+    };
+  }
+
+  /**
+   * Restore the whole object to `target`, a bookmark or a time, discarding
+   * every write after it. Requires writes frozen. Logs the undo bookmark as
+   * soon as the restore is staged, then waits for the restarted object and
+   * returns its status: data and maintenance state exactly as at the target.
+   */
+  async restore(
+    target: { bookmark: string } | { at: number },
+    waitMs = 60_000,
+  ): Promise<{ bookmark: string; undo: string; status: AdminStatus }> {
+    if ("bookmark" in target && !BOOKMARK.test(target.bookmark))
+      throw new OperatorError("The restore target is not a bookmark");
+    if ("at" in target && !(Number.isSafeInteger(target.at) && target.at > 0))
+      throw new OperatorError("The restore target is not a time in milliseconds");
+    if (!(await this.status()).writesFrozen)
+      throw new OperatorError("Freeze writes before restoring (writesFrozen is false)");
+    const staged = await this.call("POST", "restore", { body: target });
+    if (staged.status !== 202)
+      throw new OperatorError(refusal("POST", "restore", staged.status, staged.body));
+    const bookmark = checkedBookmark("restore", staged.body?.bookmark);
+    const undo = checkedBookmark("restore", staged.body?.undo);
+    this.log(`restore: staged ${bookmark}; undo bookmark ${undo}`);
+    const deadline = Date.now() + waitMs;
+    for (;;) {
+      await new Promise((resolve) => setTimeout(resolve, 500));
+      // The old instance answers 503 until it restarts; a dropped connection is expected too.
+      const answer = await this.call("GET", "status").catch(() => null);
+      if (answer?.status === 200) return { bookmark, undo, status: answer.body as AdminStatus };
+      if (Date.now() >= deadline)
+        throw new OperatorError(
+          `The object did not answer status within ${waitMs} ms of the restore; undo bookmark ${undo}`,
+        );
+    }
   }
 
   /**

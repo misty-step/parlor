@@ -13,7 +13,11 @@ import {
 } from "convex/server";
 import { ConvexError, v } from "convex/values";
 import { Runtime, type ConvexApp, type SqlDriver, TokenVerifier } from "../src/index.js";
-import { ConvexBackendObject, type ConvexBackendOptions } from "../src/durable.js";
+import {
+  ConvexBackendObject,
+  type ConvexBackendOptions,
+  type DurableObjectStorageLike,
+} from "../src/durable.js";
 import { memorySqlDriver } from "../src/testing.js";
 
 export { memorySqlDriver as sqliteDriver };
@@ -75,10 +79,16 @@ export const ADMIN_KEY = "synthetic-admin-key-0123456789abcdef";
 /**
  * The Durable Object class over in-memory SQLite and a fake alarm, as
  * workerd would host it. `admin` calls an admin route with the admin key.
+ * `platform` adds what only deployed objects have: point-in-time recovery
+ * methods on the storage, and `abort`.
  */
 export async function durableObject(
   options: Partial<ConvexBackendOptions> = {},
   driver: SqlDriver = memorySqlDriver(),
+  platform: {
+    storage?: Partial<DurableObjectStorageLike>;
+    abort?: (reason?: string) => void;
+  } = {},
 ) {
   let ready: Promise<unknown> = Promise.resolve();
   let alarm: number | null = null;
@@ -96,6 +106,7 @@ export async function durableObject(
     deleteAlarm: async () => {
       alarm = null;
     },
+    ...platform.storage,
   };
   const state = {
     storage,
@@ -104,6 +115,7 @@ export async function durableObject(
       ready = result;
       return result;
     },
+    ...(platform.abort === undefined ? {} : { abort: platform.abort }),
   };
   const backend = new ConvexBackendObject(
     state,
