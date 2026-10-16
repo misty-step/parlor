@@ -1,4 +1,4 @@
-# ADR 0002: Run Convex apps on a Cloudflare Durable Object
+# ADR 0003: Run Convex apps on a Cloudflare Durable Object
 
 Status: accepted, version 1 of the adapter contract
 Date: 2026-10-15

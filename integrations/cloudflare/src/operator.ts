@@ -4,7 +4,7 @@ import { snapshotStats, type ConvexSnapshot, type StatsDifference } from "./conv
 
 /**
  * Operator client for a deployed backend's admin routes (`<url>/admin/*`):
- * the import and export halves of a cutover or rollback (ADR 0002,
+ * the import and export halves of a cutover or rollback (ADR 0003,
  * Operations). Every step re-checks the maintenance state it relies on and
  * stops at the first surprise; nothing here unfreezes writes implicitly.
  *
