@@ -1,8 +1,45 @@
 import { readFileSync } from "node:fs";
-import { expect, test } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
 import project from "../../package.json" with { type: "json" };
 
 test.use({ baseURL: process.env.CHANGELOG_BASE_URL ?? "http://127.0.0.1:4174" });
+
+async function expectLoadedChangelogHeading(page: Page) {
+  // Navigation can commit before CSS hides the canonical Markdown's duplicate h1.
+  await page.waitForLoadState("load");
+  await expect(
+    page.getByRole("heading", { level: 1, name: "Changelog", exact: true }),
+  ).toBeVisible();
+}
+
+test("waits for delayed styles before checking the changelog heading", async ({ page }) => {
+  const stylesheet = Promise.withResolvers<void>();
+  await page.route("**/*.css", async (route) => {
+    await stylesheet.promise;
+    await route.continue();
+  });
+  try {
+    await page.goto("/changelog/", { waitUntil: "commit" });
+    const headingCheck = expectLoadedChangelogHeading(page).catch((error: unknown) => error);
+    // Keep real styles pending until both unstyled headings are in the document.
+    await expect(
+      page.getByRole("heading", { level: 1, name: "Changelog", exact: true }),
+    ).toHaveCount(2);
+    stylesheet.resolve();
+    expect(await headingCheck).toBeUndefined();
+  } finally {
+    stylesheet.resolve();
+  }
+});
+
+test("rejects duplicate visible headings after styles have loaded", async ({ page }) => {
+  await page.goto("/changelog/");
+  await page.addStyleTag({ content: ".release-notes > h1 { display: block !important; }" });
+  await expect(page.getByRole("heading", { level: 1, name: "Changelog", exact: true })).toHaveCount(
+    2,
+  );
+  await expect(expectLoadedChangelogHeading(page)).rejects.toThrow(/strict mode violation/);
+});
 
 for (const width of [1440, 390]) {
   test(`finds the build's canonical release notes at ${width}px`, async ({ page }, testInfo) => {
@@ -16,9 +53,7 @@ for (const width of [1440, 390]) {
     });
     await navigation.getByRole("link", { name: "Changelog", exact: true }).click();
     await expect(page).toHaveURL(/\/changelog\/?$/);
-    await expect(
-      page.getByRole("heading", { level: 1, name: "Changelog", exact: true }),
-    ).toBeVisible();
+    await expectLoadedChangelogHeading(page);
     await expect(page.getByRole("main")).toContainText(`v${project.version}`);
     const canonical = readFileSync("CHANGELOG.md", "utf8");
     const markdown = await page.request.get("/changelog.md");
