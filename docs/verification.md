@@ -25,6 +25,7 @@ playground walk, and a real anonymous local Convex consumer. For focused debuggi
 | US-009                                 | `pnpm exec vitest run packages/web/test/audio.test.ts`                                                                                             | Mute, finite-volume clamping, cue mapping, successful preference persistence/restoration and notifications; no claim of audible output       |
 | US-010                                 | `pnpm exec vitest run packages/react/test/components.test.tsx`                                                                                     | Rendered semantics, input/paste, completion, QR and avatars; use browser checks for actual interaction                                       |
 | US-011                                 | `pnpm test:e2e`                                                                                                                                    | Local rehearsal only                                                                                                                         |
+| US-014                                 | `pnpm test:e2e`                                                                                                                                    | Emulated system preference and live switch on home and one guide; other pages and states need screenshots                                    |
 | US-001, US-002, US-003, US-005, US-007 | `pnpm build:packages && pnpm smoke:convex`                                                                                                         | Real disposable backend, signed identities, renewal, expiry rejection with unchanged score, scheduled sweep, closure; not First Tap's issuer |
 
 Inspect the smoke JSON's `ok`, `backendVersion`, and `proved` fields. A nonzero
@@ -56,9 +57,10 @@ files. QR screenshots alone do not prove a physical scanner can open localhost.
 
 ## Website and agent surfaces
 
-For US-004 and US-012, use the live site or a freshly built local site, recording
-which. Drive phase/deal/reduced-motion controls, gallery links, bluff reset and
-code tabs. For agent surfaces request `/skill.md`, `/llms.txt`, `/llms-full.txt`,
+For US-004, US-012 and US-014, use the live site or a freshly built local site,
+recording which. Drive phase/deal/reduced-motion controls, gallery links, bluff
+reset and code tabs in light and dark system preferences. For agent surfaces
+request `/skill.md`, `/llms.txt`, `/llms-full.txt`,
 `/search.json`, and a guide's HTML/Markdown pair; compare skill bytes with the
 tested revision only when testing a matching build. Search with a known term,
 an impossible term, and a failed search-index request in a fresh context. Exercise

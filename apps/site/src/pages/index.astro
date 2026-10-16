@@ -19,6 +19,7 @@ import {
 import BrandMark from "../components/BrandMark.astro";
 import catalog from "../data/games.json";
 
+const codeThemes = { light: "github-light", dark: "github-dark-default" } as const;
 const schemaCode = `import { parlorTables } from "@parlor/convex/schema";
 import { defineSchema } from "convex/server";
 
@@ -220,11 +221,11 @@ const linejamPoem = [
             </div>
             <div class="code-panel" data-code-panel="schema">
               <div class="code-filename">convex/schema.ts</div>
-              <Code code={schemaCode} lang="ts" theme="github-light" />
+              <Code code={schemaCode} lang="ts" themes={codeThemes} />
             </div>
             <div class="code-panel" data-code-panel="match" hidden>
               <div class="code-filename">Inside your game mutation</div>
-              <Code code={matchCode} lang="ts" theme="github-light" />
+              <Code code={matchCode} lang="ts" themes={codeThemes} />
             </div>
           </div>
           <p>

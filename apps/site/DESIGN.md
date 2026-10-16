@@ -5,12 +5,15 @@ description: The website and handbook for Parlor, an open-source multiplayer too
 colors:
   felt: "#3047A5"
   felt-deep: "#22357E"
-  ink: "#20304A"
+  navy: "#20304A"
+  ink: "{colors.navy}"
   muted: "#5C687C"
   paper: "#FBFCFE"
   cream: "#FFFFFF"
   line: "#DFE4EE"
   soft: "#EDF1FB"
+  accent: "{colors.felt}"
+  accent-strong: "{colors.felt-deep}"
   mint: "#C9E5DC"
   mustard: "#F0D58E"
   lilac: "#DCD5F0"
@@ -99,7 +102,7 @@ components:
     backgroundColor: "{colors.felt}"
     rounded: "{rounded.table}"
   seat:
-    textColor: "{colors.ink}"
+    textColor: "{colors.navy}"
     rounded: "{rounded.full}"
     size: 2.25rem
 ---
@@ -114,15 +117,20 @@ The direction is **game night on a real table**. The hero is a room invitation l
 
 Scope: the home page, docs shell, design kit, and 404 were polished in one pass. The docs Markdown content, `llms.txt` outputs, social image, and favicon were not redesigned.
 
-Tokens in the frontmatter mirror `src/styles/tokens.css`; the CSS file is the implementation source of truth. The live specimen of this system is `/design/`.
+Tokens in the frontmatter mirror the light values in `src/styles/tokens.css`; the CSS file is the implementation source of truth, including the dark values. The live specimen of this system is `/design/`.
 
 ## Colors
 
-- **Felt** (`--felt`) is the brand, primary actions, the room table, and the closing banner. **Felt deep** is the printed edge under felt pieces.
+- **Felt** (`--felt`) is the brand, primary actions, the room table, and the closing banner. **Felt deep** is the printed edge under felt pieces. Text and marks on felt are white.
+- **Accent** (`--accent`, `--accent-strong`) is felt on the page's own surfaces: links, kickers, icons, rules, current-page text, and focus rings. In light it is felt and felt deep.
 - **Ink** carries headings and body text; **muted** carries supporting text and must stay at 4.5:1 on paper and white.
-- **Paper**, **white**, **line**, and **soft** build surfaces. Soft is quiet emphasis and current navigation, never body text.
-- **Pastels** mark people and pieces, never small text: mustard, mint, lilac, and sky are the four seated friends; **rose** is a new arrival (Jo, the late player) and the impossible 404 tile. Packages each take one pastel so the list reads as five distinct pieces.
+- **Paper**, **white** (`--cream`), **line**, and **soft** build surfaces. Soft is quiet emphasis and current navigation, never body text.
+- **Pastels** mark people and pieces, never small text: mustard, mint, lilac, and sky are the four seated friends; **rose** is a new arrival (Jo, the late player) and the impossible 404 tile. Packages each take one pastel so the list reads as five distinct pieces. Text printed on pastel pieces is **navy** (`--navy`), the light ink.
 - Poppycock's showcase uses Poppycock's own tokens (grape, party lilac, marigold, question mint, garden green) scoped to `.poppy-phone`. That contrast is the point of the section: shared foundation, separate personality.
+
+### Light and dark
+
+The site follows the visitor's system appearance with `prefers-color-scheme`; there is no toggle or saved choice. Dark is the same room after dark, not a second identity: paper, cards, soft, line, ink, muted, and accent change; felt, felt deep, white on felt, navy, the pastels, Poppycock, and the gallery posters do not. The agent card stays navy, and the primary lockup specimen stays cobalt on white. Code uses Shiki's paired GitHub light and dark themes on the page's card surface.
 
 ## Typography
 
@@ -140,7 +148,7 @@ Breakpoints: 1024px stacks hero, ownership, showcase, FAQ, and closing into one 
 
 Two depth models, never combined on one element:
 
-- **Pieces** (buttons, code tiles, step numbers, package marks, path symbols, pagination cards) use one flat offset with no blur: `--tile-edge` (0 3px 0) in a shade one step deeper than the piece. Hover lifts 1px and deepens the edge; active presses 2px down onto `--tile-edge-pressed`.
+- **Pieces** (buttons, code tiles, step numbers, package marks, path symbols, pagination cards) use one flat offset with no blur: `--tile-edge` (0 3px 0) in a shade one step deeper than the piece; in dark the edge is the shadow beneath it. Hover lifts 1px and deepens the edge; active presses 2px down onto `--tile-edge-pressed`.
 - **Cards lifted off the table** (the invitation, back cards, code window, open FAQ item, dialogs) use a soft blurred shadow.
 
 The table itself is a felt surface: fractal-noise grain, a lighter lamp-lit center, and an inset two-tone rail.
@@ -204,7 +212,7 @@ Plain verbs, sentence case, one job per string. Personality lives in headings an
 
 ## Implementation mapping
 
-- Tokens: `src/styles/tokens.css` (new: `--rose`, `--sky`, `--shadow-lift`, `--tile-edge`, `--tile-edge-pressed`, `--ease-out`, `--ease-spring`, `--quick`, `--settle`).
+- Tokens: `src/styles/tokens.css` (new: `--rose`, `--sky`, `--shadow-lift`, `--tile-edge`, `--tile-edge-pressed`, `--ease-out`, `--ease-spring`, `--quick`, `--settle`; for light and dark: `--navy`, `--accent`, `--accent-strong`, and the `prefers-color-scheme: dark` values). Fixed light colors that tokens cannot reach get their dark values in the last block of their stylesheet.
 - Home and shared components: `src/styles/global.css`, `src/pages/index.astro`, `src/components/RoomSketch.astro`.
 - Header: `src/styles/header.css`. Docs: `src/styles/docs.css`, heading anchors in `src/scripts/site.ts`.
 - Design kit: `src/pages/design.astro`, `src/styles/design.css` ("Pieces & motion" section).
@@ -213,7 +221,7 @@ Plain verbs, sentence case, one job per string. Personality lives in headings an
 
 ## Validation plan
 
-Capture and review at 1440, 1024, 820, and 390px: hero in Gather, Play, Again, and after a deal; Poppycock unselected, bluffed, and truthful; code tabs; FAQ open; closing hover; search with results; mobile menu; docs page; design kit; 404. Run axe (wcag2a, wcag2aa, wcag21aa, best-practice) on home in each hero phase, docs, design kit, 404, and mobile home. Verify reduced motion shows final states and deals instantly. Build with `pnpm --filter @parlor/site build` (astro check must report 0 errors and warnings).
+Capture and review at 1440, 1024, 820, and 390px in light and dark system appearances: hero in Gather, Play, Again, and after a deal; Poppycock unselected, bluffed, and truthful; code tabs; FAQ open; closing hover; search with results; mobile menu; docs page; design kit; 404. Run axe (wcag2a, wcag2aa, wcag21aa, best-practice) on home in each hero phase, docs, design kit, 404, and mobile home in both appearances. Verify reduced motion shows final states and deals instantly. Build with `pnpm --filter @parlor/site build` (astro check must report 0 errors and warnings).
 
 ## Lineage
 
@@ -222,4 +230,5 @@ Exploration was a scaled pass, not the full design-studio divergence round: thre
 - **Selected, "Game table":** the existing invitation card evolved onto cobalt felt with printed code tiles, a real code deal, and the lifecycle as the interaction. Chosen because it demonstrates Parlor's actual product (codes, seats, frozen lineups, rematches) and grows from the identity already in the design kit.
 - **Rejected, "Phone lineup":** several phones joining one code side by side. Strong phone-first message, but it duplicates Poppycock's territory and reads as a device mockup rather than the room model.
 - **Rejected, "Code-tile typography":** the headline itself spelled in join-code tiles. Memorable, but it spends the page's one bold element on type and weakens readability of the core promise.
-- **Rejected for this pass:** dark mode (the identity is light-only), confetti on rematch (generic), and copying Poppycock's avatar artwork (duplicated assets across repositories).
+- **Rejected for this pass:** confetti on rematch (generic), and copying Poppycock's avatar artwork (duplicated assets across repositories).
+- **Reversed later:** this pass also rejected dark mode because the identity was light-only. The Foundations standard requires every interface to support light and dark and default to the system setting, so the same identity now has the dark room described under Colors; light is unchanged.

@@ -52,7 +52,7 @@
   padding: 0.2rem 0.4rem;
   border-radius: 0.35rem;
   background: var(--soft);
-  color: var(--felt);
+  color: var(--accent);
   font: 500 0.7rem/1.2 var(--mono);
   white-space: nowrap;
 }
@@ -102,7 +102,7 @@
   bottom: 0.55rem;
   width: 3px;
   border-radius: 3px;
-  background: var(--felt);
+  background: var(--accent);
   opacity: 0;
   transform: scaleY(0.3);
   transition:
@@ -112,12 +112,12 @@
 
 .docs-nav-link:hover {
   background: var(--soft);
-  color: var(--felt);
+  color: var(--accent);
 }
 
 .docs-nav-link[aria-current="page"] {
   background: var(--soft);
-  color: var(--felt-deep);
+  color: var(--accent-strong);
   font-weight: 750;
   border: none;
 }
@@ -151,7 +151,7 @@
   border-radius: 0.5rem;
   background: var(--felt);
   box-shadow: 0 2px 0 var(--felt-deep);
-  color: var(--cream);
+  color: #ffffff;
 }
 
 .doc-callout-copy {
@@ -182,7 +182,7 @@
   justify-self: start;
   gap: 0.35rem;
   min-height: 1.75rem;
-  color: var(--felt);
+  color: var(--accent);
   font-size: 0.75rem;
   font-weight: 650;
   line-height: 1.5;
@@ -192,7 +192,7 @@
 .doc-callout-action:hover,
 .doc-edit-link:hover,
 .doc-markdown-link:hover {
-  color: var(--felt-deep);
+  color: var(--accent-strong);
   text-decoration: underline;
   text-underline-offset: 0.2em;
 }
@@ -215,7 +215,7 @@
 }
 
 .doc-breadcrumb a {
-  color: var(--felt);
+  color: var(--accent);
   text-decoration: none;
 }
 
@@ -281,7 +281,7 @@
 .copy-page-button:hover {
   border-color: #b9c3dc;
   box-shadow: 0 2px 0 #b9c3dc;
-  color: var(--felt);
+  color: var(--accent);
 }
 
 .copy-page-button:active {
@@ -368,7 +368,7 @@
 
 .mobile-toc-link:hover {
   background: var(--soft);
-  color: var(--felt);
+  color: var(--accent);
 }
 
 .prose {
@@ -421,13 +421,13 @@
 }
 
 .prose a {
-  color: var(--felt);
+  color: var(--accent);
   text-decoration-thickness: 1px;
   text-underline-offset: 0.2em;
 }
 
 .prose a:hover {
-  color: var(--felt-deep);
+  color: var(--accent-strong);
 }
 
 .prose a.external-link {
@@ -482,7 +482,7 @@
 .prose blockquote {
   margin: 1.5rem 0;
   padding: 1rem 1.25rem;
-  border-left: 3px solid var(--felt);
+  border-left: 3px solid var(--accent);
   border-radius: 0 var(--radius-control) var(--radius-control) 0;
   background: var(--soft);
 }
@@ -548,7 +548,7 @@
 }
 
 .prose .heading-anchor:hover {
-  color: var(--felt);
+  color: var(--accent);
 }
 
 @media (hover: none) {
@@ -578,7 +578,7 @@
 }
 
 .doc-edit-link {
-  color: var(--felt);
+  color: var(--accent);
   font-weight: 650;
   text-decoration: none;
 }
@@ -692,19 +692,19 @@
 }
 
 .toc-link:hover {
-  color: var(--felt);
+  color: var(--accent);
 }
 
 .toc-link[aria-current="true"] {
-  border-left-color: var(--felt);
-  color: var(--felt);
+  border-left-color: var(--accent);
+  color: var(--accent);
   font-weight: 700;
 }
 
 .docs-nav-link:focus-visible,
 .toc-link:focus-visible,
 .mobile-toc-link:focus-visible {
-  outline: 2px solid var(--felt);
+  outline: 2px solid var(--accent);
   outline-offset: -2px;
 }
 
@@ -792,5 +792,34 @@
 
   .doc-pagination-next {
     grid-column: auto;
+  }
+}
+
+@media (prefers-color-scheme: dark) {
+  .copy-page-button {
+    border-color: #36425c;
+    box-shadow: 0 2px 0 #090e18;
+  }
+
+  .copy-page-button:hover {
+    border-color: #4f5d7c;
+    box-shadow: 0 2px 0 #090e18;
+  }
+
+  .prose :not(pre) > code {
+    border-color: #2e3a55;
+  }
+
+  .prose pre {
+    box-shadow: 0 2px 0 #090e18;
+  }
+
+  .doc-pagination-link:hover {
+    border-color: #4f5d7c;
+    box-shadow: 0 4px 0 #4f5d7c;
+  }
+
+  .doc-pagination-link:active {
+    box-shadow: 0 1px 0 #4f5d7c;
   }
 }
