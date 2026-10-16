@@ -124,15 +124,19 @@ protocol from that object.
     and rollbacks checkable without comparing database files.
   - `bookmark` returns Cloudflare's point-in-time-recovery bookmark for now,
     read under the lock with the timestamp it follows, or with `?at=<ms>` the
-    bookmark for that moment. `restore` (frozen only) takes `{ bookmark }` or
+    bookmark Cloudflare resolves for approximately that moment. In drills it
+    resolved at or before the moment, but left out writes made up to 30 s
+    before it, so an exact point needs a `bookmark` recorded beforehand.
+    `restore` (frozen only) takes `{ bookmark }` or
     `{ at }`, stages a restore of the whole object, data and maintenance state
     alike, and answers 202 with the target and an undo bookmark that reverses
     it. Every request then gets 503 until the object restarts a second later
     exactly as it was at the target: later writes are gone, and it is frozen
-    or not as it was then. Every start schedules the alarm from the database:
-    a restore brings back the stored alarm time but does not schedule it, and
-    an object that trusted that time left its crons waiting.
-    Storage without the recovery methods answers 501.
+    or not as it was then. Every start wakes the object at once, and the wake
+    re-arms the alarm from the database: a restore brings back the stored
+    alarm time without scheduling it, storage ignores a `setAlarm` that
+    repeats the stored time, and an object that trusted it left its crons
+    waiting. Storage without the recovery methods answers 501.
 - **Backups.** A SQLite-backed object keeps 30 days of point-in-time history
   whether or not anyone asks, so recovery needs only `restore`, and its
   rehearsal is a restore on a deployed object: local workerd keeps no change

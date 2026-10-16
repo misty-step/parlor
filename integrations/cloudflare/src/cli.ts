@@ -20,6 +20,8 @@
  *   restore --url <backend> --bookmark <b>|--at <time>  (writes must be frozen; discards later writes)
  *
  * A <time> is milliseconds since the epoch or an ISO 8601 date with a zone.
+ * Cloudflare resolves a time only approximately; for an exact point, record a
+ * bookmark before the risky step and restore that.
  */
 import { realpathSync } from "node:fs";
 import { readFile, writeFile } from "node:fs/promises";
