@@ -130,9 +130,13 @@ protocol from that object.
     `restore` (frozen only) takes `{ bookmark }` or
     `{ at }`, stages a restore of the whole object, data and maintenance state
     alike, and answers 202 with the target and an undo bookmark that reverses
-    it. Every request then gets 503 until the object restarts a second later
-    exactly as it was at the target: later writes are gone, and it is frozen
-    or not as it was then. Every start wakes the object at once, and the wake
+    it. Every later request then gets 503 until the object restarts a second
+    later exactly as it was at the target: later writes are gone, and it is
+    frozen or not as it was then. Staging is final for requests already on
+    their way too: a `freeze`, import step or second `restore` that arrived
+    before it but reaches the database lock after it also gets 503, so writes
+    stay frozen until the restart and the platform restores the acknowledged
+    target. Every start wakes the object at once, and the wake
     re-arms the alarm from the database: a restore brings back the stored
     alarm time without scheduling it, storage ignores a `setAlarm` that
     repeats the stored time, and an object that trusted it left its crons
