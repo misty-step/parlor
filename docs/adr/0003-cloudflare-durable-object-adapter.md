@@ -129,7 +129,10 @@ protocol from that object.
     alike, and answers 202 with the target and an undo bookmark that reverses
     it. Every request then gets 503 until the object restarts a second later
     exactly as it was at the target: later writes are gone, and it is frozen
-    or not as it was then. Storage without the recovery methods answers 501.
+    or not as it was then. Every start schedules the alarm from the database:
+    a restore brings back the stored alarm time but does not schedule it, and
+    an object that trusted that time left its crons waiting.
+    Storage without the recovery methods answers 501.
 - **Backups.** A SQLite-backed object keeps 30 days of point-in-time history
   whether or not anyone asks, so recovery needs only `restore`, and its
   rehearsal is a restore on a deployed object: local workerd keeps no change
