@@ -25,7 +25,7 @@ body {
 
 ::selection {
   background: var(--mustard);
-  color: var(--ink);
+  color: var(--navy);
 }
 
 img,
@@ -92,7 +92,7 @@ p {
   z-index: 40;
   padding: 0.6rem 1rem;
   background: var(--mustard);
-  color: var(--ink);
+  color: var(--navy);
   font-weight: 750;
   border-radius: var(--radius-control);
   box-shadow: var(--tile-edge) #c9a64a;
@@ -166,16 +166,16 @@ p {
 
 .button-outline {
   --edge: #cfd6e6;
-  background: #ffffff;
+  background: var(--cream);
   color: var(--ink);
   border-color: #d5dbe8;
 }
 
 .button-outline:hover {
   --edge: #b9c3dc;
-  background: #ffffff;
+  background: var(--cream);
   border-color: #b9c3dc;
-  color: var(--felt);
+  color: var(--accent);
 }
 
 .button-yellow {
@@ -193,19 +193,19 @@ p {
 }
 
 .text-link {
-  color: var(--felt);
+  color: var(--accent);
   font-weight: 700;
   text-decoration: underline;
   text-decoration-thickness: 1.5px;
   text-underline-offset: 0.3em;
-  text-decoration-color: color-mix(in srgb, var(--felt) 30%, transparent);
+  text-decoration-color: color-mix(in srgb, var(--accent) 30%, transparent);
   transition:
     text-decoration-color var(--quick) ease,
     text-underline-offset var(--quick) var(--ease-out);
 }
 
 .text-link:hover {
-  text-decoration-color: var(--felt);
+  text-decoration-color: var(--accent);
   text-underline-offset: 0.2em;
 }
 
@@ -249,8 +249,8 @@ p {
 }
 
 .plain-ext-link:hover {
-  color: var(--felt);
-  text-decoration-color: var(--felt);
+  color: var(--accent);
+  text-decoration-color: var(--accent);
 }
 
 .external-link:hover .external-link__icon {
@@ -262,7 +262,7 @@ a:focus-visible,
 input:focus-visible,
 button:focus-visible,
 summary:focus-visible {
-  outline: 2px solid var(--felt);
+  outline: 2px solid var(--accent);
   outline-offset: 3px;
   border-radius: var(--radius-control);
 }
@@ -284,7 +284,7 @@ summary:focus-visible {
 
 .brand-link:hover .brand-mark,
 .brand-link:focus-visible .brand-mark {
-  color: var(--felt);
+  color: var(--accent);
   transform: perspective(120px) rotateY(-28deg);
 }
 
@@ -320,7 +320,7 @@ summary:focus-visible {
   margin: 0 0 0.75rem;
   font: 750 1.25rem/1.35 var(--display);
   letter-spacing: -0.015em;
-  color: var(--felt);
+  color: var(--accent);
 }
 
 .hero-detail {
@@ -372,8 +372,8 @@ summary:focus-visible {
 }
 
 .hero-footnote a:hover {
-  color: var(--felt);
-  text-decoration-color: var(--felt);
+  color: var(--accent);
+  text-decoration-color: var(--accent);
 }
 
 /* ─────────────────────────────────────────────────────────────────────────────
@@ -480,7 +480,7 @@ summary:focus-visible {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  color: var(--felt);
+  color: var(--accent);
   font-size: 0.8125rem;
   font-weight: 700;
 }
@@ -558,7 +558,7 @@ summary:focus-visible {
   border: 1.5px dashed #c3cce0;
   border-radius: var(--radius-control);
   background: transparent;
-  color: var(--felt);
+  color: var(--accent);
   cursor: pointer;
   transition:
     background-color var(--quick) ease,
@@ -573,7 +573,7 @@ summary:focus-visible {
 
 .deal-button:hover {
   border-style: solid;
-  border-color: var(--felt);
+  border-color: var(--accent);
   background: var(--soft);
 }
 
@@ -616,7 +616,7 @@ summary:focus-visible {
   height: 2.25rem;
   border-radius: 50%;
   background: var(--soft);
-  color: var(--ink);
+  color: var(--navy);
   font: 800 0.8125rem/1 var(--display);
   box-shadow: 0 0 0 2px var(--cream);
   transition: box-shadow 300ms ease;
@@ -657,7 +657,7 @@ summary:focus-visible {
   height: 2.25rem;
   border-radius: 50%;
   background: var(--rose);
-  color: var(--ink);
+  color: var(--navy);
   opacity: 0;
   transform: scale(0.3);
 }
@@ -669,7 +669,7 @@ summary:focus-visible {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  color: var(--felt);
+  color: var(--accent);
   font-size: 0.8125rem;
   font-weight: 700;
 }
@@ -720,7 +720,7 @@ summary:focus-visible {
 [data-phase="match"] .seat:not(.seat--open) {
   box-shadow:
     0 0 0 2px var(--cream),
-    0 0 0 4px var(--felt);
+    0 0 0 4px var(--accent);
 }
 
 [data-phase="match"] .seat--open {
@@ -780,13 +780,13 @@ summary:focus-visible {
 }
 
 .sketch-controls button:hover {
-  color: var(--felt);
+  color: var(--accent);
   background: var(--soft);
 }
 
 .sketch-controls button[aria-pressed="true"] {
   background: var(--felt);
-  color: var(--cream);
+  color: #ffffff;
 }
 
 .sketch-controls button:focus-visible {
@@ -879,7 +879,7 @@ summary:focus-visible {
 
 .section-kicker {
   margin: 0 0 0.75rem;
-  color: var(--felt);
+  color: var(--accent);
   font: 750 0.9375rem/1.4 var(--display);
   letter-spacing: -0.01em;
 }
@@ -929,7 +929,7 @@ summary:focus-visible {
   border-radius: 0.4rem;
   background: var(--felt);
   box-shadow: var(--tile-edge) var(--felt-deep);
-  color: var(--cream);
+  color: #ffffff;
   font: 800 0.95rem/1 var(--display);
   transition: transform 360ms var(--ease-spring);
 }
@@ -950,7 +950,7 @@ summary:focus-visible {
 
 .presence-symbol {
   gap: 0.6rem;
-  color: var(--felt);
+  color: var(--accent);
   font: 750 0.875rem/1 var(--display);
 }
 
@@ -966,8 +966,8 @@ summary:focus-visible {
   margin-left: -0.45rem;
   border-radius: 50%;
   background: var(--mustard);
-  box-shadow: 0 0 0 2px #ffffff;
-  color: var(--ink);
+  box-shadow: 0 0 0 2px var(--cream);
+  color: var(--navy);
   font: normal 800 0.7rem/1 var(--display);
 }
 
@@ -999,7 +999,7 @@ summary:focus-visible {
 
 .rematch-symbol {
   gap: 0.5rem;
-  color: var(--felt);
+  color: var(--accent);
   font: 750 0.8125rem/1 var(--display);
 }
 
@@ -1011,7 +1011,7 @@ summary:focus-visible {
 
 .rematch-symbol span:last-child {
   background: var(--felt);
-  color: var(--cream);
+  color: #ffffff;
   box-shadow: var(--tile-edge) var(--felt-deep);
 }
 
@@ -1033,7 +1033,7 @@ summary:focus-visible {
    ───────────────────────────────────────────────────────────────────────────── */
 
 .why-section {
-  background: #ffffff;
+  background: var(--cream);
   border-bottom: 1px solid var(--line);
 }
 
@@ -1079,7 +1079,7 @@ summary:focus-visible {
 }
 
 .ownership-list--parlor {
-  background: #ffffff;
+  background: var(--cream);
   border: 1.5px solid var(--line);
 }
 
@@ -1098,7 +1098,7 @@ summary:focus-visible {
 }
 
 .ownership-list--parlor h3 {
-  color: var(--felt);
+  color: var(--accent);
 }
 
 .ownership-list--yours h3 svg {
@@ -1125,7 +1125,7 @@ summary:focus-visible {
   width: 0.45rem;
   height: 0.45rem;
   border-radius: 0.12rem;
-  background: var(--felt);
+  background: var(--accent);
   transform: translateY(-0.1em);
 }
 
@@ -1142,9 +1142,9 @@ summary:focus-visible {
   overflow: hidden;
   border: 1.5px solid var(--line);
   border-radius: var(--radius-panel);
-  background: #ffffff;
+  background: var(--cream);
   box-shadow:
-    0 2px 0 #dfe4ee,
+    0 2px 0 var(--line),
     0 30px 60px #1c2c5214;
 }
 
@@ -1174,13 +1174,13 @@ summary:focus-visible {
 
 .code-switcher button:hover {
   color: var(--ink);
-  background: #ffffff;
+  background: var(--cream);
 }
 
 .code-switcher button[aria-pressed="true"] {
-  background: #ffffff;
+  background: var(--cream);
   border-color: var(--line);
-  color: var(--felt);
+  color: var(--accent);
   box-shadow: 0 1px 2px #20304a14;
 }
 
@@ -1218,7 +1218,7 @@ summary:focus-visible {
 }
 
 .integration-code > p a {
-  color: var(--felt);
+  color: var(--accent);
   font-weight: 700;
   text-underline-offset: 0.25em;
 }
@@ -1228,7 +1228,7 @@ summary:focus-visible {
    ───────────────────────────────────────────────────────────────────────────── */
 
 .package-section {
-  background: #ffffff;
+  background: var(--cream);
   border-bottom: 1px solid var(--line);
 }
 
@@ -1249,7 +1249,7 @@ summary:focus-visible {
 }
 
 .package-row:hover {
-  background: color-mix(in srgb, var(--tone) 22%, #ffffff);
+  background: color-mix(in srgb, var(--tone) 22%, var(--cream));
 }
 
 .package-mark {
@@ -1259,8 +1259,8 @@ summary:focus-visible {
   height: 2.35rem;
   border-radius: 0.6rem;
   background: var(--tone);
-  box-shadow: var(--tile-edge) color-mix(in srgb, var(--tone) 70%, var(--ink));
-  color: var(--ink);
+  box-shadow: var(--tile-edge) color-mix(in srgb, var(--tone) 70%, var(--navy));
+  color: var(--navy);
   transition:
     transform 360ms var(--ease-spring),
     box-shadow 360ms var(--ease-spring);
@@ -1268,7 +1268,7 @@ summary:focus-visible {
 
 .package-row:hover .package-mark {
   transform: translateY(-3px) rotate(-6deg);
-  box-shadow: 0 6px 0 color-mix(in srgb, var(--tone) 70%, var(--ink));
+  box-shadow: 0 6px 0 color-mix(in srgb, var(--tone) 70%, var(--navy));
 }
 
 .package-row code {
@@ -1295,7 +1295,7 @@ summary:focus-visible {
 }
 
 .package-row:hover .package-arrow {
-  color: var(--felt);
+  color: var(--accent);
   transform: translateX(4px);
 }
 
@@ -1318,7 +1318,7 @@ summary:focus-visible {
   border-radius: 0.45rem;
   background: var(--mustard);
   box-shadow: 0 2px 0 #c9a64a;
-  color: var(--ink);
+  color: var(--navy);
   font: 800 0.75rem/1 var(--display);
   white-space: nowrap;
   flex-shrink: 0;
@@ -1332,7 +1332,7 @@ summary:focus-visible {
 }
 
 .release-note a {
-  color: var(--felt);
+  color: var(--accent);
   font-weight: 700;
   text-decoration: underline;
   text-underline-offset: 0.2em;
@@ -1656,7 +1656,7 @@ summary:focus-visible {
   padding: 0.75rem 0.75rem 1.35rem;
   border: 1.5px solid #e3dcf2;
   border-radius: 1.5rem;
-  background: #ffffff;
+  background: var(--cream);
   transition:
     border-color var(--quick) ease,
     box-shadow 300ms var(--ease-out);
@@ -1744,7 +1744,7 @@ summary:focus-visible {
 }
 
 .game-source:hover {
-  color: var(--felt);
+  color: var(--accent);
 }
 
 /* Linejam: plum night, lavender ink, a nine-line poem shaped 1 to 5 to 1 words. */
@@ -2010,7 +2010,7 @@ summary:focus-visible {
   place-items: center;
   background: var(--felt);
   box-shadow: var(--tile-edge) var(--felt-deep);
-  color: var(--cream);
+  color: #ffffff;
 }
 
 .start-path h3 {
@@ -2053,9 +2053,9 @@ summary:focus-visible {
   height: 1.9rem;
   border: 1.5px solid #d3dae9;
   border-radius: 0.45rem;
-  background: #ffffff;
+  background: var(--cream);
   box-shadow: 0 2px 0 #cdd5e7;
-  color: var(--felt);
+  color: var(--accent);
   font: 800 0.8125rem/1 var(--display);
 }
 
@@ -2069,26 +2069,26 @@ summary:focus-visible {
 }
 
 .path-secondary {
-  color: var(--felt);
+  color: var(--accent);
   font-size: 0.875rem;
   font-weight: 700;
   text-decoration: underline;
-  text-decoration-color: color-mix(in srgb, var(--felt) 30%, transparent);
+  text-decoration-color: color-mix(in srgb, var(--accent) 30%, transparent);
   text-underline-offset: 0.25em;
 }
 
 .path-secondary:hover {
-  text-decoration-color: var(--felt);
+  text-decoration-color: var(--accent);
 }
 
 .agent-path {
-  border-color: var(--ink);
-  background: radial-gradient(ellipse 60% 50% at 100% 0%, #2d4266 0%, transparent 70%), var(--ink);
-  color: var(--cream);
+  border-color: var(--navy);
+  background: radial-gradient(ellipse 60% 50% at 100% 0%, #2d4266 0%, transparent 70%), var(--navy);
+  color: #ffffff;
 }
 
 .agent-path h3 {
-  color: var(--cream);
+  color: #ffffff;
 }
 
 .agent-path p {
@@ -2098,7 +2098,7 @@ summary:focus-visible {
 .agent-path .path-symbol {
   background: var(--mustard);
   box-shadow: var(--tile-edge) #c9a64a;
-  color: var(--ink);
+  color: var(--navy);
 }
 
 .agent-path pre {
@@ -2191,7 +2191,7 @@ summary:focus-visible {
 .faq-list details {
   border: 1.5px solid var(--line);
   border-radius: var(--radius-panel);
-  background: #ffffff;
+  background: var(--cream);
   transition:
     border-color var(--quick) ease,
     box-shadow 300ms var(--ease-out);
@@ -2234,7 +2234,7 @@ summary:focus-visible {
   box-sizing: content-box;
   border-radius: 50%;
   background: var(--soft);
-  color: var(--felt);
+  color: var(--accent);
   transition:
     transform 360ms var(--ease-spring),
     background-color var(--quick) ease,
@@ -2243,13 +2243,13 @@ summary:focus-visible {
 
 .faq-list summary:hover .faq-icon {
   background: var(--felt);
-  color: var(--cream);
+  color: #ffffff;
 }
 
 .faq-list details[open] .faq-icon {
   transform: rotate(135deg);
   background: var(--felt);
-  color: var(--cream);
+  color: #ffffff;
 }
 
 .faq-list p {
@@ -2261,7 +2261,7 @@ summary:focus-visible {
 }
 
 .faq-list a {
-  color: var(--felt);
+  color: var(--accent);
   font-weight: 650;
   text-decoration: underline;
   text-underline-offset: 0.2em;
@@ -2292,7 +2292,7 @@ summary:focus-visible {
   background:
     url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 .08 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"),
     var(--felt);
-  color: var(--cream);
+  color: #ffffff;
 }
 
 .closing-inner {
@@ -2304,7 +2304,7 @@ summary:focus-visible {
 
 .closing-inner h2 {
   margin: 0 0 0.75rem;
-  color: var(--cream);
+  color: #ffffff;
   font-size: clamp(2.25rem, 4.5vw, 3.6rem);
   font-weight: 800;
   letter-spacing: -0.045em;
@@ -2337,7 +2337,7 @@ summary:focus-visible {
   height: 2.5rem;
   border-radius: 50%;
   background: var(--mustard);
-  color: var(--ink);
+  color: var(--navy);
   font: 800 0.875rem/1 var(--display);
 }
 
@@ -2375,8 +2375,8 @@ summary:focus-visible {
 }
 
 .closing-action:has(.button:is(:hover, :focus-visible)) .closing-seat-open {
-  background: var(--cream);
-  border-color: var(--cream);
+  background: #ffffff;
+  border-color: #ffffff;
 }
 
 .closing-action:has(.button:is(:hover, :focus-visible)) .closing-seat-plus {
@@ -2437,14 +2437,14 @@ summary:focus-visible {
 }
 
 .release-link:hover {
-  border-color: var(--felt);
+  border-color: var(--accent);
 }
 
 .release-link .badge {
   padding: 0.2rem 0.55rem;
   border-radius: 999px;
   background: var(--soft);
-  color: var(--felt);
+  color: var(--accent);
   font: 700 0.72rem/1.2 var(--body);
 }
 
@@ -2471,7 +2471,7 @@ summary:focus-visible {
 }
 
 .footer-inner a:hover {
-  color: var(--felt);
+  color: var(--accent);
 }
 
 .footer-inner strong a {
@@ -2502,7 +2502,7 @@ summary:focus-visible {
 }
 
 .footer-bottom a:hover {
-  color: var(--felt);
+  color: var(--accent);
 }
 
 /* ─────────────────────────────────────────────────────────────────────────────
@@ -2518,12 +2518,12 @@ dialog {
   background: var(--cream);
   color: var(--ink);
   box-shadow:
-    0 2px 0 #dfe4ee,
+    0 2px 0 var(--line),
     0 30px 70px #1c2c5230;
 }
 
 dialog::backdrop {
-  background: color-mix(in srgb, var(--ink) 38%, transparent);
+  background: color-mix(in srgb, var(--navy) 38%, transparent);
   backdrop-filter: blur(4px);
 }
 
@@ -2604,8 +2604,8 @@ dialog::backdrop {
 
 .search-panel input:focus {
   outline: none;
-  border-color: var(--felt);
-  box-shadow: 0 0 0 4px color-mix(in srgb, var(--felt) 14%, transparent);
+  border-color: var(--accent);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent) 14%, transparent);
 }
 
 .search-status {
@@ -2644,7 +2644,7 @@ dialog::backdrop {
   bottom: 0.8rem;
   width: 3px;
   border-radius: 3px;
-  background: var(--felt);
+  background: var(--accent);
   opacity: 0;
   transform: scaleY(0.4);
   transition:
@@ -2656,7 +2656,7 @@ dialog::backdrop {
 .search-results a:hover {
   outline: none;
   background: var(--soft);
-  color: var(--felt);
+  color: var(--accent);
 }
 
 .search-results a:focus::before,
@@ -2687,7 +2687,7 @@ dialog::backdrop {
 }
 
 .search-footer a {
-  color: var(--felt);
+  color: var(--accent);
   font-weight: 700;
   text-decoration: none;
 }
@@ -2991,5 +2991,124 @@ kbd {
 
   .room-table {
     transform: none;
+  }
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   Dark: surfaces drawn with fixed light colors above. Pieces keep one printed
+   edge, now in shadow beneath them. Game art keeps its own colors.
+   ───────────────────────────────────────────────────────────────────────────── */
+
+@media (prefers-color-scheme: dark) {
+  html {
+    scrollbar-color: #3a465f transparent;
+  }
+
+  .hero-section {
+    background:
+      radial-gradient(ellipse 70% 55% at 78% 30%, #172040 0%, transparent 70%), var(--paper);
+  }
+
+  .not-found {
+    background:
+      radial-gradient(ellipse 60% 60% at 20% 0%, #172040 0%, transparent 70%), var(--paper);
+  }
+
+  .ownership-section {
+    background: #111827;
+  }
+
+  .faq-section {
+    background: #121826;
+  }
+
+  .showcase-section {
+    background: #17152a;
+    border-bottom-color: #2c2848;
+  }
+
+  .button-outline {
+    --edge: #090e18;
+    border-color: #36425c;
+  }
+
+  .button-outline:hover {
+    --edge: #090e18;
+    border-color: #4f5d7c;
+  }
+
+  .code-tile,
+  .path-steps li::before {
+    border-color: #3a4762;
+  }
+
+  .code-tile {
+    background: linear-gradient(#253049, #1d263b);
+    box-shadow: var(--tile-edge) #090e18;
+  }
+
+  [data-phase="match"] .code-tile {
+    box-shadow: var(--tile-edge-pressed) #090e18;
+  }
+
+  .path-steps li::before {
+    box-shadow: 0 2px 0 #090e18;
+  }
+
+  .deal-button,
+  .seat--open {
+    border-color: #4a5775;
+  }
+
+  .ownership-list--yours,
+  .release-note,
+  .faq-list details:hover,
+  .faq-list details[open] {
+    border-color: #3d4966;
+  }
+
+  .copy-button:hover {
+    border-color: #4a5775;
+  }
+
+  .copy-button[data-copied] {
+    color: #6fd0a8;
+    border-color: #2f6652;
+  }
+
+  .game-gallery {
+    border-top-color: #3a3558;
+  }
+
+  .game-card {
+    border-color: #2c2848;
+  }
+
+  .game-card:hover,
+  .game-card:focus-within {
+    border-color: #4a4370;
+  }
+
+  .game-players {
+    background: #262140;
+    color: #cdc2ef;
+  }
+
+  .package-row:hover {
+    background: color-mix(in srgb, var(--tone) 10%, var(--cream));
+  }
+
+  dialog::backdrop {
+    background: color-mix(in srgb, #000000 55%, transparent);
+  }
+
+  /* Code keeps Shiki's dark palette on the page's own card surface. */
+  .astro-code,
+  .astro-code code span {
+    color: var(--shiki-dark) !important;
+  }
+
+  .astro-code {
+    background-color: var(--cream) !important;
   }
 }

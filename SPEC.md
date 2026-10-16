@@ -277,6 +277,15 @@ As a prospective game maker, I can judge fit before installing anything.
    including code changes. The example bluff can reveal truth or a named author's
    bluff and reset; code-example tabs display only the selected example.
 
+### US-014 [live] See the website in my system's light or dark appearance
+
+As a visitor, I read the website in the appearance my device already uses.
+
+1. Without a choice to make or save, pages use the system's light or dark
+   preference when they load and follow a change while open, without reloading.
+2. Both appearances keep text, controls, focus indicators, code, and the
+   demonstrations readable. Game showcases keep each game's own colors.
+
 ## Capability: Website — human and agent documentation
 
 ### US-012 [live] Find and reuse documentation without an account

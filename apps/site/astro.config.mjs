@@ -6,7 +6,7 @@ export default defineConfig({
   trailingSlash: "always",
   devToolbar: { enabled: false },
   markdown: {
-    shikiConfig: { theme: "github-light" },
+    shikiConfig: { themes: { light: "github-light", dark: "github-dark-default" } },
   },
   vite: {
     build: {

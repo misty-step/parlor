@@ -18,7 +18,7 @@
 
 .kit-intro .kit-page-label {
   margin: 0 0 1rem;
-  color: var(--felt);
+  color: var(--accent);
   font-size: 0.94rem;
   font-weight: 600;
 }
@@ -57,7 +57,7 @@
 }
 
 .kit-nav a:hover {
-  color: var(--felt);
+  color: var(--accent);
   text-decoration: underline;
   text-underline-offset: 0.3em;
 }
@@ -147,12 +147,12 @@
 
 .kit-wordmark-panel--dark {
   border-color: var(--felt);
-  color: var(--cream);
+  color: #ffffff;
   background: var(--felt);
 }
 
 .kit-wordmark-panel--dark figcaption {
-  border-color: color-mix(in srgb, var(--cream) 22%, transparent);
+  border-color: color-mix(in srgb, #ffffff 22%, transparent);
 }
 
 .kit-wordmark-panel--dark figcaption span {
@@ -172,7 +172,7 @@
   flex-wrap: wrap;
   gap: 1.5rem 2rem;
   margin-block: 1.25rem;
-  color: var(--felt);
+  color: var(--accent);
 }
 
 .kit-scale-specimens > div {
@@ -284,7 +284,7 @@
 .kit-direction-art--door {
   align-items: flex-start;
   justify-content: space-between;
-  color: var(--cream);
+  color: #ffffff;
   background: var(--felt);
 }
 
@@ -296,7 +296,7 @@
 .kit-direction-art--ground {
   flex-direction: row;
   gap: 1.25rem;
-  color: var(--ink);
+  color: var(--navy);
   background: var(--mint);
 }
 
@@ -324,7 +324,7 @@
   gap: 0.25rem;
   padding-inline: 0.5rem;
   border-radius: var(--radius-control);
-  color: var(--felt);
+  color: var(--accent);
   background: var(--soft);
   font-size: 0.72rem;
   font-weight: 600;
@@ -461,7 +461,7 @@
 .kit-spacing-scale li > span {
   display: block;
   height: 0.6rem;
-  background: var(--felt);
+  background: var(--accent);
 }
 
 .kit-space-specimens > p {
@@ -532,7 +532,7 @@
   height: 3rem;
   place-items: center;
   border-radius: var(--radius-control);
-  color: var(--felt);
+  color: var(--accent);
   background: var(--soft);
 }
 
@@ -597,7 +597,7 @@
 }
 
 .kit-motion-list dt code {
-  color: var(--felt);
+  color: var(--accent);
   font-size: 0.8rem;
 }
 
@@ -756,5 +756,26 @@
 
   .kit-icon-samples {
     gap: 1rem;
+  }
+}
+
+/* The primary lockup is an asset: cobalt on white in either theme. */
+@media (prefers-color-scheme: dark) {
+  .kit-wordmark-panel--light {
+    border-color: #ffffff;
+    background: #ffffff;
+  }
+
+  .kit-wordmark-panel--light figcaption {
+    border-color: color-mix(in srgb, var(--felt) 16%, transparent);
+  }
+
+  .kit-wordmark-panel--light figcaption span {
+    color: inherit;
+    opacity: 0.8;
+  }
+
+  .kit-piece-row .code-tile:hover {
+    box-shadow: var(--tile-edge-pressed) #090e18;
   }
 }

@@ -1,13 +1,17 @@
 :root {
-  color-scheme: light;
+  color-scheme: light dark;
   --felt: #3047a5;
   --felt-deep: #22357e;
   --paper: #fbfcfe;
   --cream: #ffffff;
-  --ink: #20304a;
+  --navy: #20304a;
+  --ink: var(--navy);
   --muted: #5c687c;
   --line: #dfe4ee;
   --soft: #edf1fb;
+  /* Felt on the page's own surfaces: text, links, icons, rules, and focus. */
+  --accent: var(--felt);
+  --accent-strong: var(--felt-deep);
   --mint: #c9e5dc;
   --mustard: #f0d58e;
   --lilac: #dcd5f0;
@@ -18,7 +22,6 @@
   --mono: ui-monospace, "SFMono-Regular", Consolas, monospace;
   --radius-control: 0.65rem;
   --radius-panel: 1.25rem;
-  --shadow: 0 12px 35px #2436650c;
   --shadow-lift: 0 22px 48px #1c2c521c;
   /* Game pieces are printed, not glossy: one flat edge beneath, no blur. */
   --tile-edge: 0 3px 0;
@@ -35,4 +38,20 @@
   --rail-width: 13rem;
   --column-gap: 32px;
   --docs-columns: var(--sidebar-width) minmax(0, 1fr) var(--rail-width);
+}
+
+/* The room after dark: surfaces and reading colors change; felt, its white
+   print, navy print, and the pastel pieces stay the same. */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --paper: #0e1420;
+    --cream: #151d2d;
+    --ink: #e0e6f0;
+    --muted: #8e9aaf;
+    --line: #2b364a;
+    --soft: #1d2744;
+    --accent: #8ea3f6;
+    --accent-strong: #c0ccfc;
+    --shadow-lift: 0 22px 48px #00000066;
+  }
 }
