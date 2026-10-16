@@ -1,3 +1,5 @@
+import { reportDocsFailure } from "./errors";
+
 interface SearchEntry {
   title: string;
   description: string;
@@ -105,6 +107,7 @@ async function openSearch() {
       await loading;
     } catch {
       status.textContent = "Search could not load. Browse the documentation below.";
+      reportDocsFailure("search");
       return;
     }
   }
@@ -203,6 +206,7 @@ if (copyPage) {
       }
     } catch {
       announce("Could not copy this page. Open the Markdown link instead.");
+      reportDocsFailure("markdown");
     }
   });
 }

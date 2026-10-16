@@ -299,6 +299,11 @@ plain text without scraping a rendered page.
    code-block failure selects the code. A page-fetch failure offers its Markdown
    link rather than claiming success. Mobile navigation can be closed with Escape
    and restores its summary focus.
+4. Search-index and page-Markdown load failures reach the owned error intake with
+   the deployment environment and source release, at most once per operation per
+   page load. Reports contain no search text, URLs/query strings, page/clipboard
+   content, cookies, or credentials. Reporting failure never delays the fallback
+   or prevents a successful retry of the documentation action.
 
 ### US-013 [live] Read the source release history
 
