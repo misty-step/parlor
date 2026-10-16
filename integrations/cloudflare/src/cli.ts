@@ -16,6 +16,12 @@
  *   freeze  --url <backend> --on|--off
  *   import  --url <backend> <snapshot.zip>     (writes must already be frozen)
  *   export  --url <backend> --out <snapshot.zip>  (writes must be frozen, no running actions)
+ *   bookmark --url <backend> [--at <time>]     (point-in-time-recovery bookmark, now or then)
+ *   restore --url <backend> --bookmark <b>|--at <time>  (writes must be frozen; discards later writes)
+ *
+ * A <time> is milliseconds since the epoch or an ISO 8601 date with a zone.
+ * Cloudflare resolves a time only approximately; for an exact point, record a
+ * bookmark before the risky step and restore that.
  */
 import { realpathSync } from "node:fs";
 import { readFile, writeFile } from "node:fs/promises";
@@ -52,7 +58,7 @@ function parse(argv: readonly string[]): Parsed {
     }
     const name = arg.slice(2);
     const next = rest[index + 1];
-    if (["url", "out", "admin-key-env"].includes(name)) {
+    if (["url", "out", "admin-key-env", "at", "bookmark"].includes(name)) {
       if (next === undefined) throw new UsageError(`--${name} needs a value`);
       flags.set(name, next);
       index += 1;
@@ -80,6 +86,22 @@ async function operator(flags: Map<string, string | true>): Promise<BackendOpera
 async function snapshotFile(file: string | undefined) {
   if (file === undefined) throw new UsageError("A snapshot ZIP path is required");
   return readConvexSnapshot(new Uint8Array(await readFile(file)));
+}
+
+/** `--at`: milliseconds since the epoch, or an ISO 8601 date that names its zone. */
+function time(value: string | true | undefined): number | undefined {
+  if (value === undefined) return undefined;
+  const ms =
+    typeof value !== "string"
+      ? NaN
+      : /^\d{1,16}$/.test(value)
+        ? Number(value)
+        : /^\d{4}-\d\d-\d\dT[\d:.]+(Z|[+-]\d\d:\d\d)$/.test(value)
+          ? Date.parse(value)
+          : NaN;
+  if (!Number.isSafeInteger(ms) || ms <= 0)
+    throw new UsageError("--at needs milliseconds since the epoch or an ISO 8601 date with a zone");
+  return ms;
 }
 
 function print(value: unknown) {
@@ -132,9 +154,23 @@ export async function main(argv: readonly string[]): Promise<number> {
       print({ ts: result.ts, tables: result.stats });
       return 0;
     }
+    case "bookmark": {
+      const at = time(flags.get("at"));
+      print(await (await operator(flags)).bookmark(at));
+      return 0;
+    }
+    case "restore": {
+      const bookmark = flags.get("bookmark");
+      const at = time(flags.get("at"));
+      if ((typeof bookmark === "string") === (at !== undefined))
+        throw new UsageError("restore needs exactly one of --bookmark <b> or --at <time>");
+      const target = typeof bookmark === "string" ? { bookmark } : { at: at! };
+      print(await (await operator(flags)).restore(target));
+      return 0;
+    }
     default:
       process.stderr.write(
-        "usage: parlor-cloudflare stats|compare|status|freeze|import|export (see cli.ts)\n",
+        "usage: parlor-cloudflare stats|compare|status|freeze|import|export|bookmark|restore (see cli.ts)\n",
       );
       return 2;
   }

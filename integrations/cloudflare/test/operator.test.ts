@@ -4,7 +4,7 @@ import { createServer } from "node:http";
 import { mkdtemp, rm, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { describeError, main } from "../src/cli.js";
 import {
   compareStats,
@@ -16,7 +16,8 @@ import {
 import { BackendOperator, OperatorError } from "../src/operator.js";
 import { newId } from "../src/ids.js";
 import { documentsChecksum } from "../src/snapshot.js";
-import { ADMIN_KEY, durableObject } from "./helpers.js";
+import { memorySqlDriver } from "../src/testing.js";
+import { ADMIN_KEY, bookmarkAt, durableObject, pitrPlatform } from "./helpers.js";
 
 // Real Convex-format IDs carrying each table's number, fixed for the whole run.
 const ROOM_1 = newId(10001);
@@ -481,5 +482,138 @@ describe("print-safe errors, table numbers and plain JSON (review R16-R18)", () 
       await served.close();
       await rm(directory, { recursive: true, force: true });
     }
+  });
+});
+
+/**
+ * Run `promise` to completion on fake timers. Admin-key checks hash with
+ * `crypto.subtle`, which settles as real I/O, so time advances in steps with
+ * a real turn of the event loop between them.
+ */
+async function settle<T>(promise: Promise<T>): Promise<T> {
+  const pending = Symbol("pending");
+  for (let step = 0; step < 1_200; step += 1) {
+    const result = await Promise.race([promise, Promise.resolve(pending)]);
+    if (result !== pending) return result;
+    await vi.advanceTimersByTimeAsync(50);
+    await new Promise((resolve) => setImmediate(resolve));
+  }
+  return promise;
+}
+
+/** An operator whose backend restarts as a fresh instance over the same storage when aborted. */
+async function restartingBackend() {
+  const driver = memorySqlDriver();
+  const pitr = pitrPlatform();
+  const logged: string[] = [];
+  const statuses: number[] = [];
+  let restarted: Promise<void> = Promise.resolve();
+  let dropped = 0;
+  let instance = await durableObject({}, driver, {
+    ...pitr,
+    abort: (reason) => {
+      pitr.abort(reason);
+      restarted = durableObject({}, driver, pitr).then((next) => {
+        instance = next;
+      });
+    },
+  });
+  const operator = new BackendOperator({
+    url: "https://backend.example.test/backend",
+    adminKey: ADMIN_KEY,
+    log: (line) => logged.push(line),
+    fetch: async (input: RequestInfo | URL, init?: RequestInit) => {
+      await restarted;
+      const url = href(input);
+      // The first status call after the abort finds the old connection gone.
+      if (pitr.seen.aborted.length > 0 && dropped === 0 && url.endsWith("/admin/status")) {
+        dropped += 1;
+        throw new TypeError("fetch failed");
+      }
+      const response = await instance.backend.fetch(new Request(url, init));
+      if (url.endsWith("/admin/status")) statuses.push(response.status);
+      return response;
+    },
+  });
+  return { operator, pitr, logged, statuses };
+}
+
+describe("BackendOperator.restore", () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("refuses unless writes are frozen, logs the undo bookmark, and returns the restarted object's status", async () => {
+    const { operator, pitr, logged, statuses } = await restartingBackend();
+    await operator.freeze(false);
+    await expect(operator.restore({ bookmark: bookmarkAt(3) })).rejects.toThrow(
+      "Freeze writes before restoring (writesFrozen is false)",
+    );
+    expect(pitr.seen.staged).toEqual([]);
+
+    await operator.freeze(true);
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout", "Date"] });
+    const restored = await settle(operator.restore({ bookmark: bookmarkAt(3) }));
+    expect(restored.bookmark).toBe(bookmarkAt(3));
+    expect(restored.undo).toMatch(/^[0-9a-f]{8}-0000b26e-/);
+    expect(restored.status.writesFrozen).toBe(true);
+    expect(pitr.seen.aborted).toEqual(["parlor-cloudflare: point-in-time restore"]);
+    // 200 before staging, then 503 from the old instance, then 200 from the new one.
+    expect(statuses[0]).toBe(200);
+    expect(statuses).toContain(503);
+    expect(statuses.at(-1)).toBe(200);
+    expect(logged).toEqual([`restore: staged ${bookmarkAt(3)}; undo bookmark ${restored.undo}`]);
+  });
+
+  it("prints the backend's refusal without its body and never repeats a malformed bookmark", async () => {
+    const answers: Record<string, Response> = {
+      "/admin/status": Response.json({ writesFrozen: true }),
+      "/admin/restore": Response.json({ code: "BadRequest", message: CANARY }, { status: 400 }),
+      "/admin/bookmark": Response.json({ bookmark: `${CANARY} trailing` }),
+    };
+    const operator = new BackendOperator({
+      url: "https://backend.example.test/backend",
+      adminKey: ADMIN_KEY,
+      fetch: async (input: RequestInfo | URL) => {
+        const path = new URL(href(input)).pathname;
+        return answers[path.replace("/backend", "")]!.clone();
+      },
+    });
+    const refused = await operator.restore({ at: 1_792_000_000_000 }).catch((error) => error);
+    expect(refused).toBeInstanceOf(OperatorError);
+    expect(String(refused)).toBe("OperatorError: POST admin/restore returned 400 (BadRequest)");
+    const malformed = await operator.bookmark().catch((error) => error);
+    expect(String(malformed)).toBe("OperatorError: bookmark did not report a bookmark");
+    expect(String(malformed)).not.toContain(CANARY);
+    await expect(operator.restore({ bookmark: "not a bookmark" })).rejects.toThrow(
+      "The restore target is not a bookmark",
+    );
+  });
+
+  it("CLI: --at takes milliseconds or a zoned ISO date, and restore takes exactly one target", async () => {
+    const usage = async (argv: string[]) =>
+      main([
+        ...argv,
+        "--url",
+        "http://127.0.0.1:9/backend",
+        "--admin-key-env",
+        "PARLOR_TEST_NO_KEY",
+      ]).catch((error: unknown) => (error as Error).message);
+    expect(await usage(["bookmark", "--at", "yesterday"])).toBe(
+      "--at needs milliseconds since the epoch or an ISO 8601 date with a zone",
+    );
+    expect(await usage(["bookmark", "--at", "2026-10-16T03:00:00"])).toBe(
+      "--at needs milliseconds since the epoch or an ISO 8601 date with a zone",
+    );
+    expect(await usage(["restore"])).toBe(
+      "restore needs exactly one of --bookmark <b> or --at <time>",
+    );
+    expect(await usage(["restore", "--bookmark", bookmarkAt(1), "--at", "1792000000000"])).toBe(
+      "restore needs exactly one of --bookmark <b> or --at <time>",
+    );
+    // A valid zoned date gets as far as the admin key check.
+    expect(await usage(["restore", "--at", "2026-10-16T03:00:00Z"])).toBe(
+      "The admin key must be at least 32 characters",
+    );
   });
 });
