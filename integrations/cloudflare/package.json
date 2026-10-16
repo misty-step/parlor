@@ -1,0 +1,30 @@
+{
+  "name": "@parlor/cloudflare",
+  "version": "0.1.0",
+  "private": true,
+  "bin": {
+    "parlor-cloudflare": "./dist/src/cli.js"
+  },
+  "files": [
+    "dist"
+  ],
+  "type": "module",
+  "exports": {
+    ".": "./dist/src/index.js",
+    "./testing": "./dist/src/testing.js",
+    "./operator": "./dist/src/operator.js",
+    "./convex-zip": "./dist/src/convexZip.js"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json"
+  },
+  "dependencies": {
+    "fflate": "0.8.3"
+  },
+  "devDependencies": {
+    "vitest": "5.0.0"
+  },
+  "peerDependencies": {
+    "convex": "^1.42.3"
+  }
+}
