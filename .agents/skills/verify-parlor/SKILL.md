@@ -66,11 +66,12 @@ Proof standards:
 ## Helpers
 
 - `bin/verify-parlor` is the only entry point; run it with no arguments for usage.
-- `lib/site.mjs`, `lib/first-tap.mjs`, `lib/playground.mjs`, `lib/consumer.mjs` and `lib/doctor.mjs` hold one driver each; `lib/common.mjs` holds the recorder and port helpers. Each step is a `rec.step(name, action)` that returns its observation. Add a step there, then document it in the feature file.
+- `lib/site.mjs`, `lib/first-tap.mjs`, `lib/playground.mjs`, `lib/consumer.mjs` and `lib/doctor.mjs` hold one driver each; `lib/common.mjs` holds the recorder and port helpers. Each step is a `rec.step(name, action)` that returns its observation; `rec.onFail` runs on a failed step (First Tap screenshots every player). Add a step there, then document it in the feature file.
 
 ## Gotchas
 
 - Never run `pnpm` with a temporary `HOME`. pnpm 11 checks dependencies before each script, finds a different store, and reinstalls the whole workspace into the temporary HOME. Once that HOME is deleted, every later `pnpm` command fails with `ERR_PNPM_ABORTED_REMOVE_MODULES_DIR_NO_TTY`. The harness runs the example's binaries directly. The First Tap guide's procedure sets `pnpm_config_verify_deps_before_run=false` for the same reason. To recover a checkout, remove its `node_modules` directories and run `pnpm install --frozen-lockfile`.
+- Start a First Tap match only while every player you expect in the lineup has a fresh heartbeat. Presence lasts 15 seconds and beats arrive every 15 seconds, so an unlucky start leaves a connected player watching. The driver waits on their `rooms:heartbeat` frames; see [play a room](features/first-tap-room.md).
 - Playwright's `setOffline` does not close an open WebSocket. The offline step routes Cy's Convex socket through `context.routeWebSocket` and cuts it.
 - The issuer accepts exactly `http://localhost:3000`, so `127.0.0.1:3000` is the wrong-origin case, and a phone cannot open a `localhost` invite. Physical phones, hosted Secure cookies, real backgrounding, audible audio and wake lock remain unverified by every driver here. Headless Chromium reports wake lock as unavailable, which shows the "Keep screen awake" fallback.
 - `site` intercepts error-intake envelopes so its fault probes do not file events in Parlor's production Sentry project. A Sentry receipt needs the separate procedure in `docs/verification.md`.

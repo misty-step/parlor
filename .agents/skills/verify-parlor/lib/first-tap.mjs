@@ -349,10 +349,43 @@ export async function drive() {
     );
     const page = await context.newPage();
     page.on("pageerror", (error) => errors.push(`${name}: ${error.message}`));
-    return { name, context, page };
+    const who = { name, context, page, beats: 0, lastBeat: 0 };
+    page.on("websocket", (socket) =>
+      socket.on("framesent", ({ payload }) => noteBeat(who, payload)),
+    );
+    return who;
   };
+  // Presence is "present" only within 15s of a heartbeat, and clients beat every
+  // 15s (US-006), so a start can legally drop a member whose beat is a moment
+  // late. Starts wait until every listed player beat within the last 8 seconds.
+  // Frames carry the guest token: match the function name, never log payloads.
+  function noteBeat(who, payload) {
+    if (String(payload).includes('"rooms:heartbeat"')) {
+      who.beats += 1;
+      who.lastBeat = Date.now();
+    }
+  }
+  const freshBeats = (players) =>
+    waitFor(
+      `fresh heartbeats from ${players.map((who) => who.name).join(", ")}`,
+      () => players.every((who) => who.beats > 0 && Date.now() - who.lastBeat <= 8_000),
+      40_000,
+      100,
+    );
+  const lineup = (who) =>
+    who.page
+      .locator(".roster li")
+      .evaluateAll((rows) =>
+        rows.map(
+          (row) =>
+            `${row.querySelector(".player-name")?.textContent} ${row.querySelector(".player-role")?.textContent}`,
+        ),
+      );
   const shot = (who, file) => who.page.screenshot({ path: rec.path(file), fullPage: true });
-  const text = (who, value, timeout = 20_000) =>
+  // Cross-client waits allow a slow backend: on a loaded machine one mutation
+  // round trip has taken over 20 seconds.
+  const SLOW = 45_000;
+  const text = (who, value, timeout = SLOW) =>
     who.page.getByText(value, { exact: false }).first().waitFor({ timeout });
   const lobby = async (who, path = "/") => {
     await who.page.goto(`${APP}${path}`);
@@ -366,7 +399,7 @@ export async function drive() {
     return (await who.page.locator(".player-id").textContent()).trim();
   };
   const roomCode = async (who) => {
-    await who.page.locator("#room-heading .room-code").waitFor({ timeout: 20_000 });
+    await who.page.locator("#room-heading .room-code").waitFor({ timeout: SLOW });
     return (await who.page.locator("#room-heading .room-code").textContent()).trim();
   };
   const members = async (who) =>
@@ -384,7 +417,11 @@ export async function drive() {
     if (cyOffline) {
       void socket.close({ code: 4000, reason: "verify-parlor offline" });
     } else {
-      socket.connectToServer();
+      const server = socket.connectToServer();
+      socket.onMessage((message) => {
+        noteBeat(cy, message);
+        server.send(message);
+      });
       cySockets.add(socket);
     }
   });
@@ -398,6 +435,10 @@ export async function drive() {
   };
   let code;
   const ids = {};
+  rec.onFail = async (step) => {
+    const slug = step.replace(/[^a-z0-9]+/gi, "-").toLowerCase();
+    for (const who of [ari, bea, cy]) await shot(who, `fail-${slug}-${who.name}.png`);
+  };
 
   try {
     await rec.step("sign-in: guest issuance and signed continuity cookie", async () => {
@@ -483,7 +524,7 @@ export async function drive() {
       await waitFor(
         "both rosters at 2",
         async () => (await members(ari)) === "2/12" && (await members(bea)) === "2/12",
-        20_000,
+        SLOW,
       );
       await shot(bea, "03-bea-joined-phone.png");
       return `Bea ${ids.bea}; both rosters 2/12`;
@@ -492,10 +533,11 @@ export async function drive() {
     await rec.step("Ari starts match 1 with a frozen lineup", async () => {
       const start = button(ari, "Start match");
       await waitFor("Start match enabled", () => start.isEnabled(), 30_000);
+      await freshBeats([bea]);
       await start.click();
       await text(ari, "Match 1");
-      await button(bea, "Tap to win").waitFor({ timeout: 20_000 });
-      return "both players see 'Tap to win'";
+      await button(bea, "Tap to win").waitFor({ timeout: SLOW });
+      return `both players see 'Tap to win'; Ari's roster: ${(await lineup(ari)).join(" | ")}`;
     });
 
     await rec.step("Cy arrives late and only watches", async () => {
@@ -522,10 +564,16 @@ export async function drive() {
     await rec.step("rematch admits Cy", async () => {
       const start = button(ari, "Start rematch");
       await waitFor("Start rematch enabled", () => start.isEnabled(), 30_000);
+      await freshBeats([bea, cy]);
       await start.click();
       await text(ari, "Match 2");
-      await button(cy, "Tap to win").waitFor({ timeout: 20_000 });
-      return "Match 2; Cy now has 'Tap to win'";
+      await button(cy, "Tap to win").waitFor({ timeout: SLOW });
+      const roster = await lineup(ari);
+      assert(
+        roster.filter((row) => row.endsWith("· Playing")).length === 3,
+        `match 2 lineup ${roster.join(" | ")}`,
+      );
+      return `Match 2; all three playing: ${roster.join(" | ")}`;
     });
 
     await rec.step("offline player cannot tap, then recovers", async () => {
@@ -548,7 +596,7 @@ export async function drive() {
         async () => (await status.getAttribute("data-status")) === "connected",
         60_000,
       );
-      await waitFor("tap re-enabled", () => button(cy, "Tap to win").isEnabled(), 20_000);
+      await waitFor("tap re-enabled", () => button(cy, "Tap to win").isEnabled(), SLOW);
       return `status '${await status.textContent()}' after recovery; while cut: tap disabled, 'Reconnecting.' shown`;
     });
 
@@ -629,9 +677,12 @@ export async function drive() {
         matches.length === 2 && completed === 2,
         `matches ${matches.map((row) => row.status).join(",")}`,
       );
+      const perMatch = matches
+        .toSorted((a, b) => a.cycle - b.cycle)
+        .map((match) => participants.filter((row) => row.matchId === match._id).length);
       assert(
-        participants.length === 5,
-        `${participants.length} frozen participant rows (expected 2 + 3)`,
+        perMatch.join(",") === "2,3",
+        `frozen participants per match ${perMatch.join(",")} (expected 2,3)`,
       );
       return `room closed; 2 completed matches; 5 frozen participant rows (2 then 3)`;
     });

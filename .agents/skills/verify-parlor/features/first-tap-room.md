@@ -34,21 +34,23 @@ Preconditions:
 - **Create.** Ari chooses "Create room". `#room-heading .room-code` matches the code alphabet, and "Close room" is visible.
 - **Refusals.** Bea joins `ZZZZ` and sees "That room is not open." At the end, Ari opens `?room=<code>` for the closed room and sees the same message.
 - **Join.** Bea, on a phone, opens `?room=<code>`. The `Room code` input is prefilled. After "Join room", her `.player-id` differs from Ari's and both `#players-heading .hint` read `2/12`.
-- **Match 1.** Ari waits for "Start match" to enable (two present players) and chooses it. "Match 1" shows, and Bea has "Tap to win".
+- **Match 1.** Ari waits for "Start match" to enable (two present players). The driver also waits until Bea's last `rooms:heartbeat` frame is at most 8 seconds old, then chooses it. "Match 1" shows, Bea has "Tap to win", and the transcript records Ari's roster.
 - **Late arrival.** Cy joins mid-match and sees "You’re watching this match", with no "Tap to win".
 - **Win.** Bea taps, and Ari, Bea and Cy all show "Bea wins".
-- **Rematch.** Ari chooses "Start rematch". "Match 2" shows, and Cy has "Tap to win".
+- **Rematch.** Once Bea's and Cy's heartbeats are both fresh, Ari chooses "Start rematch". "Match 2" shows, Cy has "Tap to win", and all three roster rows end `· Playing`.
 - **Connection lost.** The driver cuts Cy's routed WebSocket and refuses reconnects. `.room-header .parlor-connection-status[data-status]` leaves `connected`, "Tap to win" is disabled, and "Reconnecting." shows. After the socket is restored, the status is `connected` and tapping works again. Then Cy taps, and everyone shows "Cy wins".
 - **Host transfer.** Ari chooses "Leave room" and returns to "Get everyone in the room". Bea gets "Close room".
 - **Close.** Bea chooses "Close room", then "Close for everyone". Bea and Cy show "This room is closed".
-- **Stored state.** `convex data rooms|matches|matchParticipants` under the run HOME shows the room with `closedAt`, 2 `completed` matches and 5 participant rows (2, then 3).
+- **Stored state.** `convex data rooms|matches|matchParticipants` under the run HOME shows the room with `closedAt`, 2 `completed` matches, and frozen participants per match of `2,3` in cycle order.
 - **Backend down.** Ari creates a new room. The driver stops the run's backend process group, and the connection status leaves Connected ("Connecting"). Run `verify-parlor first-tap down` next.
-- **Proof.** `first-tap/transcript.md` and `02-ari-room.png` through `09-backend-down.png`.
+- **Proof.** `first-tap/transcript.md` and `02-ari-room.png` through `09-backend-down.png`. A failed step adds `fail-<step>-<player>.png` for every player.
 
 ## Gotchas
 
 - Start stays disabled until two members are present. Presence comes from heartbeats, so keep every context open. The driver waits up to 30 seconds.
+- "Present" means a heartbeat no older than 15 seconds, and clients send one every 15 seconds (US-006). A start that lands just before a member's next beat freezes that visible, connected member out as "Watching". One proof run stored 2 then 2 participants instead of 2 then 3 this way. The driver watches outgoing `rooms:heartbeat` WebSocket frames, matching the function name and never logging payloads, which carry the guest token. It starts only while every needed beat is at most 8 seconds old. A human host has no such guard.
 - Playwright's `setOffline` leaves open WebSockets alone. Cut the socket through `context.routeWebSocket`, as the driver does.
+- On a heavily loaded machine a single mutation can take more than 20 seconds; Ari's button then stays at "Starting…". Cross-client waits allow 45 seconds. A timeout with "Starting…" or "Tap sent…" still on screen in the `fail-*` screenshots means a slow backend; check `uptime` before suspecting the product.
 - After the backend-down step the target is half dead. Doctor fails until `down` and `up`.
 - Seats display one-based ("seat 2"), while stored `seatIndex` is zero-based.
 - The Next.js dev indicator (an "N" badge) overlaps content in phone screenshots. It is dev-server chrome, not app UI.

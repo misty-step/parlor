@@ -18,7 +18,9 @@ export function git(...args) {
 
 export function revision() {
   const head = git("rev-parse", "HEAD");
-  const dirty = git("status", "--porcelain").length > 0;
+  // `next dev` rewrites next-env.d.ts while First Tap runs; that is not a source change.
+  const dirty =
+    git("status", "--porcelain", "--", ".", ":!examples/first-tap/next-env.d.ts").length > 0;
   return { head, dirty };
 }
 
@@ -87,6 +89,8 @@ export class Recorder {
     this.feature = feature;
     this.dir = evidenceDir(feature);
     this.steps = [];
+    // Optional async (stepName) => void, run when a step fails, e.g. screenshots.
+    this.onFail = null;
     this.meta = { feature, startedAt: new Date().toISOString(), ...revision(), ...meta };
   }
 
@@ -98,6 +102,7 @@ export class Recorder {
       console.log(`PASS ${name}${observed ? ` — ${observed}` : ""}`);
       return true;
     } catch (error) {
+      if (this.onFail) await this.onFail(name).catch(() => {});
       const observed = String(error?.message ?? error)
         .split("\n")[0]
         .slice(0, 400);
