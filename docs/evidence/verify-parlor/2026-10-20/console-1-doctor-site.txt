@@ -1,0 +1,29 @@
+$ verify-parlor doctor
+ok   checkout — ~/.t3/worktrees/parlor/verify-verification-skill @ 443991c
+ok   dependencies — pnpm install --frozen-lockfile
+ok   playwright chromium — @playwright/test 1.62.1; else pnpm exec playwright install chromium
+ok   site release — https://parlor.mistystep.io serves 1.0.0 from 1e8a134
+ok   site freshness — matches origin/master
+ok   site home — HTTP 200, CSP present
+ok   first-tap — no run started by verify-parlor in this checkout (start one with: verify-parlor first-tap up)
+$ verify-parlor site
+PASS release identity — version 1.0.0, source 1e8a134d7db0185dbb72cd67d829f1271aa1c6de
+PASS home renders — h1 'You bring the game. We make room.'
+PASS room demo: Gather, Play, Again — Play: 'Jo is watching', deal disabled; Again seats 'Jo'
+PASS room demo: deal a new code — PLAY -> ASRB; status 'Dealt ASRB. No zero, O, one, or I, so it reads cleanly.'
+PASS code example tabs — only the selected example shows
+PASS bluff reveal and reset — 'Fooled! That one was Sam’s bluff. Otters hold pups for ransom.' then reset
+PASS gallery play and source links — 8 links answered
+PASS system appearance: dark then light without reload — background luminance dark 0.007, light 0.973
+PASS reduced motion demo — immediate 'Dealt DDVG'
+PASS docs page, HTML and Markdown pair — Markdown 4751 bytes, text/plain; charset=utf-8
+PASS search: '/' opens, known term, keyboard, no-result — '8 guides found.' (8 links); 'No guides found. Try “rooms”, “auth”, or “matches”.'; Enter opened /docs/first-game/
+PASS search index failure (fresh context, fault injected) — 'Search could not load. Browse the documentation below.'
+PASS copy page Markdown and clipboard denial — copied bytes match /docs/getting-started.md; denial says 'Copy failed. Select the text instead.'
+PASS agent surfaces: /skill.md, /llms.txt, /llms-full.txt, /search.json — skill sha256 434c827ad6bf matches 1e8a134; 10 search entries
+PASS changelog — shows 1.0.0; /changelog.md 200
+PASS unknown page is a 404 with a way home — HTTP 404, links home
+PASS phone width: no overflow, menu reaches changelog, Escape closes — overflow 0px; Escape restored focus; reached /changelog/
+PASS no uncaught page errors — 0 page errors; 1 error-intake envelope(s) intercepted, none delivered
+
+PASS site: 18/18 steps. Evidence: ~/.cache/tmp/verify-parlor/runs/proof-20261020T222958Z/site

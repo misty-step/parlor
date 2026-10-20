@@ -1,0 +1,14 @@
+Scope: 6 of 10 workspace projects
+packages/auth build$ tsc -p tsconfig.json
+packages/core build$ tsc -p tsconfig.json
+packages/web build$ tsc -p tsconfig.json
+integrations/cloudflare build$ tsc -p tsconfig.json
+packages/web build: Done
+packages/core build: Done
+packages/react build$ tsc -p tsconfig.json
+packages/auth build: Done
+integrations/convex build$ tsc -p tsconfig.json
+integrations/cloudflare build: Done
+packages/react build: Done
+integrations/convex build: Done
+$ pnpm -r --filter './packages/**' --filter './integrations/**' --if-present build

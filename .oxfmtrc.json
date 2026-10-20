@@ -9,6 +9,7 @@
     "**/coverage/**",
     "**/.next/**",
     "**/playwright-report/**",
-    "**/test-results/**"
+    "**/test-results/**",
+    "docs/evidence/**"
   ]
 }

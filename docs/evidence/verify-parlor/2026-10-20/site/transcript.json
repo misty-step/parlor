@@ -1,0 +1,119 @@
+{
+  "feature": "site",
+  "startedAt": "2026-10-20T22:29:59.772Z",
+  "head": "443991cb548865d2ba9460422b78ac08683936e3",
+  "dirty": false,
+  "target": "https://parlor.mistystep.io",
+  "finishedAt": "2026-10-20T22:30:18.063Z",
+  "ok": true,
+  "steps": [
+    {
+      "name": "release identity",
+      "ok": true,
+      "observed": "version 1.0.0, source 1e8a134d7db0185dbb72cd67d829f1271aa1c6de",
+      "ms": 171
+    },
+    {
+      "name": "home renders",
+      "ok": true,
+      "observed": "h1 'You bring the game. We make room.'",
+      "ms": 1297
+    },
+    {
+      "name": "room demo: Gather, Play, Again",
+      "ok": true,
+      "observed": "Play: 'Jo is watching', deal disabled; Again seats 'Jo'",
+      "ms": 207
+    },
+    {
+      "name": "room demo: deal a new code",
+      "ok": true,
+      "observed": "PLAY -> ASRB; status 'Dealt ASRB. No zero, O, one, or I, so it reads cleanly.'",
+      "ms": 1064
+    },
+    {
+      "name": "code example tabs",
+      "ok": true,
+      "observed": "only the selected example shows",
+      "ms": 223
+    },
+    {
+      "name": "bluff reveal and reset",
+      "ok": true,
+      "observed": "'Fooled! That one was Sam’s bluff. Otters hold pups for ransom.' then reset",
+      "ms": 150
+    },
+    {
+      "name": "gallery play and source links",
+      "ok": true,
+      "observed": "8 links answered",
+      "ms": 4464
+    },
+    {
+      "name": "system appearance: dark then light without reload",
+      "ok": true,
+      "observed": "background luminance dark 0.007, light 0.973",
+      "ms": 693
+    },
+    {
+      "name": "reduced motion demo",
+      "ok": true,
+      "observed": "immediate 'Dealt DDVG'",
+      "ms": 2068
+    },
+    {
+      "name": "docs page, HTML and Markdown pair",
+      "ok": true,
+      "observed": "Markdown 4751 bytes, text/plain; charset=utf-8",
+      "ms": 459
+    },
+    {
+      "name": "search: '/' opens, known term, keyboard, no-result",
+      "ok": true,
+      "observed": "'8 guides found.' (8 links); 'No guides found. Try “rooms”, “auth”, or “matches”.'; Enter opened /docs/first-game/",
+      "ms": 1927
+    },
+    {
+      "name": "search index failure (fresh context, fault injected)",
+      "ok": true,
+      "observed": "'Search could not load. Browse the documentation below.'",
+      "ms": 730
+    },
+    {
+      "name": "copy page Markdown and clipboard denial",
+      "ok": true,
+      "observed": "copied bytes match /docs/getting-started.md; denial says 'Copy failed. Select the text instead.'",
+      "ms": 562
+    },
+    {
+      "name": "agent surfaces: /skill.md, /llms.txt, /llms-full.txt, /search.json",
+      "ok": true,
+      "observed": "skill sha256 434c827ad6bf matches 1e8a134; 10 search entries",
+      "ms": 461
+    },
+    {
+      "name": "changelog",
+      "ok": true,
+      "observed": "shows 1.0.0; /changelog.md 200",
+      "ms": 257
+    },
+    {
+      "name": "unknown page is a 404 with a way home",
+      "ok": true,
+      "observed": "HTTP 404, links home",
+      "ms": 181
+    },
+    {
+      "name": "phone width: no overflow, menu reaches changelog, Escape closes",
+      "ok": true,
+      "observed": "overflow 0px; Escape restored focus; reached /changelog/",
+      "ms": 3014
+    },
+    {
+      "name": "no uncaught page errors",
+      "ok": true,
+      "observed": "0 page errors; 1 error-intake envelope(s) intercepted, none delivered",
+      "ms": 0
+    }
+  ]
+}

@@ -1,0 +1,16 @@
+$ verify-parlor playground
+PASS open the rehearsal and toggle sound — empty room, sound toggles Muted and back
+PASS create, join, start cycle 1 — room B7Q2, host Ari, cycle 1
+PASS late spectator queues; stale host migrates — Cal queued, host Ari -> Bea
+PASS complete and begin cycle 2 with the spectator seated — cycle 2; Cal seated; ledger records 8 moves
+PASS no uncaught page errors — 0 page errors
+
+PASS playground: 5/5 steps. Evidence: ~/.cache/tmp/verify-parlor/runs/proof-20261020T222958Z/playground
+$ verify-parlor consumer
+PASS build the source packages — pnpm build:packages exit 0
+PASS generated consumer on a real local Convex backend — ok on precompiled-2026-08-25-7cce8fb; proved 9: verified guest identity; idempotent join; atomic game/match composition; immutable roster and late-join rematch; same-player token renewal; deadline enforcement before sweeping; rejected completion leaves game score unchanged; registered scheduled abandonment; room closure
+PASS import the skill into a game with a pinned vendor checkout — SKILL.md, reference.md, SOURCE.json pinned to 443991c; re-import 'Unchanged'
+PASS importer refuses the Parlor repository itself — refused with 'Choose a consuming game repository…'
+
+PASS consumer: 4/4 steps. Evidence: ~/.cache/tmp/verify-parlor/runs/proof-20261020T222958Z/consumer
+DONE
