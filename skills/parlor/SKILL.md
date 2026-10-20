@@ -191,7 +191,7 @@ The playground's local simulation does not prove guest signing, Convex functions
 
 ### Inside the Parlor repository
 
-Keep this canonical skill; do not self-import or create a competing verification skill. Read `skills/parlor/SKILL.md` explicitly when the runner does not load `skills/` automatically. An explicit-resource runner must include this exact file through its approved resource configuration, not enable global discovery.
+Keep this canonical skill; do not self-import it. To drive the product end to end (the website, First Tap's guest sign-in and multiplayer journey, the playground, and the library consumer path), use the repository's one verification skill, `.agents/skills/verify-parlor/SKILL.md`, and do not add another. Read `skills/parlor/SKILL.md` explicitly when the runner does not load `skills/` automatically. An explicit-resource runner must include this exact file through its approved resource configuration, not enable global discovery.
 
 Read root `SPEC.md` as the sole behavior specification. Select the affected story IDs and numbered criteria before checking; `docs/verification.md` maps them to existing executable checks and the real-browser procedure. Judge observed outputs against those criteria and report unexercised cases, rather than treating a green build as story acceptance.
 
