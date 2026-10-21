@@ -1,0 +1,37 @@
+
+ RUN  v5.0.0 /Users/phaedrus/Documents/Codex/2026-10-20/task-7/parlor
+
+ ❯ integrations/convex/test/lifecycle.test.ts (47 tests | 1 failed | 46 skipped) 14ms
+   ❯ private Convex room and match reference integration (47)
+     × keeps the delayed third peer but excludes a fresh deliberate departure 13ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  integrations/convex/test/lifecycle.test.ts > private Convex room and match reference integration > keeps the delayed third peer but excludes a fresh deliberate departure
+AssertionError: expected [ …(2) ] to deeply equal [ …(3) ]
+
+- Expected
++ Received
+
+  [
+    "0000000000000000000010000players",
+    "0000000000000000000010003players",
+-   "0000000000000000000010005players",
+  ]
+
+ ❯ integrations/convex/test/lifecycle.test.ts:427:51
+    425|         const match = await host.authT.mutation(startMatchRef, { roomI…
+    426|         const state = await cy.authT.query(roomStateRef, { roomId: hos…
+    427|         expect(state.activeMatch?.participantIds).toEqual([
+       |                                                   ^
+    428|           host.room.playerId, bea.playerId, cy.playerId,
+    429|         ]);
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 46 skipped (47)
+   Start at  23:07:40
+   Duration  388ms (import 68%, transform 27%, tests 4%, worker 1%)
+

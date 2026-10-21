@@ -46,12 +46,13 @@ The identifier values are Effect schemas with branded TypeScript types. Their ru
 | `ROOM_CODE_LENGTH`           | 4                                           |
 | `DEFAULT_ROOM_CODE_ATTEMPTS` | 32 in core; the Convex integration tries 16 |
 | `HEARTBEAT_INTERVAL_MS`      | 15,000                                      |
+| `PRESENT_FOR_MS`             | 30,000                                      |
 | `AWAY_AFTER_MS`              | 45,000                                      |
 | `HOST_STALE_AFTER_MS`        | 60,000                                      |
 | `ABANDON_AFTER_MS`           | 600,000                                     |
 | `HARD_DEADLINE_MS`           | 1,800,000                                   |
 
-`DEFAULT_PRESENCE_POLICY` exposes `heartbeatMs`, `awayMs`, `hostStaleMs`, `abandonMs`, `hardDeadlineMs`. Passing a partial policy to one pure function does not reconfigure the Convex integration. `hasMatchDeadlineElapsed({ startedAt, hardDeadline? }, now)` uses the fixed 30-minute duration unless `hardDeadline === false`. Omitting the flag or passing `true` retains that default. See [exact presence boundaries](/docs/rooms-and-presence/#presence-thresholds-are-precise).
+`DEFAULT_PRESENCE_POLICY` exposes `heartbeatMs`, `awayMs`, `hostStaleMs`, `abandonMs`, `hardDeadlineMs`. `heartbeatMs` is the maximum present evidence age (30 seconds by default), independent of the 15-second client send cadence (`HEARTBEAT_INTERVAL_MS`). Passing a partial policy to one pure function does not reconfigure the Convex integration. `hasMatchDeadlineElapsed({ startedAt, hardDeadline? }, now)` uses the fixed 30-minute duration unless `hardDeadline === false`. Omitting the flag or passing `true` retains that default. See [exact presence boundaries](/docs/rooms-and-presence/#presence-thresholds-are-precise).
 
 ## @parlor/auth
 

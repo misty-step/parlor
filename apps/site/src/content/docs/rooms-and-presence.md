@@ -112,14 +112,14 @@ Presence age is `max(0, now - (lastSeenAt ?? joinedAt))`. A new member therefore
 
 | Classification or action              | Default threshold                                                                               |
 | ------------------------------------- | ----------------------------------------------------------------------------------------------- |
-| `classifyPresence(...) === "present"` | Age **≤ 15 seconds**                                                                            |
-| `"away"`                              | Age **> 15 and ≤ 45 seconds**                                                                   |
+| `classifyPresence(...) === "present"` | Age **≤ 30 seconds**                                                                            |
+| `"away"`                              | Age **> 30 and ≤ 45 seconds**                                                                   |
 | `"stale"`                             | Age **> 45 seconds**                                                                            |
 | Eligible for host replacement         | Current host missing, or age **> 60 seconds**                                                   |
 | Everyone-away match abandonment       | Every frozen participant missing from the room or older than **10 minutes**                     |
 | Default match hard deadline           | Time since match start **≥ 30 minutes**, unless that match opted out with `hardDeadline: false` |
 
-The constant named `AWAY_AFTER_MS` is 45 seconds, but it is the upper boundary of the classifier's `away` state, **not** the moment the classifier first returns `away`. Participant selection uses `present`, the tighter 15-second window.
+The constant named `AWAY_AFTER_MS` is 45 seconds, but it is the upper boundary of the classifier's `away` state, **not** the moment the classifier first returns `away`. Participant selection uses `present`, the 30-second window (`PRESENT_FOR_MS`), twice the 15-second send interval (`HEARTBEAT_INTERVAL_MS`).
 
 Use `classifyPresence(member, now)` from `@parlor/core` for display, updating `now` if badges should age between database writes. Convex does not rerun a query solely because time passed. Server checks determine eligibility and authority independently of client badges.
 

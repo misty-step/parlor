@@ -1,0 +1,78 @@
+[
+  {
+    "source": "base",
+    "matchId": "j977hv3fah94306bndwhvhyqdx8gq3vg",
+    "roomId": "js7b0hc6jt81vt4djjt28765p18gpw3w",
+    "cycle": 1,
+    "status": "completed",
+    "participants": [
+      {
+        "playerId": "jd748ksym2dx29sdqnt1wdvw718gqa33",
+        "seatIndex": 0
+      },
+      {
+        "playerId": "jd7b2dff5f8qtwgkk0vw567k0s8gpcma",
+        "seatIndex": 1
+      }
+    ]
+  },
+  {
+    "source": "base",
+    "matchId": "j9734x5dvsjvb62g9adne7e6198gq638",
+    "roomId": "js7b0hc6jt81vt4djjt28765p18gpw3w",
+    "cycle": 2,
+    "status": "completed",
+    "participants": [
+      {
+        "playerId": "jd748ksym2dx29sdqnt1wdvw718gqa33",
+        "seatIndex": 0
+      },
+      {
+        "playerId": "jd7b2dff5f8qtwgkk0vw567k0s8gpcma",
+        "seatIndex": 1
+      }
+    ]
+  },
+  {
+    "source": "candidate",
+    "matchId": "j977m6w5btpvbfakj3v350wthn8gq24m",
+    "roomId": "js7ecmw0hvbbh31bxhr359mjdd8gqz98",
+    "cycle": 1,
+    "status": "completed",
+    "participants": [
+      {
+        "playerId": "jd7ey74zjhp47hswyftkrrb6r98gqpj4",
+        "seatIndex": 0
+      },
+      {
+        "playerId": "jd77q1c2cabqs6453ss7zea3fx8gqpzn",
+        "seatIndex": 1
+      },
+      {
+        "playerId": "jd70fpnknr28dj7dzbswpq2pqd8gqrxa",
+        "seatIndex": 2
+      }
+    ]
+  },
+  {
+    "source": "candidate",
+    "matchId": "j97ftka1r4b8n49dy5ec4ffkbn8gq0ne",
+    "roomId": "js7ecmw0hvbbh31bxhr359mjdd8gqz98",
+    "cycle": 2,
+    "status": "completed",
+    "participants": [
+      {
+        "playerId": "jd7ey74zjhp47hswyftkrrb6r98gqpj4",
+        "seatIndex": 0
+      },
+      {
+        "playerId": "jd77q1c2cabqs6453ss7zea3fx8gqpzn",
+        "seatIndex": 1
+      },
+      {
+        "playerId": "jd70fpnknr28dj7dzbswpq2pqd8gqrxa",
+        "seatIndex": 2
+      }
+    ]
+  }
+]
