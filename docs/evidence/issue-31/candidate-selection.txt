@@ -1,0 +1,9 @@
+
+ RUN  v5.0.0 /Users/phaedrus/Documents/Codex/2026-10-20/task-7/parlor
+
+
+ Test Files  2 passed (2)
+      Tests  62 passed (62)
+   Start at  23:09:43
+   Duration  437ms (import 56%, transform 23%, tests 20%, worker 1%)
+

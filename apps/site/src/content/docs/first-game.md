@@ -71,7 +71,7 @@ The repository's plain `pnpm dev` opens its local playground. Use the filtered c
 
 ## Play with two identities
 
-Keep both windows visible so their presence heartbeats arrive. The default start-selection window is **15 seconds**; if a browser was hidden, bring it forward and let its immediate heartbeat arrive before starting.
+Keep both windows visible so their presence heartbeats arrive. The default start-selection window is **30 seconds**, allowing one extra heartbeat interval for scheduling or network delay; if a browser was hidden, bring it forward and let its immediate heartbeat arrive before starting.
 
 | Action                                                       | What you should observe                                                                                                |
 | ------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------- |

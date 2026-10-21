@@ -165,9 +165,14 @@ As a player, I can distinguish recent presence from absence without a hidden tab
 pretending to remain at the table.
 
 1. Presence uses the latest heartbeat, or join time until the first heartbeat:
-   age up to fifteen seconds is `present`, over fifteen through forty-five is
+   age up to thirty seconds is `present`, over thirty through forty-five is
    `away`, and over forty-five is `stale`. Future evidence has zero age. Host-stale
-   is separate: evidence must be more than sixty seconds old.
+   is separate: evidence must be more than sixty seconds old. The thirty-second
+   present window allows one extra fifteen-second send interval for scheduling or
+   network delay. Initial starts and rematches use that same bounded window for
+   the actor and peers; evidence older than thirty seconds is excluded by default.
+   A deliberate leave removes membership immediately. A connection alone cannot
+   guarantee inclusion through an unbounded delay or partition.
 2. Time facts let a client age an unchanged roster locally. An authorized heartbeat
    records presence and may repair hosting; nonmembers cannot use it to inspect
    room presence. Backwards heartbeat timestamps are rejected.

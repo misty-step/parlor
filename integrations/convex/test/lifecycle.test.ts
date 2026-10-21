@@ -368,6 +368,101 @@ describe("private Convex room and match reference integration", () => {
     },
   );
 
+  it.each([14_999, 15_000, 15_001, 18_000, 30_000])(
+    "freezes three players at heartbeat age %i on initial start and rematch",
+    async (age) => {
+      const joinedAt = 2_000_000_000_000;
+      const clock = vi.spyOn(Date, "now").mockReturnValue(joinedAt);
+      try {
+        const t = testContext();
+        const host = await createRoom(t, "Ari");
+        const bea = await joinRoom(t, host.room.code, "Bea");
+        const cy = await joinRoom(t, host.room.code, "Cy");
+        for (const cycle of [1, 2]) {
+          const beatAt = joinedAt + (cycle - 1) * 60_000;
+          clock.mockReturnValue(beatAt);
+          for (const player of [host, bea, cy]) {
+            await player.authT.mutation(heartbeatRef, { roomId: host.room.roomId });
+          }
+          // No further beats reach the server before Start, including the actor's.
+          clock.mockReturnValue(beatAt + age);
+          const match = await host.authT.mutation(startMatchRef, { roomId: host.room.roomId });
+          const state = await cy.authT.query(roomStateRef, { roomId: host.room.roomId });
+          expect(match.cycle).toBe(cycle);
+          expect(state.activeMatch?.participantIds).toEqual([
+            host.room.playerId,
+            bea.playerId,
+            cy.playerId,
+          ]);
+          await host.authT.run(async (ctx) => {
+            await completeMatch(ctx, { matchId: match.id, actor: await resolvePlayer(ctx) });
+          });
+        }
+      } finally {
+        clock.mockRestore();
+      }
+    },
+  );
+
+  it("keeps the delayed third peer but excludes a fresh deliberate departure", async () => {
+    const joinedAt = 2_000_000_000_000;
+    const clock = vi.spyOn(Date, "now").mockReturnValue(joinedAt);
+    try {
+      const t = testContext();
+      const host = await createRoom(t, "Ari");
+      const bea = await joinRoom(t, host.room.code, "Bea");
+      const cy = await joinRoom(t, host.room.code, "Cy");
+      const departed = await joinRoom(t, host.room.code, "Departed");
+      for (const cycle of [1, 2]) {
+        const beatAt = joinedAt + (cycle - 1) * 60_000;
+        clock.mockReturnValue(beatAt);
+        await cy.authT.mutation(heartbeatRef, { roomId: host.room.roomId });
+        if (cycle === 1) {
+          await departed.authT.mutation(leaveRoomRef, { roomId: host.room.roomId });
+        }
+        clock.mockReturnValue(beatAt + 18_000);
+        for (const player of [host, bea]) {
+          await player.authT.mutation(heartbeatRef, { roomId: host.room.roomId });
+        }
+        const match = await host.authT.mutation(startMatchRef, { roomId: host.room.roomId });
+        const state = await cy.authT.query(roomStateRef, { roomId: host.room.roomId });
+        expect(state.activeMatch?.participantIds).toEqual([
+          host.room.playerId,
+          bea.playerId,
+          cy.playerId,
+        ]);
+        await host.authT.run(async (ctx) => {
+          await completeMatch(ctx, { matchId: match.id, actor: await resolvePlayer(ctx) });
+        });
+      }
+    } finally {
+      clock.mockRestore();
+    }
+  });
+
+  it.each([30_001, 45_000, 45_001, 60_001])(
+    "excludes an unresponsive peer after %i ms and a departed peer immediately",
+    async (age) => {
+      const clock = vi.spyOn(Date, "now").mockReturnValue(2_000_000_000_000);
+      try {
+        const t = testContext();
+        const host = await createRoom(t, "Ari");
+        const bea = await joinRoom(t, host.room.code, "Bea");
+        await joinRoom(t, host.room.code, "Cy");
+        await bea.authT.mutation(leaveRoomRef, { roomId: host.room.roomId });
+        clock.mockReturnValue(Date.now() + age);
+        await host.authT.mutation(heartbeatRef, { roomId: host.room.roomId });
+        await expect(
+          host.authT.mutation(startMatchRef, { roomId: host.room.roomId }),
+        ).rejects.toThrow("NOT_ENOUGH_PRESENT_PLAYERS");
+        const state = await host.authT.query(roomStateRef, { roomId: host.room.roomId });
+        expect(state.activeMatch).toBeNull();
+      } finally {
+        clock.mockRestore();
+      }
+    },
+  );
+
   it("projects time facts so an unchanged room response can age locally", async () => {
     const t = testContext();
     const host = await createRoom(t, "host");
@@ -375,8 +470,8 @@ describe("private Convex room and match reference integration", () => {
     const member = state.members.find((candidate) => candidate.playerId === host.room.playerId);
     if (!member) throw new Error("host missing from projection");
     expect(member).not.toHaveProperty("present");
-    expect(classifyPresence(member, member.joinedAt + 15_000)).toBe("present");
-    expect(classifyPresence(member, member.joinedAt + 15_001)).toBe("away");
+    expect(classifyPresence(member, member.joinedAt + 30_000)).toBe("present");
+    expect(classifyPresence(member, member.joinedAt + 30_001)).toBe("away");
     expect(classifyPresence(member, member.joinedAt + 45_001)).toBe("stale");
   });
 
