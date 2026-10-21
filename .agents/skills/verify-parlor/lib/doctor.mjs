@@ -2,7 +2,6 @@
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { git, revision, root } from "./common.mjs";
-import { inspect } from "./first-tap.mjs";
 
 const row = (ok, name, detail) => {
   console.log(`${ok ? "ok  " : "FAIL"} ${name}${detail ? ` — ${detail}` : ""}`);
@@ -22,10 +21,10 @@ export async function doctor({ url }) {
     "dependencies",
     "pnpm install --frozen-lockfile",
   );
-  const pinned = JSON.parse(
-    readFileSync(join(root, "node_modules/@playwright/test/package.json"), "utf8"),
-  ).version;
   try {
+    const pinned = JSON.parse(
+      readFileSync(join(root, "node_modules/@playwright/test/package.json"), "utf8"),
+    ).version;
     const { chromium } = await import("@playwright/test");
     need(
       existsSync(chromium.executablePath()),
@@ -40,8 +39,8 @@ export async function doctor({ url }) {
     const release = await (
       await fetch(new URL("/release.json", url), { signal: AbortSignal.timeout(15_000) })
     ).json();
-    git("fetch", "--quiet", "origin", "master");
-    const master = git("rev-parse", "origin/master");
+    // ls-remote reads the remote without writing local refs.
+    const master = git("ls-remote", "origin", "refs/heads/master").split(/\s/)[0];
     row(
       true,
       "site release",
@@ -65,6 +64,8 @@ export async function doctor({ url }) {
     need(false, "site", error.message);
   }
 
+  // Imported here so a checkout without dependencies still gets every row above.
+  const { inspect } = await import("./first-tap.mjs");
   const run = await inspect();
   if (run === null) {
     row(

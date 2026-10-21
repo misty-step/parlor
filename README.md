@@ -39,7 +39,7 @@ Requirements: Node.js 22.12+, pnpm 11.25.0.
 pnpm install
 pnpm check      # format, typecheck, lint, test
 pnpm check:all  # check + package builds + Playwright mobile E2E + Convex smoke
-pnpm dev        # playground at http://localhost:5173
+pnpm dev        # playground at http://127.0.0.1:4173
 pnpm --filter @parlor/first-tap dev:backend
 pnpm --filter @parlor/first-tap run setup
 pnpm --filter @parlor/first-tap dev

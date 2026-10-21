@@ -1,7 +1,7 @@
 // Shared plumbing for verify-parlor: repository paths, the evidence directory,
 // and a step recorder that writes a transcript next to the screenshots.
 import { spawnSync } from "node:child_process";
-import { mkdirSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { createServer } from "node:net";
 import { homedir } from "node:os";
 import { join } from "node:path";
@@ -37,6 +37,21 @@ export function evidenceDir(feature) {
   return dir;
 }
 
+// Package exports point at dist/. Build once when any is missing.
+export function ensureBuilt() {
+  const built = [
+    "packages/core",
+    "packages/auth",
+    "packages/web",
+    "packages/react",
+    "integrations/convex",
+  ].every((path) => existsSync(join(root, path, "dist")));
+  if (built) return;
+  console.log("building workspace packages (pnpm build:packages)…");
+  const build = spawnSync("pnpm", ["build:packages"], { cwd: root, stdio: "inherit" });
+  if (build.status !== 0) throw new Error("pnpm build:packages failed");
+}
+
 export async function freePorts(count) {
   const servers = await Promise.all(
     Array.from(
@@ -57,7 +72,8 @@ export async function freePorts(count) {
 export async function portInUse(port, host = "127.0.0.1") {
   return new Promise((resolve) => {
     const server = createServer();
-    server.once("error", () => resolve(true));
+    // Only EADDRINUSE means taken; a host without that address (no ::1) is free.
+    server.once("error", (error) => resolve(error.code === "EADDRINUSE"));
     server.listen(port, host, () => server.close(() => resolve(false)));
   });
 }

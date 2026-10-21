@@ -12,19 +12,19 @@ The playground is a deterministic, browser-only rehearsal of a room's lifecycle,
 
 ## How to get to it (user POV)
 
-- Run `pnpm dev` and open `http://localhost:5173`. Tap the action buttons in order.
+- Run `pnpm dev` and open `http://127.0.0.1:4173`. Tap the action buttons in order.
 
 ## Driving it with verify-parlor
 
 Preconditions:
 
-- Dependencies installed. The driver picks a free port and starts and stops its own Vite server.
+- Dependencies installed. The playground imports `@parlor/react` and `@parlor/web` from their `dist/` builds, so the driver runs `pnpm build:packages` when any is missing. It picks a free port and starts and stops its own Vite server.
 
 - **Sound.** Run `verify-parlor playground`. `[data-testid="sound-toggle"]` goes to "Muted" and back.
 - **Cycle 1.** The driver clicks `create-room`, `add-second-player` and `start-cycle-one`, each confirmed by its `event-<id>` entry. `room-code` reads `B7Q2` and `cycle-number` reads `1`.
 - **Spectator and host.** After `add-late-spectator`, `queued-spectator` has `data-state="queued"`. `make-host-stale` and `migrate-host` change `current-host` to `Bea`.
 - **Cycle 2.** After `complete-match` and `begin-cycle-two`, `cycle-number` reads `2`, the spectator is `seated`, and `event-ledger` contains "8 moves".
-- **Proof.** `playground/transcript.md`, `01-cycle-one.png` and `02-cycle-two.png`.
+- **Proof.** `playground/transcript.md`, `01-cycle-one.png` and `02-cycle-two.png`. A failed step adds `vite.log`.
 
 ## Gotchas
 

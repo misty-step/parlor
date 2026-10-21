@@ -1,12 +1,12 @@
 // Drives the public website the way a visitor and a coding agent use it.
 // Read-only: it only issues GET requests and clicks client-side demos.
-// Error-intake envelopes (Sentry) are intercepted and counted, never delivered,
+// Every non-GET request to another origin (the Sentry error intake is the only
+// one the site's CSP allows) is intercepted and counted, never delivered,
 // so fault probes do not file events in the production project.
 import { createHash } from "node:crypto";
 import { chromium, devices } from "@playwright/test";
 import { Recorder, assert, git } from "./common.mjs";
 
-const SENTRY = "https://*.ingest.us.sentry.io/**";
 const CODE = /^[23456789ABCDEFGHJKLMNPQRSTUVWXYZ]{4}$/;
 
 function luminance(color) {
@@ -35,10 +35,15 @@ export async function site({ url }) {
   const envelopes = [];
   const newContext = async (options = {}) => {
     const context = await browser.newContext(options);
-    await context.route(SENTRY, (route) => {
-      envelopes.push(route.request().url().replace(/\?.*$/, ""));
-      return route.fulfill({ status: 200, body: "{}" });
-    });
+    await context.route(
+      (target) => target.host !== base.host,
+      (route) => {
+        if (route.request().method() === "GET") return route.continue();
+        const target = new URL(route.request().url());
+        envelopes.push(`${route.request().method()} ${target.host}${target.pathname}`);
+        return route.fulfill({ status: 200, body: "{}" });
+      },
+    );
     context.on("page", (page) =>
       page.on("pageerror", (error) => pageErrors.push(`${page.url()}: ${error.message}`)),
     );
@@ -340,7 +345,12 @@ export async function site({ url }) {
 
     await rec.step("no uncaught page errors", async () => {
       assert(pageErrors.length === 0, pageErrors.join("; "));
-      return `0 page errors; ${envelopes.length} error-intake envelope(s) intercepted, none delivered`;
+      const intake = envelopes.filter((entry) => /\.sentry\.io\//.test(entry)).length;
+      assert(
+        intake === envelopes.length,
+        `unexpected cross-origin writes intercepted: ${envelopes.join(", ")}`,
+      );
+      return `0 page errors; ${envelopes.length} cross-origin write(s) intercepted (Sentry intake), none delivered`;
     });
   } finally {
     await browser.close();

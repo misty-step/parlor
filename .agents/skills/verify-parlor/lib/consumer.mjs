@@ -33,14 +33,25 @@ export async function consumer() {
   });
 
   await rec.step("generated consumer on a real local Convex backend", async () => {
-    const smoke = run("pnpm", ["smoke:convex"], { timeout: 600_000 });
-    // The smoke prints raw backend logs on failure; keep only the JSON receipt.
+    const smoke = run("pnpm", ["smoke:convex"], {
+      timeout: 600_000,
+      env: { ...process.env, CONVEX_LOCAL_BACKEND_STARTUP_TIMEOUT_SECS: "120" },
+    });
+    // The smoke prints raw backend logs on failure. Keep the JSON receipt, or on
+    // failure only the CLI's own error lines, never the log itself.
     const receipt = smoke.stdout.slice(smoke.stdout.indexOf("{\n"));
     let parsed;
     try {
       parsed = JSON.parse(receipt);
     } catch {
-      throw new Error(`pnpm smoke:convex exit ${smoke.status} without a JSON receipt`);
+      const reasons = smoke.out
+        .split("\n")
+        .filter((line) => /^✖|did not start|exited before readiness|^Error\b|ELIFECYCLE/.test(line))
+        .map((line) => line.slice(0, 300));
+      writeFileSync(rec.path("smoke-failure.txt"), `${reasons.join("\n")}\n`);
+      throw new Error(
+        `pnpm smoke:convex exit ${smoke.status} without a JSON receipt: ${reasons[0] ?? "no CLI error line"} (smoke-failure.txt)`,
+      );
     }
     writeFileSync(rec.path("smoke-receipt.json"), `${JSON.stringify(parsed, null, 2)}\n`);
     assert(

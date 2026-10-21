@@ -25,7 +25,7 @@ Parlor has no accounts and no owner identity, so owner sign-in does not apply. N
 - Capture the action and the resulting state, with screenshots named by step.
 - Read stored state for First Tap mutations, not just the screen.
 - Report an unreachable path with the command tried and the missing precondition. Do not report a skipped entry point as verified through another path.
-- Name the evidence gaps that no driver closes: physical phones, hosted Secure cookies, real backgrounding, audible audio, the wake lock grant, and Sentry receipts.
+- Name the evidence gaps that no driver closes: physical phones, hosted Secure cookies, real backgrounding, audible audio, the wake lock grant, Sentry receipts, and slow network on the website. The site is static, and its only network-dependent paths (the search index and Markdown fetch) are driven as failures instead. Slow network in a room is driven.
 
 ## Feature entry contract
 
@@ -36,6 +36,6 @@ Each feature file starts with an H1 title and one paragraph describing the user-
 - [Size up Parlor on its website](./site.md): the home page demos, the gallery links, light and dark appearance, reduced motion, phone width, the changelog and 404 (US-004, US-013, US-014).
 - [Docs and agent surfaces](./docs-and-agent-surfaces.md): guides as HTML and Markdown, search and its failure state, the copy controls, `/skill.md` and `/llms*.txt` (US-012).
 - [Guest sign-in](./guest-sign-in.md): First Tap's issuer and continuity cookie, the wrong-origin, missing and forged credential cases, and the same player after a reload (US-005).
-- [Play a room](./first-tap-room.md): create, join, the frozen lineup, the winning tap, a rematch with a late arrival, offline, host transfer, closure, stored state and the backend down (US-001, US-002, US-003, US-006, US-010, US-011).
+- [Play a room](./first-tap-room.md): create, join, the frozen lineup, the winning tap, a rematch with a late arrival, offline, a slow network, host transfer, closure, stored state and the backend down (US-001, US-002, US-003, US-006, US-010, US-011).
 - [Playground rehearsal](./playground.md): the simulated room lifecycle on a phone screen (US-011).
 - [Build on Parlor](./consumer.md): building the packages, a real-backend consumer smoke, and importing the skill into a game (US-001, US-002, US-005, US-007, US-012).

@@ -2,9 +2,12 @@
 // It simulates identity and state; it proves the React room UI, not Convex.
 import { spawn } from "node:child_process";
 import { chromium, devices } from "@playwright/test";
-import { Recorder, assert, fatal, freePorts, root, waitFor } from "./common.mjs";
+import { writeFileSync } from "node:fs";
+import { Recorder, assert, ensureBuilt, fatal, freePorts, root, waitFor } from "./common.mjs";
 
 export async function playground() {
+  // The playground resolves @parlor/react and @parlor/web from their dist/ builds.
+  ensureBuilt();
   const [port] = await freePorts(1);
   const url = `http://127.0.0.1:${port}`;
   const rec = new Recorder("playground", { target: `${url} (simulated, no backend)` });
@@ -30,6 +33,7 @@ export async function playground() {
   vite.stdout.on("data", (chunk) => (log += chunk));
   vite.stderr.on("data", (chunk) => (log += chunk));
   const browser = await chromium.launch();
+  rec.onFail = async () => writeFileSync(rec.path("vite.log"), log);
   try {
     await waitFor(
       "playground",

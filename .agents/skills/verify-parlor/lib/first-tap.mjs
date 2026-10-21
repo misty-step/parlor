@@ -9,6 +9,7 @@ import {
   mkdirSync,
   mkdtempSync,
   openSync,
+  readdirSync,
   readFileSync,
   rmSync,
   writeFileSync,
@@ -17,6 +18,7 @@ import { join } from "node:path";
 import {
   Recorder,
   assert,
+  ensureBuilt,
   fatal,
   freePorts,
   portInUse,
@@ -38,14 +40,53 @@ const stateFile = join(
 
 const readState = () =>
   existsSync(stateFile) ? JSON.parse(readFileSync(stateFile, "utf8")) : null;
-const alive = (pgid) => {
-  try {
-    process.kill(-pgid, 0);
-    return true;
-  } catch {
-    return false;
+
+// Every process a run starts carries HOME=<run home>. Ownership is checked per
+// process on each use, so a stale state file or a reused process-group ID can
+// never make cleanup signal someone else's processes. Linux /proc only.
+function owned(home, pgid) {
+  const marker = `\0HOME=${home}\0`;
+  const pids = [];
+  for (const entry of readdirSync("/proc")) {
+    if (!/^\d+$/.test(entry)) continue;
+    try {
+      const stat = readFileSync(`/proc/${entry}/stat`, "utf8");
+      const group = Number(stat.slice(stat.lastIndexOf(")") + 2).split(" ")[2]);
+      if (pgid !== undefined && group !== pgid) continue;
+      if (`\0${readFileSync(`/proc/${entry}/environ`, "latin1")}`.includes(marker)) {
+        pids.push(Number(entry));
+      }
+    } catch {
+      // Exited, or not ours to read.
+    }
   }
-};
+  return pids;
+}
+const alive = (home, pgid) => pgid !== undefined && owned(home, pgid).length > 0;
+
+async function stop(home, pgid) {
+  const signal = (name) => {
+    for (const pid of owned(home, pgid)) {
+      try {
+        process.kill(pid, name);
+      } catch {
+        // Already gone.
+      }
+    }
+  };
+  signal("SIGTERM");
+  for (let waited = 0; owned(home, pgid).length > 0 && waited < 15_000; waited += 250) {
+    await sleep(250);
+  }
+  signal("SIGKILL");
+}
+
+// The pid listening on a TCP port, from `ss`; null when none or unknown.
+function listener(port) {
+  const result = spawnSync("ss", ["-Hltnp", `sport = :${port}`], { encoding: "utf8" });
+  const pid = result.stdout?.match(/pid=(\d+)/)?.[1];
+  return pid ? Number(pid) : null;
+}
 
 // Selectors only. Never print the file: it holds signing keys.
 function envSelectors() {
@@ -125,8 +166,23 @@ export async function inspect() {
     true,
     `${stateFile} (started ${state.startedAt} at ${state.revision.slice(0, 7)})`,
   ]);
-  checks.push(["backend process", alive(state.backend), `process group ${state.backend}`]);
-  checks.push(["web process", alive(state.web), `process group ${state.web}`]);
+  for (const [name, pgid] of [
+    ["backend process", state.backend],
+    ["web process", state.web],
+  ]) {
+    const ours = alive(state.home, pgid);
+    checks.push([
+      name,
+      ours,
+      `process group ${pgid}${ours ? ", running with this run's HOME" : ": none running with this run's HOME"}`,
+    ]);
+  }
+  const holder = listener(3000);
+  checks.push([
+    "port 3000 owner",
+    holder !== null && owned(state.home).includes(holder),
+    holder === null ? "no listener on :3000" : `pid ${holder}`,
+  ]);
   const env = envSelectors();
   checks.push([
     "backend selection",
@@ -151,6 +207,10 @@ export async function inspect() {
     const lobby = await fetch(APP, { signal: AbortSignal.timeout(15_000) });
     const html = await lobby.text();
     checks.push(["lobby", lobby.ok && html.includes("First Tap"), `${APP} HTTP ${lobby.status}`]);
+  } catch (error) {
+    checks.push(["lobby", false, error.message]);
+  }
+  try {
     const wrong = await issuer("http://127.0.0.1:3000", { mode: "acquire" });
     checks.push([
       "issuer origin guard",
@@ -160,7 +220,7 @@ export async function inspect() {
       `wrong origin -> ${wrong.status} ${wrong.json.code ?? ""}`,
     ]);
   } catch (error) {
-    checks.push(["lobby", false, error.message]);
+    checks.push(["issuer origin guard", false, error.message]);
   }
   return { state, checks };
 }
@@ -175,9 +235,9 @@ export async function up() {
       "examples/first-tap/.env.local already exists. This checkout is not a fresh target; use a dedicated worktree (never copy or delete another run's keys).",
     );
   }
-  if ((await portInUse(3000)) || (await portInUse(3000, "::1").catch(() => false))) {
+  if ((await portInUse(3000)) || (await portInUse(3000, "::1"))) {
     throw new Error(
-      "Port 3000 is in use. The issuer only allows http://localhost:3000; never stop a listener this run did not start.",
+      "Port 3000 is in use. The issuer only allows http://localhost:3000, so one First Tap run fits per machine; wait for the other run to finish and never stop a listener this run did not start.",
     );
   }
   const smoke = readFileSync(join(root, "scripts/smoke-convex.mjs"), "utf8");
@@ -186,16 +246,7 @@ export async function up() {
     backendVersion,
     "could not read the pinned local backend version from scripts/smoke-convex.mjs",
   );
-  if (
-    !["core", "auth", "web", "react"].every((name) =>
-      existsSync(join(root, `packages/${name}/dist`)),
-    ) ||
-    !existsSync(join(root, "integrations/convex/dist"))
-  ) {
-    console.log("building workspace packages (pnpm build:packages)…");
-    const build = spawnSync("pnpm", ["build:packages"], { cwd: root, stdio: "inherit" });
-    assert(build.status === 0, "pnpm build:packages failed");
-  }
+  ensureBuilt();
 
   mkdirSync(join(scratch, "first-tap"), { recursive: true });
   const home = mkdtempSync(join(scratch, "first-tap", "home-"));
@@ -217,7 +268,6 @@ export async function up() {
       web: join(home, "web.log"),
     },
     ports: { app: 3000, cloud: cloudPort, site: sitePort },
-    envCreated: true,
     nextExisted,
     convexExisted,
     nextEnvClean,
@@ -241,11 +291,20 @@ export async function up() {
     state.logs.backend,
   );
   writeFileSync(stateFile, `${JSON.stringify(state, null, 2)}\n`);
+  try {
+    await ready(state);
+  } catch (error) {
+    error.message += `\nThis attempt's processes may still be running. Stop them with: verify-parlor first-tap down`;
+    throw error;
+  }
+}
 
+async function ready(state) {
+  const { home } = state;
   await waitFor(
     "Convex functions",
     () => {
-      if (!alive(state.backend)) throw fatal(`backend exited; see ${state.logs.backend}`);
+      if (!alive(home, state.backend)) throw fatal(`backend exited; see ${state.logs.backend}`);
       return readFileSync(state.logs.backend, "utf8").includes("Convex functions ready");
     },
     180_000,
@@ -281,12 +340,17 @@ export async function up() {
   await waitFor(
     "First Tap lobby",
     async () => {
-      if (!alive(state.web)) throw fatal(`web server exited; see ${state.logs.web}`);
+      if (!alive(home, state.web)) throw fatal(`web server exited; see ${state.logs.web}`);
       const response = await fetch(APP, { signal: AbortSignal.timeout(60_000) });
       return response.ok && (await response.text()).includes("First Tap");
     },
     180_000,
     1_000,
+  );
+  const holder = listener(3000);
+  assert(
+    holder !== null && owned(home).includes(holder),
+    `port 3000 is served by pid ${holder}, not this run; stop with: verify-parlor first-tap down`,
   );
   console.log(`ready: ${APP} (state ${stateFile})`);
 }
@@ -301,29 +365,45 @@ export async function down() {
     ["web", state.web],
     ["backend", state.backend],
   ]) {
-    if (!pgid || !alive(pgid)) continue;
-    process.kill(-pgid, "SIGTERM");
-    for (let waited = 0; alive(pgid) && waited < 15_000; waited += 250) await sleep(250);
-    if (alive(pgid)) process.kill(-pgid, "SIGKILL");
-    console.log(`stopped ${name} (process group ${pgid})`);
+    if (!alive(state.home, pgid)) continue;
+    await stop(state.home, pgid);
+    console.log(`stopped ${name} (process group ${pgid}, HOME is this run's)`);
+  }
+  const strays = owned(state.home);
+  if (strays.length > 0) {
+    console.log(`stopping ${strays.length} other process(es) with this run's HOME`);
+    await stop(state.home);
   }
   for (const port of Object.values(state.ports)) {
     if (await portInUse(port))
       console.log(`WARNING port ${port} still has a listener; it is not ours to stop`);
   }
+  // Only this run's .env.local: it selects the backend port this run chose.
   const env = envSelectors();
-  if (state.envCreated && env?.deployment === "anonymous") rmSync(envFile, { force: true });
+  const removed = ["run HOME", "state"];
+  if (
+    env?.deployment === "anonymous" &&
+    env.convexUrl !== null &&
+    new URL(env.convexUrl).port === String(state.ports.cloud)
+  ) {
+    rmSync(envFile, { force: true });
+    removed.push(".env.local");
+  } else if (env !== null) {
+    console.log("left examples/first-tap/.env.local alone: it does not select this run's backend");
+  }
   if (!state.nextExisted) rmSync(join(app, ".next"), { recursive: true, force: true });
   if (!state.convexExisted) rmSync(join(app, ".convex"), { recursive: true, force: true });
   if (state.nextEnvClean)
     spawnSync("git", ["-C", root, "checkout", "--", "examples/first-tap/next-env.d.ts"]);
-  rmSync(state.home, { recursive: true, force: true });
+  if (state.home.startsWith(join(scratch, "first-tap", "home-"))) {
+    rmSync(state.home, { recursive: true, force: true });
+  }
   rmSync(stateFile, { force: true });
   const changed = spawnSync("git", ["-C", root, "status", "--porcelain", "examples/first-tap"], {
     encoding: "utf8",
   }).stdout.trim();
   console.log(
-    `removed run HOME, .env.local and state. ${changed ? `Generated changes retained for review:\n${changed}` : "No source changes under examples/first-tap."}`,
+    `removed ${removed.join(", ")}. ${changed ? `Generated changes retained for review:\n${changed}` : "No source changes under examples/first-tap."}`,
   );
 }
 
@@ -356,8 +436,10 @@ export async function drive() {
     return who;
   };
   // Presence is "present" only within 15s of a heartbeat, and clients beat every
-  // 15s (US-006), so a start can legally drop a member whose beat is a moment
-  // late. Starts wait until every listed player beat within the last 8 seconds.
+  // 15s (US-006), so a start can legally freeze out a connected member whose
+  // beat is a moment late (https://github.com/misty-step/parlor/issues/31).
+  // The host is safe: First Tap's Start sends the host's heartbeat first. Starts
+  // wait until the other players beat within 8 seconds, then check the lineup.
   // Frames carry the guest token: match the function name, never log payloads.
   function noteBeat(who, payload) {
     if (String(payload).includes('"rooms:heartbeat"')) {
@@ -369,7 +451,7 @@ export async function drive() {
     waitFor(
       `fresh heartbeats from ${players.map((who) => who.name).join(", ")}`,
       () => players.every((who) => who.beats > 0 && Date.now() - who.lastBeat <= 8_000),
-      40_000,
+      60_000,
       100,
     );
   const lineup = (who) =>
@@ -413,6 +495,7 @@ export async function drive() {
   // is routed through the harness, which can cut it and refuse reconnects.
   const cySockets = new Set();
   let cyOffline = false;
+  let cyDelayMs = 0;
   await cy.context.routeWebSocket(/.*/, (socket) => {
     if (cyOffline) {
       void socket.close({ code: 4000, reason: "verify-parlor offline" });
@@ -420,7 +503,8 @@ export async function drive() {
       const server = socket.connectToServer();
       socket.onMessage((message) => {
         noteBeat(cy, message);
-        server.send(message);
+        if (cyDelayMs > 0) setTimeout(() => server.send(message), cyDelayMs);
+        else server.send(message);
       });
       cySockets.add(socket);
     }
@@ -432,6 +516,45 @@ export async function drive() {
     const open = [...cySockets];
     cySockets.clear();
     for (const socket of open) await socket.close({ code: 4000, reason: "verify-parlor offline" });
+  };
+  // Starts a match and checks who was frozen into it. A US-006 freeze-out (a
+  // connected player left watching, or a start refused for too few present
+  // players) is recorded, the match is finished by the host, and the start is
+  // retried, up to three times. Stored state is checked against `lineups`.
+  const races = [];
+  const lineups = [];
+  const startWithLineup = async (others, expected) => {
+    const start = ari.page.getByRole("button", { name: /^Start (match|rematch)$/ });
+    const alert = ari.page.locator('.room-stack p.error[role="alert"]');
+    for (let attempt = 1; attempt <= 3; attempt++) {
+      await waitFor("Start enabled", () => start.isEnabled(), SLOW);
+      await freshBeats(others);
+      await start.click();
+      await waitFor(
+        "start outcome",
+        async () =>
+          (await ari.page.getByRole("button", { name: "Starting…" }).count()) === 0 &&
+          ((await button(ari, "Tap to win").count()) > 0 || (await alert.count()) > 0),
+        SLOW,
+      );
+      if ((await button(ari, "Tap to win").count()) === 0) {
+        races.push(`attempt ${attempt}: start refused: ${await alert.textContent()}`);
+        continue;
+      }
+      const roster = await lineup(ari);
+      const playing = roster.filter((row) => row.endsWith("· Playing")).length;
+      lineups.push(playing);
+      const number = await ari.page.locator(".match-number").textContent();
+      if (playing === expected) return `${number}: ${roster.join(" | ")}`;
+      races.push(
+        `attempt ${attempt}: ${number} froze in ${playing}/${expected}: ${roster.join(" | ")}`,
+      );
+      await button(ari, "Tap to win").click();
+      await text(ari, "Ari wins");
+    }
+    throw new Error(
+      `US-006 presence race on every attempt (https://github.com/misty-step/parlor/issues/31): ${races.join("; ")}`,
+    );
   };
   let code;
   const ids = {};
@@ -531,13 +654,9 @@ export async function drive() {
     });
 
     await rec.step("Ari starts match 1 with a frozen lineup", async () => {
-      const start = button(ari, "Start match");
-      await waitFor("Start match enabled", () => start.isEnabled(), 30_000);
-      await freshBeats([bea]);
-      await start.click();
-      await text(ari, "Match 1");
+      const observed = await startWithLineup([bea], 2);
       await button(bea, "Tap to win").waitFor({ timeout: SLOW });
-      return `both players see 'Tap to win'; Ari's roster: ${(await lineup(ari)).join(" | ")}`;
+      return `both players see 'Tap to win'; ${observed}${races.length ? `; races: ${races.join("; ")}` : ""}`;
     });
 
     await rec.step("Cy arrives late and only watches", async () => {
@@ -562,18 +681,11 @@ export async function drive() {
     });
 
     await rec.step("rematch admits Cy", async () => {
-      const start = button(ari, "Start rematch");
-      await waitFor("Start rematch enabled", () => start.isEnabled(), 30_000);
-      await freshBeats([bea, cy]);
-      await start.click();
-      await text(ari, "Match 2");
+      const before = races.length;
+      const observed = await startWithLineup([bea, cy], 3);
       await button(cy, "Tap to win").waitFor({ timeout: SLOW });
-      const roster = await lineup(ari);
-      assert(
-        roster.filter((row) => row.endsWith("· Playing")).length === 3,
-        `match 2 lineup ${roster.join(" | ")}`,
-      );
-      return `Match 2; all three playing: ${roster.join(" | ")}`;
+      const raced = races.slice(before);
+      return `all three playing: ${observed}${raced.length ? `; races: ${raced.join("; ")}` : ""}`;
     });
 
     await rec.step("offline player cannot tap, then recovers", async () => {
@@ -600,10 +712,17 @@ export async function drive() {
       return `status '${await status.textContent()}' after recovery; while cut: tap disabled, 'Reconnecting.' shown`;
     });
 
-    await rec.step("Cy wins match 2", async () => {
-      await button(cy, "Tap to win").click();
-      for (const who of [ari, bea, cy]) await text(who, "Cy wins");
-      return "all three show 'Cy wins'";
+    await rec.step("slow network: Cy's tap shows as pending, then wins", async () => {
+      cyDelayMs = 3_000;
+      try {
+        await button(cy, "Tap to win").click();
+        await button(cy, "Tap sent…").waitFor({ timeout: 2_000 });
+        await shot(cy, "06b-cy-slow-tap.png");
+        for (const who of [ari, bea, cy]) await text(who, "Cy wins");
+      } finally {
+        cyDelayMs = 0;
+      }
+      return "with Cy's messages delayed 3s: 'Tap sent…' shown, then all three show 'Cy wins'";
     });
 
     await rec.step("Bea refreshes and rejoins as the same player and seat", async () => {
@@ -674,24 +793,24 @@ export async function drive() {
         matches.some((match) => match._id === row.matchId),
       );
       assert(
-        matches.length === 2 && completed === 2,
-        `matches ${matches.map((row) => row.status).join(",")}`,
+        matches.length === lineups.length && completed === lineups.length,
+        `matches ${matches.map((row) => row.status).join(",")}; screens started ${lineups.length}`,
       );
       const perMatch = matches
         .toSorted((a, b) => a.cycle - b.cycle)
         .map((match) => participants.filter((row) => row.matchId === match._id).length);
       assert(
-        perMatch.join(",") === "2,3",
-        `frozen participants per match ${perMatch.join(",")} (expected 2,3)`,
+        perMatch.join(",") === lineups.join(","),
+        `frozen participants per match ${perMatch.join(",")}; screens showed ${lineups.join(",")}`,
       );
-      return `room closed; 2 completed matches; 5 frozen participant rows (2 then 3)`;
+      return `room closed; ${completed} completed matches; frozen participants per match ${perMatch.join(",")}, as the screens showed`;
     });
 
     await rec.step("backend down: the room says it is reconnecting", async () => {
       await lobby(ari);
       await button(ari, "Create room").click();
       await roomCode(ari);
-      process.kill(-run.state.backend, "SIGTERM");
+      await stop(run.state.home, run.state.backend);
       const status = ari.page.locator(".room-header .parlor-connection-status");
       await waitFor(
         "connection lost",

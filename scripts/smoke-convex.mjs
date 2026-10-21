@@ -45,6 +45,13 @@ const environment = {
   CONVEX_AGENT_MODE: "anonymous",
   CI: "1",
   DO_NOT_TRACK: "1",
+  // A loaded machine can need longer than the CLI's 30-second backend start.
+  ...(process.env["CONVEX_LOCAL_BACKEND_STARTUP_TIMEOUT_SECS"]
+    ? {
+        CONVEX_LOCAL_BACKEND_STARTUP_TIMEOUT_SECS:
+          process.env["CONVEX_LOCAL_BACKEND_STARTUP_TIMEOUT_SECS"],
+      }
+    : {}),
 };
 let backend;
 let client;

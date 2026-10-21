@@ -20,7 +20,7 @@ Preconditions:
 - Network access for the pinned Convex backend download (`smoke:convex`). Run it from the checkout under test.
 
 - **Build.** Run `verify-parlor consumer`. `pnpm build:packages` exits 0, and its log is saved as `build.log`.
-- **Smoke.** `pnpm smoke:convex` exits 0. The JSON receipt, with `ok`, `backendVersion` and `proved` and no backend logs, is saved as `smoke-receipt.json`.
+- **Smoke.** `pnpm smoke:convex` runs with `CONVEX_LOCAL_BACKEND_STARTUP_TIMEOUT_SECS=120` and exits 0. The JSON receipt, with `ok`, `backendVersion` and `proved` and no backend logs, is saved as `smoke-receipt.json`. On failure, only the CLI's own error lines (`✖ …`) are saved, as `smoke-failure.txt`.
 - **Import.** In a scratch Git repository, the driver clones this checkout into `vendor/parlor` and runs the importer. `SOURCE.json` shows `framework.installed: true`, `revision` equal to the checkout HEAD, and a `reference.sha256` that matches `reference.md`. A second run prints `Unchanged`. The receipt is saved as `imported-SOURCE.json`.
 - **Self-import.** `--target` set to this repository fails with "Choose a consuming game repository…".
 - **Proof.** `consumer/transcript.md` and the three files above.
@@ -28,5 +28,6 @@ Preconditions:
 ## Gotchas
 
 - The importer pins committed HEAD. Uncommitted skill edits are not imported, by design.
+- The Convex CLI gives a local backend 30 seconds to start by default. A loaded machine can need longer: `✖ Local backend did not start on port … within 30 seconds`. The driver passes 120 seconds, which `scripts/smoke-convex.mjs` forwards ([#32](https://github.com/misty-step/parlor/issues/32)). Its default is still the CLI's 30 seconds.
 - `smoke:convex` prints raw backend logs on failure. Read them locally for secrets before sharing anything, and commit only the JSON receipt.
 - This proves the libraries against a real backend, not a deployed game. A game's hosted identity, cookies and hidden-state rules are verified in that game's repository.
