@@ -1,0 +1,35 @@
+{
+  "feature": "consumer",
+  "startedAt": "2026-10-20T22:32:44.519Z",
+  "head": "443991cb548865d2ba9460422b78ac08683936e3",
+  "dirty": false,
+  "target": "this checkout's source packages",
+  "finishedAt": "2026-10-20T22:34:06.659Z",
+  "ok": true,
+  "steps": [
+    {
+      "name": "build the source packages",
+      "ok": true,
+      "observed": "pnpm build:packages exit 0",
+      "ms": 2410
+    },
+    {
+      "name": "generated consumer on a real local Convex backend",
+      "ok": true,
+      "observed": "ok on precompiled-2026-08-25-7cce8fb; proved 9: verified guest identity; idempotent join; atomic game/match composition; immutable roster and late-join rematch; same-player token renewal; deadline enforcement before sweeping; rejected completion leaves game score unchanged; registered scheduled abandonment; room closure",
+      "ms": 79545
+    },
+    {
+      "name": "import the skill into a game with a pinned vendor checkout",
+      "ok": true,
+      "observed": "SKILL.md, reference.md, SOURCE.json pinned to 443991c; re-import 'Unchanged'",
+      "ms": 125
+    },
+    {
+      "name": "importer refuses the Parlor repository itself",
+      "ok": true,
+      "observed": "refused with 'Choose a consuming game repository…'",
+      "ms": 29
+    }
+  ]
+}

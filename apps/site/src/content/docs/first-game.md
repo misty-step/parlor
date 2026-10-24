@@ -139,7 +139,7 @@ The example's generated Convex types are committed so `pnpm check` and fresh che
 
 ## Isolated repository verification
 
-Use this path for Parlor changes that need the real issuer and rendered game, not an established consumer deployment. The canonical agent entry point is `skills/parlor/SKILL.md`; inside this repository load it directly, without importing it into itself. `pnpm test:e2e` targets the simulated playground, while `pnpm smoke:convex` targets a real disposable backend without the First Tap HTTP/UI layer. Neither alone proves this journey.
+Use this path for Parlor changes that need the real issuer and rendered game, not an established consumer deployment. The canonical agent entry point is `skills/parlor/SKILL.md`; inside this repository load it directly, without importing it into itself. The repository's `.agents/skills/verify-parlor` skill automates this procedure, from an owned target through three identities to cleanup. `pnpm test:e2e` targets the simulated playground, while `pnpm smoke:convex` targets a real disposable backend without the First Tap HTTP/UI layer. Neither alone proves this journey.
 
 ### Own a fresh local target
 
@@ -153,11 +153,12 @@ pnpm build:packages
 mktemp -d /tmp/parlor-first-tap-home.XXXXXX
 ```
 
-Save the returned directory as `PARLOR_VERIFY_HOME` in each terminal below. It is the run-owned HOME, not your normal home directory. Start the backend in a supervised process (for an agent, use its process manager with PTY disabled rather than a detached shell). Interactive terminals may ask to install Convex AI files: decline that optional generation; keep Parlor's existing skills. Before restarting any retained process after an interruption, confirm its worktree and HOME still exist; lost temporary state requires a fresh target, not a fallback working directory.
+Save the returned directory as `PARLOR_VERIFY_HOME` in each terminal below. It is the run-owned HOME, not your normal home directory. The commands below set `pnpm_config_verify_deps_before_run=false`: without it, pnpm reinstalls the whole workspace into this HOME's empty store before each script, and once the HOME is removed every later `pnpm` command in the checkout fails until `node_modules` is reinstalled. Start the backend in a supervised process (for an agent, use its process manager with PTY disabled rather than a detached shell). Interactive terminals may ask to install Convex AI files: decline that optional generation; keep Parlor's existing skills. Before restarting any retained process after an interruption, confirm its worktree and HOME still exist; lost temporary state requires a fresh target, not a fallback working directory.
 
 ```sh
 env -i PATH="$PATH" HOME="$PARLOR_VERIFY_HOME" \
   XDG_CONFIG_HOME="$PARLOR_VERIFY_HOME/.config" \
+  pnpm_config_verify_deps_before_run=false \
   CONVEX_AGENT_MODE=anonymous CI=1 DO_NOT_TRACK=1 \
   pnpm --filter @parlor/first-tap dev:backend \
   --local-backend-version precompiled-2026-08-25-7cce8fb
@@ -170,6 +171,7 @@ With that backend still running, use the same isolated HOME for setup:
 ```sh
 env -i PATH="$PATH" HOME="$PARLOR_VERIFY_HOME" \
   XDG_CONFIG_HOME="$PARLOR_VERIFY_HOME/.config" \
+  pnpm_config_verify_deps_before_run=false \
   CONVEX_AGENT_MODE=anonymous CI=1 DO_NOT_TRACK=1 \
   pnpm --filter @parlor/first-tap run setup
 ```
@@ -179,6 +181,7 @@ Allow up to four minutes for setup's bounded CLI calls. It must report successfu
 ```sh
 env -i PATH="$PATH" HOME="$PARLOR_VERIFY_HOME" \
   XDG_CONFIG_HOME="$PARLOR_VERIFY_HOME/.config" \
+  pnpm_config_verify_deps_before_run=false \
   pnpm --filter @parlor/first-tap dev
 ```
 

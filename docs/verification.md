@@ -40,7 +40,9 @@ not certify these unexercised clauses.
 
 ## Real issuer and multiplayer browser
 
-Follow [First Tap's isolated verification procedure](../apps/site/src/content/docs/first-game.md#isolated-repository-verification).
+Follow [First Tap's isolated verification procedure](../apps/site/src/content/docs/first-game.md#isolated-repository-verification),
+or run it with [`verify-parlor`](../.agents/skills/verify-parlor/SKILL.md), which also drives
+the website, the playground and the library consumer path and records evidence.
 It owns the HOME, backend, origin, setup, readiness, three separate identities,
 refresh/rejoin, late arrival/rematch, host departure, closure, stored-state check,
 wrong-origin rejection, and owned cleanup. Compare results with US-001–003,

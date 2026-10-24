@@ -1,0 +1,45 @@
+$ verify-parlor first-tap up
+started Convex backend (process group 1169927), log ~/.cache/tmp/verify-parlor/first-tap/home-uZ472O/backend.log
+backend ready: anonymous deployment at http://127.0.0.1:39121
+guest issuer configured on this backend only
+started Next.js (process group 1225672), log ~/.cache/tmp/verify-parlor/first-tap/home-uZ472O/web.log
+ready: http://localhost:3000 (state ~/.cache/tmp/verify-parlor/first-tap/3d92a3258ce1.json)
+$ verify-parlor doctor
+ok   checkout — ~/.t3/worktrees/parlor/verify-verification-skill @ 443991c
+ok   dependencies — pnpm install --frozen-lockfile
+ok   playwright chromium — @playwright/test 1.62.1; else pnpm exec playwright install chromium
+ok   site release — https://parlor.mistystep.io serves 1.0.0 from 1e8a134
+ok   site freshness — matches origin/master
+ok   site home — HTTP 200, CSP present
+ok   first-tap state — ~/.cache/tmp/verify-parlor/first-tap/3d92a3258ce1.json (started 2026-10-20T22:30:18.110Z at 443991c)
+ok   first-tap backend process — process group 1169927
+ok   first-tap web process — process group 1225672
+ok   first-tap backend selection — anonymous: at http://127.0.0.1:39121, guest config present
+ok   first-tap backend answers — http://127.0.0.1:39121/version HTTP 200
+ok   first-tap lobby — http://localhost:3000 HTTP 200
+ok   first-tap issuer origin guard — wrong origin -> 403 SAME_ORIGIN_REQUIRED
+$ verify-parlor first-tap drive
+PASS sign-in: guest issuance and signed continuity cookie — 'Guest access is ready.'; cookie first-tap-continuity HttpOnly SameSite=Lax, expires in 30 days
+PASS issuer rejects wrong origin, missing and forged continuity — 403 SAME_ORIGIN_REQUIRED (no cookie); 401 GUEST_CONTINUITY_REQUIRED; 401 GUEST_CONTINUITY_INVALID
+PASS invalid name blocks entry — status shown, Create room disabled
+PASS Ari creates a room and hosts it — room FJUX, Ari jd7ak5s7c5v28vbkb88h1jg9x18gnd3y, host controls shown
+PASS unknown code is refused — 'That room is not open. Check the code or ask the host to create a new room.'
+PASS Bea joins from the invite link on a phone-sized screen — Bea jd7frcjr0y39thfvvdesnv6zz58gngmq; both rosters 2/12
+PASS Ari starts match 1 with a frozen lineup — both players see 'Tap to win'; Ari's roster: Ari (you) Host · Playing | Bea Seat 2 · Playing
+PASS Cy arrives late and only watches — Cy jd7b7kv9pbe2eghtcrx51engw18gn4mc watching, no tap control
+PASS Bea's tap wins for everyone — Ari, Bea and Cy all show 'Bea wins'
+PASS rematch admits Cy — Match 2; all three playing: Ari (you) Host · Playing | Bea Seat 2 · Playing | Cy Seat 3 · Playing
+PASS offline player cannot tap, then recovers — status 'Connected' after recovery; while cut: tap disabled, 'Reconnecting.' shown
+PASS Cy wins match 2 — all three show 'Cy wins'
+PASS Bea refreshes and rejoins as the same player and seat — same player jd7frcjr0y39thfvvdesnv6zz58gngmq; 'You occupy seat 2'; roster 3/12 (no duplicate)
+PASS host leaves and hosting passes to Bea — Ari back in the lobby; Bea has host controls
+PASS Bea closes the room for everyone — Bea and Cy show 'This room is closed'
+PASS reused invite to the closed room is refused — ?room=FJUX -> 'That room is not open.'
+PASS stored state agrees with the screens — room closed; 2 completed matches; 5 frozen participant rows (2 then 3)
+PASS backend down: the room says it is reconnecting — backend stopped; status 'Connecting'. Run 'verify-parlor first-tap down' next.
+PASS no uncaught page errors — 0 page errors
+
+PASS first-tap: 19/19 steps. Evidence: ~/.cache/tmp/verify-parlor/runs/proof-20261020T222958Z/first-tap
+$ verify-parlor first-tap down
+stopped web (process group 1225672)
+removed run HOME, .env.local and state. No source changes under examples/first-tap.

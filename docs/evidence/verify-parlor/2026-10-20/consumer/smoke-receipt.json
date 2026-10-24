@@ -1,0 +1,16 @@
+{
+  "ok": true,
+  "backendVersion": "precompiled-2026-08-25-7cce8fb",
+  "runtime": "anonymous local Convex; generated extended-schema consumer; built package exports",
+  "proved": [
+    "verified guest identity",
+    "idempotent join",
+    "atomic game/match composition",
+    "immutable roster and late-join rematch",
+    "same-player token renewal",
+    "deadline enforcement before sweeping",
+    "rejected completion leaves game score unchanged",
+    "registered scheduled abandonment",
+    "room closure"
+  ]
+}

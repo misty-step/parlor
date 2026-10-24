@@ -1,0 +1,126 @@
+{
+  "feature": "first-tap",
+  "startedAt": "2026-10-20T22:31:33.361Z",
+  "head": "443991cb548865d2ba9460422b78ac08683936e3",
+  "dirty": false,
+  "target": "http://localhost:3000 on anonymous local Convex",
+  "backendRevision": "443991cb548865d2ba9460422b78ac08683936e3",
+  "finishedAt": "2026-10-20T22:32:34.393Z",
+  "ok": true,
+  "steps": [
+    {
+      "name": "sign-in: guest issuance and signed continuity cookie",
+      "ok": true,
+      "observed": "'Guest access is ready.'; cookie first-tap-continuity HttpOnly SameSite=Lax, expires in 30 days",
+      "ms": 506
+    },
+    {
+      "name": "issuer rejects wrong origin, missing and forged continuity",
+      "ok": true,
+      "observed": "403 SAME_ORIGIN_REQUIRED (no cookie); 401 GUEST_CONTINUITY_REQUIRED; 401 GUEST_CONTINUITY_INVALID",
+      "ms": 19
+    },
+    {
+      "name": "invalid name blocks entry",
+      "ok": true,
+      "observed": "status shown, Create room disabled",
+      "ms": 21
+    },
+    {
+      "name": "Ari creates a room and hosts it",
+      "ok": true,
+      "observed": "room FJUX, Ari jd7ak5s7c5v28vbkb88h1jg9x18gnd3y, host controls shown",
+      "ms": 5370
+    },
+    {
+      "name": "unknown code is refused",
+      "ok": true,
+      "observed": "'That room is not open. Check the code or ask the host to create a new room.'",
+      "ms": 4760
+    },
+    {
+      "name": "Bea joins from the invite link on a phone-sized screen",
+      "ok": true,
+      "observed": "Bea jd7frcjr0y39thfvvdesnv6zz58gngmq; both rosters 2/12",
+      "ms": 4321
+    },
+    {
+      "name": "Ari starts match 1 with a frozen lineup",
+      "ok": true,
+      "observed": "both players see 'Tap to win'; Ari's roster: Ari (you) Host · Playing | Bea Seat 2 · Playing",
+      "ms": 8874
+    },
+    {
+      "name": "Cy arrives late and only watches",
+      "ok": true,
+      "observed": "Cy jd7b7kv9pbe2eghtcrx51engw18gn4mc watching, no tap control",
+      "ms": 3127
+    },
+    {
+      "name": "Bea's tap wins for everyone",
+      "ok": true,
+      "observed": "Ari, Bea and Cy all show 'Bea wins'",
+      "ms": 1605
+    },
+    {
+      "name": "rematch admits Cy",
+      "ok": true,
+      "observed": "Match 2; all three playing: Ari (you) Host · Playing | Bea Seat 2 · Playing | Cy Seat 3 · Playing",
+      "ms": 6877
+    },
+    {
+      "name": "offline player cannot tap, then recovers",
+      "ok": true,
+      "observed": "status 'Connected' after recovery; while cut: tap disabled, 'Reconnecting.' shown",
+      "ms": 915
+    },
+    {
+      "name": "Cy wins match 2",
+      "ok": true,
+      "observed": "all three show 'Cy wins'",
+      "ms": 216
+    },
+    {
+      "name": "Bea refreshes and rejoins as the same player and seat",
+      "ok": true,
+      "observed": "same player jd7frcjr0y39thfvvdesnv6zz58gngmq; 'You occupy seat 2'; roster 3/12 (no duplicate)",
+      "ms": 409
+    },
+    {
+      "name": "host leaves and hosting passes to Bea",
+      "ok": true,
+      "observed": "Ari back in the lobby; Bea has host controls",
+      "ms": 2994
+    },
+    {
+      "name": "Bea closes the room for everyone",
+      "ok": true,
+      "observed": "Bea and Cy show 'This room is closed'",
+      "ms": 2227
+    },
+    {
+      "name": "reused invite to the closed room is refused",
+      "ok": true,
+      "observed": "?room=FJUX -> 'That room is not open.'",
+      "ms": 6603
+    },
+    {
+      "name": "stored state agrees with the screens",
+      "ok": true,
+      "observed": "room closed; 2 completed matches; 5 frozen participant rows (2 then 3)",
+      "ms": 1467
+    },
+    {
+      "name": "backend down: the room says it is reconnecting",
+      "ok": true,
+      "observed": "backend stopped; status 'Connecting'. Run 'verify-parlor first-tap down' next.",
+      "ms": 9827
+    },
+    {
+      "name": "no uncaught page errors",
+      "ok": true,
+      "observed": "0 page errors",
+      "ms": 0
+    }
+  ]
+}

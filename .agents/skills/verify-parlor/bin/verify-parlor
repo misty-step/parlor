@@ -1,0 +1,57 @@
+#!/usr/bin/env node
+// verify-parlor: drive Parlor's real user journeys and keep the evidence.
+// Run from anywhere inside a Parlor checkout after `pnpm install --frozen-lockfile`.
+import { doctor } from "../lib/doctor.mjs";
+
+const usage = `usage: verify-parlor <command>
+
+  doctor [--url URL]           read-only: deployed site revision, local tools, any running First Tap
+  site [--url URL]             drive the public website (default https://parlor.mistystep.io)
+  first-tap up                 start an isolated local Convex backend, guest issuer and app on :3000
+  first-tap drive              play the multiplayer journey with separate browser identities
+  first-tap down               stop what 'up' started and remove its HOME and .env.local
+  playground                   drive the local rehearsal (starts and stops its own Vite server)
+  consumer                     build packages, run the real-backend smoke, import the skill into a scratch game
+
+Evidence: \${VERIFY_PARLOR_OUT:-~/.cache/tmp/verify-parlor/runs/<UTC>}/<feature>/`;
+
+const [command, ...rest] = process.argv.slice(2);
+const flag = (name, fallback) => {
+  const index = rest.indexOf(name);
+  return index === -1 ? fallback : rest[index + 1];
+};
+const url = flag("--url", "https://parlor.mistystep.io");
+
+switch (command) {
+  case "doctor":
+    await doctor({ url });
+    break;
+  case "site": {
+    const { site } = await import("../lib/site.mjs");
+    await site({ url });
+    break;
+  }
+  case "first-tap": {
+    const firstTap = await import("../lib/first-tap.mjs");
+    const action = rest[0];
+    if (!["up", "drive", "down"].includes(action)) {
+      console.error(usage);
+      process.exit(2);
+    }
+    await firstTap[action]();
+    break;
+  }
+  case "playground": {
+    const { playground } = await import("../lib/playground.mjs");
+    await playground();
+    break;
+  }
+  case "consumer": {
+    const { consumer } = await import("../lib/consumer.mjs");
+    await consumer();
+    break;
+  }
+  default:
+    console.error(usage);
+    process.exit(command === undefined || command === "--help" ? 0 : 2);
+}
