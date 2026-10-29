@@ -42,7 +42,7 @@ jobs:
         with:
           cache: true
       - run: pnpm install --frozen-lockfile
-      - run: pnpm exec playwright install --with-deps chromium
+      - run: pnpm exec playwright install chromium
       - name: Build and verify the candidate once
         run: |
           pnpm check:all
