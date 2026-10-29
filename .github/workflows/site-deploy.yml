@@ -21,7 +21,7 @@ concurrency:
 jobs:
   deploy:
     if: github.ref == 'refs/heads/master' || (github.event_name == 'workflow_dispatch' && inputs.rollback_drill)
-    runs-on: [self-hosted, Linux, X64, hetzner]
+    runs-on: [self-hosted, hetzner-ci, parlor-ci]
     environment: ${{ inputs.rollback_drill && 'staging' || 'production' }}
     env:
       SITE_ENV: ${{ inputs.rollback_drill && 'staging' || 'production' }}
@@ -30,6 +30,8 @@ jobs:
       PUBLIC_SITE_RELEASE: ${{ github.sha }}
     timeout-minutes: 15
     steps:
+      - name: Install GitHub CLI
+        run: sudo apt-get update && sudo apt-get install -y gh
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
@@ -42,6 +44,8 @@ jobs:
         with:
           cache: true
       - run: pnpm install --frozen-lockfile
+      - name: Install browser system dependencies
+        run: pnpm exec playwright install-deps chromium
       - run: pnpm exec playwright install chromium
       - name: Build and verify the candidate once
         run: |
@@ -119,7 +123,7 @@ jobs:
   release:
     needs: deploy
     if: github.event_name == 'push' && github.ref == 'refs/heads/master'
-    runs-on: [self-hosted, Linux, X64, hetzner]
+    runs-on: [self-hosted, hetzner-ci, parlor-ci]
 
     permissions:
       contents: write
@@ -128,6 +132,8 @@ jobs:
     env:
       GH_TOKEN: ${{ github.token }}
     steps:
+      - name: Install GitHub CLI
+        run: sudo apt-get update && sudo apt-get install -y gh
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0

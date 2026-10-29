@@ -19,7 +19,7 @@ jobs:
   semantic-advisory:
     # Fork pull requests can trigger this event. They never reach a runner.
     if: ${{ github.event.pull_request.head.repo.full_name == github.repository }}
-    runs-on: ubuntu-24.04
+    runs-on: [self-hosted, hetzner-ci, parlor-ci]
     timeout-minutes: 10
     defaults:
       run:
