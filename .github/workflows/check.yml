@@ -15,7 +15,7 @@ concurrency:
 
 jobs:
   check:
-    runs-on: [self-hosted, Linux, X64, hetzner]
+    runs-on: [self-hosted, hetzner-ci, parlor-ci]
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -37,6 +37,8 @@ jobs:
           cache: true
       - run: pnpm install --frozen-lockfile
       - run: python3 tests/release.py
+      - name: Install browser system dependencies
+        run: pnpm exec playwright install-deps chromium
       - run: pnpm exec playwright install chromium
       - run: pnpm check:all
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
